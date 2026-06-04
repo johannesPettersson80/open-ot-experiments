@@ -1,0 +1,1 @@
+{"kind":"loss","provenance":{"bufferId":9,"source":{"id":88},"runId":1,"epoch":{"id":7,"relation":"current","definitionHash":"c175fb1aee0549e1","semanticVersion":"1.0.0"},"receiveTimeNs":60000,"flags":{"timeUnsynced":false,"syntheticRecord":false,"partialPayload":false}},"firstSeq":0,"lastSeq":4,"count":5,"basis":"authoritative"}

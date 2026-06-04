@@ -1,0 +1,29 @@
+{
+  "name": "state_transition",
+  "description": "wire-codec StateTransition record; schema-negative because stateMachineId is UInt and required state fields are absent",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "state_transition.hex",
+  "byteCount": 60,
+  "headerLength": 40,
+  "totalRecordLength": 60,
+  "flags": "0x0008",
+  "crc32c": "0x51E08EE1",
+  "detail": {
+    "eventName": "StateTransition",
+    "schemaExpected": "reject",
+    "schemaViolation": "stateMachineId uses UInt instead of UDInt and previousState/newState are absent",
+    "fields": {
+      "sourceTime": "0x0102030405060708",
+      "runId": 1,
+      "seq": 2,
+      "sourceId": 42,
+      "eventTypeId": "0x0001"
+    },
+    "slots": [
+      { "key": "0x0001", "type": "UInt", "value": "0x1234" },
+      { "key": "0x0002", "type": "UInt", "value": 2 }
+    ]
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "name": "conformant_state_transition",
+  "description": "definition-layer positive StateTransition record",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "conformant_state_transition.hex",
+  "byteCount": 76,
+  "headerLength": 40,
+  "totalRecordLength": 76,
+  "flags": "0x0008",
+  "crc32c": "0x47A5A360",
+  "detail": {
+    "eventName": "StateTransition",
+    "schemaExpected": "accept",
+    "fields": {
+      "sourceTime": 1000000000,
+      "runId": 1,
+      "seq": 1,
+      "sourceId": 66,
+      "eventTypeId": "0x0001"
+    },
+    "slots": [
+      { "key": "0x0001", "type": "UDInt", "name": "stateMachineId", "value": 7 },
+      { "key": "0x0002", "type": "UInt", "name": "category", "value": 2 },
+      { "key": "0x0003", "type": "UInt", "name": "previousState", "value": 3 },
+      { "key": "0x0004", "type": "UInt", "name": "newState", "value": 4 }
+    ]
+  }
+}

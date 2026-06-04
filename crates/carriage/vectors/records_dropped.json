@@ -1,0 +1,28 @@
+{
+  "name": "records_dropped",
+  "description": "canonical RecordsDropped record",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "records_dropped.hex",
+  "byteCount": 76,
+  "headerLength": 40,
+  "totalRecordLength": 76,
+  "flags": "0x0008",
+  "crc32c": "0xE3CC4857",
+  "detail": {
+    "eventName": "RecordsDropped",
+    "fields": {
+      "sourceTime": 0,
+      "runId": 9,
+      "seq": 44,
+      "sourceId": 42,
+      "eventTypeId": "0x0104"
+    },
+    "slots": [
+      { "key": "0x0016", "type": "UDInt", "name": "droppedCount", "value": 5 },
+      { "key": "0x0017", "type": "ULInt", "name": "firstLostSeq", "value": 100 },
+      { "key": "0x0018", "type": "ULInt", "name": "lastLostSeq", "value": 104 }
+    ]
+  }
+}

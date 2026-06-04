@@ -1,0 +1,16 @@
+{
+  "name": "wrap_marker_boundary",
+  "kind": "physical-ring-image",
+  "encoding": "wire-v2-ring",
+  "expected": "accept-after-lap",
+  "hexFile": "wrap_marker_boundary.hex",
+  "capacity": 128,
+  "headAbs": 180,
+  "oldestAbs": 128,
+  "wrapMarker": { "abs": 88, "phys": 88, "value": "0x00" },
+  "cursorAbs": 88,
+  "expectedLapped": true,
+  "expectedDelivered": [
+    { "sourceId": 81, "seq": 2, "startAbs": 128, "endAbs": 180 }
+  ]
+}

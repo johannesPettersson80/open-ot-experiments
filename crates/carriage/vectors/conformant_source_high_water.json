@@ -1,0 +1,27 @@
+{
+  "name": "conformant_source_high_water",
+  "description": "definition-layer positive SourceHighWater record",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "conformant_source_high_water.hex",
+  "byteCount": 56,
+  "headerLength": 40,
+  "totalRecordLength": 56,
+  "flags": "0x0008",
+  "crc32c": "0x9ECC3ED5",
+  "detail": {
+    "eventName": "SourceHighWater",
+    "schemaExpected": "accept",
+    "fields": {
+      "sourceTime": 0,
+      "runId": 1,
+      "seq": 5,
+      "sourceId": 88,
+      "eventTypeId": "0x0108"
+    },
+    "slots": [
+      { "key": "0x0038", "type": "ULInt", "name": "producedCount", "value": 5 }
+    ]
+  }
+}

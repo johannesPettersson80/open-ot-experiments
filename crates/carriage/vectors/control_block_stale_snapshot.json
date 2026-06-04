@@ -1,0 +1,10 @@
+{
+  "name": "control_block_stale_snapshot",
+  "kind": "control-block",
+  "encoding": "open-ot-control-v2",
+  "expected": "reject",
+  "expectedError": "StaleSnapshot",
+  "hexFile": "control_block_stale_snapshot.hex",
+  "observedSeqLockFirst": 2,
+  "observedSeqLockSecond": 4
+}

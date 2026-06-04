@@ -1,0 +1,21 @@
+{
+  "name": "control_block",
+  "kind": "control-block",
+  "encoding": "open-ot-control-v2",
+  "expected": "accept",
+  "hexFile": "control_block.hex",
+  "byteCount": 88,
+  "seqLock": 2,
+  "fields": {
+    "bufferId": 7,
+    "bufferBytes": 4096,
+    "headAbs": 8192,
+    "oldestAbs": 6144,
+    "lostCount": 12,
+    "runId": 3,
+    "epochId": 5,
+    "epochFirstAbs": 7000,
+    "definitionHash": "6465666861736831",
+    "prevDefinitionHash": "6F6C646861736831"
+  }
+}

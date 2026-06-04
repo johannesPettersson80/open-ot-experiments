@@ -1,0 +1,12 @@
+{
+  "name": "torn_record_must_reject",
+  "kind": "record-fragment",
+  "encoding": "wire-v2",
+  "expected": "reject",
+  "expectedError": "CrcMismatch",
+  "hexFile": "torn_record_must_reject.hex",
+  "byteCount": 52,
+  "advertisedTotalRecordLength": 52,
+  "copiedPrefixBytes": 44,
+  "fault": "valid sync and length, copied header plus slot header, unwritten tail filled with 0xA5"
+}

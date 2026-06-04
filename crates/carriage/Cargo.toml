@@ -1,0 +1,19 @@
+[package]
+name = "open-ot-carriage"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+description = "Experimental Rust implementation of the OpenOT carriage layer (wire, ring buffer, loss accounting, epochs)"
+license = "Apache-2.0"
+readme = "README.md"
+keywords = ["plc", "logging", "industrial", "ring-buffer", "telemetry"]
+categories = ["embedded", "encoding", "data-structures"]
+repository = "https://github.com/johannesPettersson80/open-ot-experiments"
+
+[dependencies]
+
+[dev-dependencies]
+loom = "0.7"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(loom)'] }

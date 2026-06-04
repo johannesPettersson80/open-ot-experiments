@@ -1,0 +1,29 @@
+{
+  "name": "conformant_message",
+  "description": "definition-layer positive Message record",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "conformant_message.hex",
+  "byteCount": 76,
+  "headerLength": 40,
+  "totalRecordLength": 76,
+  "flags": "0x0008",
+  "crc32c": "0xB0BECFCF",
+  "detail": {
+    "eventName": "Message",
+    "schemaExpected": "accept",
+    "fields": {
+      "sourceTime": 1000000010,
+      "runId": 1,
+      "seq": 2,
+      "sourceId": 66,
+      "eventTypeId": "0x0003"
+    },
+    "slots": [
+      { "key": "0x0014", "type": "UDInt", "name": "messageTemplateId", "value": 1001 },
+      { "key": "0x0015", "type": "String", "name": "arg", "value": "phase ready" },
+      { "key": "0x0008", "type": "UInt", "name": "severity", "value": 500 }
+    ]
+  }
+}

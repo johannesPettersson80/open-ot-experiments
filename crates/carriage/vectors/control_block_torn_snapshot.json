@@ -1,0 +1,9 @@
+{
+  "name": "control_block_torn_snapshot",
+  "kind": "control-block",
+  "encoding": "open-ot-control-v2",
+  "expected": "reject",
+  "expectedError": "Updating",
+  "hexFile": "control_block_torn_snapshot.hex",
+  "observedSeqLock": 3
+}

@@ -1,0 +1,17 @@
+[package]
+name = "open-ot-document"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+description = "Experimental OpenOT document-format proposal"
+license = "Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/johannesPettersson80/open-ot-experiments"
+keywords = ["plc", "logging", "industrial", "json", "telemetry"]
+categories = ["encoding", "data-structures"]
+
+[dependencies]
+open-ot-carriage = { path = "../carriage" }
+open-ot-definition = { path = "../definition" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

@@ -1,0 +1,22 @@
+{
+  "name": "overflow_records_dropped_sequence",
+  "kind": "logical-record-stream",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "overflow_records_dropped_sequence.hex",
+  "ringCapacity": 256,
+  "batchLapped": true,
+  "recordsInStream": 4,
+  "producerLoss": {
+    "runId": 1,
+    "sourceId": 88,
+    "firstSeq": 0,
+    "lastSeq": 4,
+    "count": 5
+  },
+  "expectedAccounting": {
+    "sourceId": 88,
+    "lost": 5,
+    "deliveredRecordsDroppedRecord": true
+  }
+}
