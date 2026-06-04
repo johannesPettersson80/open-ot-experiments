@@ -56,15 +56,15 @@ sequenceDiagram
     participant M as Ring byte pool
     participant C as Consumer
 
-    P->>B: SeqLock odd; advance OldestAbs before reclaim
+    P->>B: SeqLock odd, advance OldestAbs before reclaim
     P->>P: Release fence
     P->>M: copy record bytes
-    P->>B: publish HeadAbs; SeqLock even with Release
+    P->>B: publish HeadAbs, SeqLock even with Release
     C->>B: read stable SeqLock snapshot
     C->>M: read candidate record bytes
     C->>C: Acquire fence
     C->>B: re-read OldestAbs from a fresh snapshot
-    C->>C: reject if overwritten; otherwise decode + CRC
+    C->>C: reject if overwritten, otherwise decode and verify CRC
 ```
 
 The release fence before clobbering reclaimed bytes is not a performance decoration. It is the rule that makes the consumer's final `OldestAbs` re-check meaningful on weakly ordered systems. CRC catches mixed torn records; the oldest-offset re-check catches clean but stale records at a reclaimed absolute position.
