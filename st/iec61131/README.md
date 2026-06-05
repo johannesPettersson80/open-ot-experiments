@@ -1,0 +1,66 @@
+# OpenOT IEC 61131-3 Structured Text Encoder
+
+This directory contains a vendor-neutral IEC 61131-3 Structured Text encoder for the
+OpenOT carriage record format. It is intentionally limited to the S1 carriage-codec
+slice: CRC-32C, the 40-byte `OOT2` record header, TLV slots, 4-byte slot padding,
+and the CRC trailer.
+
+The conformance contract is byte-exact comparison against:
+
+- `crates/carriage/vectors/conformant_state_transition.hex`
+- `crates/carriage/vectors/conformant_message.hex`
+- `crates/carriage/vectors/conformant_records_dropped.hex`
+- `crates/carriage/vectors/conformant_source_high_water.hex`
+
+No specific compiler, runtime, or test framework is required by this public artifact.
+The test POUs expose pass/fail state and mismatch metadata for harnesses that can run
+this ST subset.
+
+## Conservative ST Subset
+
+The S1 source stays inside this subset:
+
+- fixed `ARRAY[..] OF BYTE` buffers;
+- explicit output lengths;
+- explicit little-endian byte writers;
+- `DWORD` CRC arithmetic using `SHR`, `AND`, and `XOR`;
+- scalar payload packing by byte arithmetic or typed bit-string conversion.
+
+The S1 source does not use:
+
+- pointers or references;
+- variable-length arrays;
+- overlapping memory access or overlay declarations;
+- generic `ANY` parameters;
+- `STRING` internal layout;
+- assertion functions or a runtime-specific test framework;
+- endian conversion helpers.
+
+For the message vector, text is encoded as explicit payload bytes and length, not by
+reading a `STRING` representation.
+
+## Files
+
+- `src/openot_crc32c.st` defines `OPENOT_BYTE_BUFFER` and `OPENOT_Crc32c`.
+- `src/openot_wire_encode.st` defines little-endian writer helpers and one encoder
+  function block per conformant vector.
+- `tests/*.st` defines self-checking POUs. Each test exposes:
+  - `Passed : BOOL`
+  - `MismatchIndex : UINT`
+  - `ActualLength : UINT`
+  - `ExpectedLength : UINT`
+
+`MismatchIndex = 65535` means no byte mismatch was found. If `Passed = FALSE` and
+the lengths differ, inspect `ActualLength` and `ExpectedLength`.
+
+## Harness Contract
+
+A conforming harness loads the source files, instantiates each test POU, executes one
+scan, and reads the exposed outputs. A vector test passes only when:
+
+1. `ActualLength = ExpectedLength`;
+2. every byte in `Buffer[0..ActualLength-1]` equals the embedded expected bytes from
+   the matching `.hex` vector.
+
+The CRC test passes only when CRC-32C over explicit ASCII bytes `16#31..16#39`
+equals `16#E3069283`.
