@@ -1,0 +1,25 @@
+{
+  "name": "logger_stopped",
+  "description": "LoggerStopped lifecycle record",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "logger_stopped.hex",
+  "byteCount": 44,
+  "headerLength": 40,
+  "totalRecordLength": 44,
+  "flags": "0x0008",
+  "crc32c": "0x8570A809",
+  "detail": {
+    "eventName": "LoggerStopped",
+    "systemSourceSeq": 0,
+    "fields": {
+      "sourceTime": 0,
+      "runId": 1,
+      "seq": 0,
+      "sourceId": 0,
+      "eventTypeId": "0x0102"
+    },
+    "slots": []
+  }
+}

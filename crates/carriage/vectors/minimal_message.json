@@ -1,0 +1,26 @@
+{
+  "name": "minimal_message",
+  "description": "minimal Message record for producer sequence fixtures",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "minimal_message.hex",
+  "byteCount": 44,
+  "headerLength": 40,
+  "totalRecordLength": 44,
+  "flags": "0x0008",
+  "crc32c": "0x97EF5221",
+  "detail": {
+    "eventName": "Message",
+    "schemaExpected": "reject",
+    "schemaViolation": "minimal producer fixture has no definition-layer message fields",
+    "fields": {
+      "sourceTime": 1780000000000000003,
+      "runId": 1,
+      "seq": 3,
+      "sourceId": 7,
+      "eventTypeId": "0x0003"
+    },
+    "slots": []
+  }
+}

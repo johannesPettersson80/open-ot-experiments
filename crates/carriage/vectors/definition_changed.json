@@ -1,0 +1,30 @@
+{
+  "name": "definition_changed",
+  "description": "DefinitionChanged lifecycle record with epoch.rs emission slot order",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "definition_changed.hex",
+  "byteCount": 80,
+  "headerLength": 40,
+  "totalRecordLength": 80,
+  "flags": "0x0008",
+  "crc32c": "0xB12E41A5",
+  "detail": {
+    "eventName": "DefinitionChanged",
+    "systemSourceSeq": 1,
+    "fields": {
+      "sourceTime": 0,
+      "runId": 1,
+      "seq": 1,
+      "sourceId": 0,
+      "eventTypeId": "0x0106"
+    },
+    "slots": [
+      { "key": "0x0039", "type": "Bytes", "name": "defHashOld", "value": "oldhash1", "order": 1 },
+      { "key": "0x001C", "type": "Bytes", "name": "defHashNew", "value": "newhash2", "order": 2 },
+      { "key": "0x003A", "type": "ULInt", "name": "epochId", "value": 2, "order": 3 }
+    ],
+    "slotOrderNote": "Matches epoch.rs emit_definition_changed: old, new, epoch; not numeric key order."
+  }
+}

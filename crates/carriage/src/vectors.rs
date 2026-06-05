@@ -13,10 +13,12 @@ use crate::consumer::RawByteConsumer;
 use crate::control::{CONTROL_BLOCK_LEN, ControlBlockSnapshot};
 use crate::loss::{EVENT_RECORDS_DROPPED, records_dropped_record};
 use crate::registry::{
-    EVENT_MESSAGE, EVENT_SOURCE_HIGH_WATER, EVENT_STATE_TRANSITION, KEY_ARG, KEY_CATEGORY,
-    KEY_DROPPED_COUNT, KEY_FIRST_LOST_SEQ, KEY_LAST_LOST_SEQ, KEY_MESSAGE_TEMPLATE_ID,
-    KEY_NEW_STATE, KEY_PREVIOUS_STATE, KEY_SEVERITY, KEY_SOURCE_HIGH_WATER, KEY_STATE_MACHINE_ID,
-    KEY_WINDOW_END, KEY_WINDOW_START, TY_DATE_TIME, TY_STRING, TY_UDINT, TY_UINT, TY_ULINT,
+    EVENT_DEFINITION_CHANGED, EVENT_LOGGER_STARTED, EVENT_LOGGER_STOPPED, EVENT_MESSAGE,
+    EVENT_SOURCE_HIGH_WATER, EVENT_STATE_TRANSITION, KEY_ARG, KEY_CATEGORY, KEY_COLD_START,
+    KEY_DEF_HASH_NEW, KEY_DEF_HASH_OLD, KEY_DROPPED_COUNT, KEY_EPOCH_ID, KEY_FIRST_LOST_SEQ,
+    KEY_LAST_LOST_SEQ, KEY_MESSAGE_TEMPLATE_ID, KEY_NEW_STATE, KEY_PREVIOUS_STATE, KEY_SEVERITY,
+    KEY_SOURCE_HIGH_WATER, KEY_STATE_MACHINE_ID, KEY_WINDOW_END, KEY_WINDOW_START,
+    SYSTEM_SOURCE_ID, TY_BOOL, TY_BYTES, TY_DATE_TIME, TY_STRING, TY_UDINT, TY_UINT, TY_ULINT,
 };
 use crate::ring::{LossRange, RingBuffer};
 use crate::wire::{FLAG_HAS_CRC, HEADER_LEN, Record, SYNC, Slot, WireError, decode};
@@ -212,6 +214,112 @@ pub fn generate_files() -> Vec<VectorFile> {
   "slots": [
     { "key": "0x0038", "type": "ULInt", "name": "producedCount", "value": 5 }
   ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
+        "minimal_message",
+        "minimal Message record for producer sequence fixtures",
+        &minimal_message_record(),
+        r#"{
+  "eventName": "Message",
+  "schemaExpected": "reject",
+  "schemaViolation": "minimal producer fixture has no definition-layer message fields",
+  "fields": {
+    "sourceTime": 1780000000000000003,
+    "runId": 1,
+    "seq": 3,
+    "sourceId": 7,
+    "eventTypeId": "0x0003"
+  },
+  "slots": []
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
+        "logger_stopped",
+        "LoggerStopped lifecycle record",
+        &logger_stopped_record(),
+        r#"{
+  "eventName": "LoggerStopped",
+  "systemSourceSeq": 0,
+  "fields": {
+    "sourceTime": 0,
+    "runId": 1,
+    "seq": 0,
+    "sourceId": 0,
+    "eventTypeId": "0x0102"
+  },
+  "slots": []
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
+        "definition_changed",
+        "DefinitionChanged lifecycle record with epoch.rs emission slot order",
+        &definition_changed_record(),
+        r#"{
+  "eventName": "DefinitionChanged",
+  "systemSourceSeq": 1,
+  "fields": {
+    "sourceTime": 0,
+    "runId": 1,
+    "seq": 1,
+    "sourceId": 0,
+    "eventTypeId": "0x0106"
+  },
+  "slots": [
+    { "key": "0x0039", "type": "Bytes", "name": "defHashOld", "value": "oldhash1", "order": 1 },
+    { "key": "0x001C", "type": "Bytes", "name": "defHashNew", "value": "newhash2", "order": 2 },
+    { "key": "0x003A", "type": "ULInt", "name": "epochId", "value": 2, "order": 3 }
+  ],
+  "slotOrderNote": "Matches epoch.rs emit_definition_changed: old, new, epoch; not numeric key order."
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
+        "logger_started_warm",
+        "LoggerStarted warm lifecycle record",
+        &logger_started_warm_record(),
+        r#"{
+  "eventName": "LoggerStarted",
+  "systemSourceSeq": 2,
+  "fields": {
+    "sourceTime": 0,
+    "runId": 1,
+    "seq": 2,
+    "sourceId": 0,
+    "eventTypeId": "0x0101"
+  },
+  "slots": [
+    { "key": "0x003B", "type": "Bool", "name": "coldStart", "value": false }
+  ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
+        "logger_started_cold",
+        "LoggerStarted cold lifecycle record after system sequence reset",
+        &logger_started_cold_record(),
+        r#"{
+  "eventName": "LoggerStarted",
+  "systemSourceSeq": 0,
+  "fields": {
+    "sourceTime": 0,
+    "runId": 2,
+    "seq": 0,
+    "sourceId": 0,
+    "eventTypeId": "0x0101"
+  },
+  "slots": [
+    { "key": "0x003B", "type": "Bool", "name": "coldStart", "value": true }
+  ],
+  "systemSeqNote": "finish_cold_start resets system_seq before emitting LoggerStarted."
 }"#,
     );
 
@@ -713,6 +821,44 @@ fn source_high_water_record() -> Record {
     record
 }
 
+fn minimal_message_record() -> Record {
+    minimal_record(7, 3)
+}
+
+fn logger_stopped_record() -> Record {
+    Record::new(0, 1, 0, SYSTEM_SOURCE_ID, EVENT_LOGGER_STOPPED)
+}
+
+fn definition_changed_record() -> Record {
+    let mut record = Record::new(0, 1, 1, SYSTEM_SOURCE_ID, EVENT_DEFINITION_CHANGED);
+    record
+        .slots
+        .push(Slot::new(KEY_DEF_HASH_OLD, TY_BYTES, b"oldhash1"));
+    record
+        .slots
+        .push(Slot::new(KEY_DEF_HASH_NEW, TY_BYTES, b"newhash2"));
+    record
+        .slots
+        .push(Slot::new(KEY_EPOCH_ID, TY_ULINT, 2u64.to_le_bytes()));
+    record
+}
+
+fn logger_started_warm_record() -> Record {
+    logger_started_record(1, 2, false)
+}
+
+fn logger_started_cold_record() -> Record {
+    logger_started_record(2, 0, true)
+}
+
+fn logger_started_record(run_id: u64, seq: u64, cold_start: bool) -> Record {
+    let mut record = Record::new(0, run_id, seq, SYSTEM_SOURCE_ID, EVENT_LOGGER_STARTED);
+    record
+        .slots
+        .push(Slot::new(KEY_COLD_START, TY_BOOL, [u8::from(cold_start)]));
+    record
+}
+
 fn minimal_record(source_id: u32, seq: u64) -> Record {
     Record::new(
         1_780_000_000_000_000_000 + seq,
@@ -742,6 +888,11 @@ fn hex_path(stem: &'static str) -> &'static str {
         "conformant_source_high_water" => "conformant_source_high_water.hex",
         "records_dropped" => "records_dropped.hex",
         "source_high_water" => "source_high_water.hex",
+        "minimal_message" => "minimal_message.hex",
+        "logger_stopped" => "logger_stopped.hex",
+        "definition_changed" => "definition_changed.hex",
+        "logger_started_warm" => "logger_started_warm.hex",
+        "logger_started_cold" => "logger_started_cold.hex",
         _ => unreachable!("unknown vector stem"),
     }
 }
@@ -755,6 +906,11 @@ fn json_path(stem: &'static str) -> &'static str {
         "conformant_source_high_water" => "conformant_source_high_water.json",
         "records_dropped" => "records_dropped.json",
         "source_high_water" => "source_high_water.json",
+        "minimal_message" => "minimal_message.json",
+        "logger_stopped" => "logger_stopped.json",
+        "definition_changed" => "definition_changed.json",
+        "logger_started_warm" => "logger_started_warm.json",
+        "logger_started_cold" => "logger_started_cold.json",
         _ => unreachable!("unknown vector stem"),
     }
 }
@@ -835,6 +991,43 @@ mod tests {
             &conformant_source_high_water_record(),
             &[(KEY_SOURCE_HIGH_WATER, TY_ULINT, 8)],
         );
+    }
+
+    #[test]
+    fn lifecycle_vectors_match_epoch_producer_emission() {
+        let stopped = logger_stopped_record();
+        assert_eq!(stopped.source_id, SYSTEM_SOURCE_ID);
+        assert_eq!(stopped.seq, 0);
+        assert_eq!(stopped.event_type_id, EVENT_LOGGER_STOPPED);
+        assert_slots(&stopped, &[]);
+
+        let changed = definition_changed_record();
+        assert_eq!(changed.source_id, SYSTEM_SOURCE_ID);
+        assert_eq!(changed.seq, 1);
+        assert_eq!(changed.event_type_id, EVENT_DEFINITION_CHANGED);
+        assert_slots(
+            &changed,
+            &[
+                (KEY_DEF_HASH_OLD, TY_BYTES, 8),
+                (KEY_DEF_HASH_NEW, TY_BYTES, 8),
+                (KEY_EPOCH_ID, TY_ULINT, 8),
+            ],
+        );
+
+        let warm = logger_started_warm_record();
+        assert_eq!(warm.source_id, SYSTEM_SOURCE_ID);
+        assert_eq!(warm.seq, 2);
+        assert_eq!(warm.event_type_id, EVENT_LOGGER_STARTED);
+        assert_slots(&warm, &[(KEY_COLD_START, TY_BOOL, 1)]);
+        assert_eq!(warm.slots[0].payload, [0]);
+
+        let cold = logger_started_cold_record();
+        assert_eq!(cold.source_id, SYSTEM_SOURCE_ID);
+        assert_eq!(cold.seq, 0);
+        assert_eq!(cold.run_id, 2);
+        assert_eq!(cold.event_type_id, EVENT_LOGGER_STARTED);
+        assert_slots(&cold, &[(KEY_COLD_START, TY_BOOL, 1)]);
+        assert_eq!(cold.slots[0].payload, [1]);
     }
 
     #[test]

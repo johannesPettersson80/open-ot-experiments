@@ -1,0 +1,27 @@
+{
+  "name": "logger_started_warm",
+  "description": "LoggerStarted warm lifecycle record",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "logger_started_warm.hex",
+  "byteCount": 52,
+  "headerLength": 40,
+  "totalRecordLength": 52,
+  "flags": "0x0008",
+  "crc32c": "0xE30202C7",
+  "detail": {
+    "eventName": "LoggerStarted",
+    "systemSourceSeq": 2,
+    "fields": {
+      "sourceTime": 0,
+      "runId": 1,
+      "seq": 2,
+      "sourceId": 0,
+      "eventTypeId": "0x0101"
+    },
+    "slots": [
+      { "key": "0x003B", "type": "Bool", "name": "coldStart", "value": false }
+    ]
+  }
+}

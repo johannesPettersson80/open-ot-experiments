@@ -1,0 +1,28 @@
+{
+  "name": "logger_started_cold",
+  "description": "LoggerStarted cold lifecycle record after system sequence reset",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "logger_started_cold.hex",
+  "byteCount": 52,
+  "headerLength": 40,
+  "totalRecordLength": 52,
+  "flags": "0x0008",
+  "crc32c": "0x09DF2ACF",
+  "detail": {
+    "eventName": "LoggerStarted",
+    "systemSourceSeq": 0,
+    "fields": {
+      "sourceTime": 0,
+      "runId": 2,
+      "seq": 0,
+      "sourceId": 0,
+      "eventTypeId": "0x0101"
+    },
+    "slots": [
+      { "key": "0x003B", "type": "Bool", "name": "coldStart", "value": true }
+    ],
+    "systemSeqNote": "finish_cold_start resets system_seq before emitting LoggerStarted."
+  }
+}
