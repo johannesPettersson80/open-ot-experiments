@@ -25,7 +25,7 @@ use std::collections::VecDeque;
 
 use crate::control::{ControlBlockError, ControlBlockSnapshot};
 use crate::ring::{DEFAULT_BUFFER_ID, ReadBatch, ReadRecord, RingError};
-use crate::wire::{HEADER_LEN, Record, SYNC, WireError, decode};
+use crate::wire::{FLAG_HAS_CRC, HEADER_LEN, Record, SYNC, WireError, decode, validate_record};
 
 /// Operation-based storage contract for the concurrent publish/read protocol.
 ///
@@ -392,10 +392,52 @@ where
                 capacity,
             });
         }
+        self.append_bytes_core(&encoded);
+        Ok(())
+    }
 
+    /// Publishes one already-encoded OpenOT record, reclaiming the oldest bytes if needed.
+    ///
+    /// The encoded slice must contain exactly one CRC-protected record. All validation
+    /// completes before the shared append core mutates the ring or control block.
+    pub fn append_encoded(&mut self, bytes: &[u8]) -> Result<(), RingError> {
+        if bytes.len() < HEADER_LEN {
+            return match validate_record(bytes) {
+                Err(error) => Err(error.into()),
+                Ok(_) => unreachable!("validate_record accepted bytes shorter than HEADER_LEN"),
+            };
+        }
+
+        let flags = u16::from_le_bytes([bytes[6], bytes[7]]);
+        if flags & FLAG_HAS_CRC == 0 {
+            return Err(RingError::EncodedRecordMissingCrc { flags });
+        }
+
+        let consumed = validate_record(bytes)?;
+        if consumed != bytes.len() {
+            return Err(RingError::EncodedRecordLengthMismatch {
+                declared_len: consumed,
+                actual_len: bytes.len(),
+            });
+        }
+
+        let capacity = self.store.capacity();
+        if bytes.len() > capacity {
+            return Err(RingError::RecordExceedsCapacity {
+                record_len: bytes.len(),
+                capacity,
+            });
+        }
+
+        self.append_bytes_core(bytes);
+        Ok(())
+    }
+
+    fn append_bytes_core(&mut self, bytes: &[u8]) {
+        debug_assert!(bytes.len() <= self.store.capacity());
         let start_phys = physical_offset(&self.store, self.head_abs);
-        let record_start_abs = self.next_start_abs(encoded.len());
-        let final_head = record_start_abs + encoded.len() as u64;
+        let record_start_abs = self.next_start_abs(bytes.len());
+        let final_head = record_start_abs + bytes.len() as u64;
 
         self.store.begin_control_update();
         self.evict_before_clobber(final_head, record_start_abs);
@@ -405,7 +447,7 @@ where
         }
 
         let record_start = physical_offset(&self.store, record_start_abs);
-        for (i, byte) in encoded.iter().enumerate() {
+        for (i, byte) in bytes.iter().enumerate() {
             self.store.store_byte_relaxed(record_start + i, *byte);
         }
 
@@ -413,7 +455,6 @@ where
         self.head_abs = final_head;
         self.store.store_head_release(final_head);
         self.store.end_control_update_release();
-        Ok(())
     }
 
     fn evict_before_clobber(&mut self, final_head: u64, next_record_start: u64) {
@@ -561,6 +602,8 @@ mod tests {
 
     use super::*;
     use crate::consumer::LossAccountingConsumer;
+    use crate::registry::TY_UINT;
+    use crate::wire::Slot;
 
     const EVENT_MESSAGE: u32 = 0x0003;
 
@@ -674,6 +717,85 @@ mod tests {
     }
 
     #[test]
+    fn append_encoded_matches_write_record_across_wrap() {
+        let write_ring = ConcurrentRing::new(120);
+        let encoded_ring = ConcurrentRing::new(120);
+        let mut write_producer = ConcurrentProducer::new(Arc::clone(&write_ring));
+        let mut encoded_producer = ConcurrentProducer::new(Arc::clone(&encoded_ring));
+        let records = [
+            minimal_record(61, 0),
+            minimal_record(61, 1),
+            record_with_uint_slot(61, 2),
+            minimal_record(61, 3),
+        ];
+
+        for record in &records {
+            write_producer.write_record(record).unwrap();
+            let encoded = record.encode(true).unwrap();
+            encoded_producer.append_encoded(&encoded).unwrap();
+        }
+
+        assert_eq!(ring_bytes(&write_ring), ring_bytes(&encoded_ring));
+        assert_eq!(write_ring.head_abs(), encoded_ring.head_abs());
+        assert_eq!(write_ring.oldest_abs(), encoded_ring.oldest_abs());
+        assert_eq!(write_ring.lost_count(), encoded_ring.lost_count());
+        assert!(write_ring.head_abs() > write_ring.capacity() as u64);
+    }
+
+    #[test]
+    fn append_encoded_rejects_malformed_inputs_without_mutating_ring() {
+        let valid = minimal_record(62, 0).encode(true).unwrap();
+
+        let missing_crc = minimal_record(62, 1).encode(false).unwrap();
+        assert_rejects_without_mutation(
+            &missing_crc,
+            128,
+            |error| matches!(error, RingError::EncodedRecordMissingCrc { flags } if flags & FLAG_HAS_CRC == 0),
+        );
+
+        let mut trailing = valid.clone();
+        trailing.push(0);
+        assert_rejects_without_mutation(&trailing, 128, |error| {
+            matches!(
+                error,
+                RingError::EncodedRecordLengthMismatch {
+                    declared_len,
+                    actual_len,
+                } if *declared_len == valid.len() && *actual_len == valid.len() + 1
+            )
+        });
+
+        let mut bad_sync = valid.clone();
+        bad_sync[0] = b'X';
+        assert_rejects_without_mutation(&bad_sync, 128, |error| {
+            matches!(error, RingError::Wire(WireError::WrongSync))
+        });
+
+        let truncated = valid[..valid.len() - 1].to_vec();
+        assert_rejects_without_mutation(&truncated, 128, |error| {
+            matches!(error, RingError::Wire(WireError::Truncated { .. }))
+        });
+
+        let mut bad_crc = valid.clone();
+        bad_crc[HEADER_LEN] ^= 0x55;
+        assert_rejects_without_mutation(&bad_crc, 128, |error| {
+            matches!(error, RingError::Wire(WireError::CrcMismatch { .. }))
+        });
+
+        let oversized = record_with_large_slot(62, 2).encode(true).unwrap();
+        assert!(oversized.len() > 64);
+        assert_rejects_without_mutation(&oversized, 64, |error| {
+            matches!(
+                error,
+                RingError::RecordExceedsCapacity {
+                    record_len,
+                    capacity: 64,
+                } if *record_len == oversized.len()
+            )
+        });
+    }
+
+    #[test]
     fn consumer_uses_snapshot_head_and_fresh_oldest_recheck() {
         let record = minimal_record(51, 0);
         let encoded = record.encode(true).unwrap();
@@ -687,6 +809,50 @@ mod tests {
         assert_eq!(store.snapshot_reads(), 1);
         assert_eq!(store.head_loads(), 0);
         assert_eq!(store.post_record_oldest_reads(), 1);
+    }
+
+    fn assert_rejects_without_mutation(
+        bytes: &[u8],
+        capacity: usize,
+        matches_expected: impl FnOnce(&RingError) -> bool,
+    ) {
+        let ring = ConcurrentRing::new(capacity);
+        let mut producer = ConcurrentProducer::new(Arc::clone(&ring));
+        producer.write_record(&minimal_record(90, 0)).unwrap();
+        let before_bytes = ring_bytes(&ring);
+        let before_head = ring.head_abs();
+        let before_oldest = ring.oldest_abs();
+        let before_lost = ring.lost_count();
+
+        let error = producer
+            .append_encoded(bytes)
+            .expect_err("malformed append must fail");
+
+        assert!(matches_expected(&error), "unexpected error: {error:?}");
+        assert_eq!(ring_bytes(&ring), before_bytes);
+        assert_eq!(ring.head_abs(), before_head);
+        assert_eq!(ring.oldest_abs(), before_oldest);
+        assert_eq!(ring.lost_count(), before_lost);
+    }
+
+    fn ring_bytes(ring: &ConcurrentRing) -> Vec<u8> {
+        (0..ring.capacity())
+            .map(|phys| ring.bytes[phys].load(Ordering::Acquire))
+            .collect()
+    }
+
+    fn record_with_uint_slot(source_id: u32, seq: u64) -> Record {
+        let mut record = minimal_record(source_id, seq);
+        record
+            .slots
+            .push(Slot::new(0x1000, TY_UINT, 0x2222u16.to_le_bytes()));
+        record
+    }
+
+    fn record_with_large_slot(source_id: u32, seq: u64) -> Record {
+        let mut record = minimal_record(source_id, seq);
+        record.slots.push(Slot::new(0x1000, TY_UINT, [0x55; 24]));
+        record
     }
 
     #[derive(Debug, Clone)]

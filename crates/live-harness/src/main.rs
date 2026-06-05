@@ -75,23 +75,25 @@ fn producer_cmd(args: ProducerArgs) -> Result<(), Box<dyn Error>> {
     for seq in 0..args.per_source {
         for source_id in source_ids(args.sources) {
             let record = message_record_with_expected_abs(&producer, source_id, seq)?;
-            producer
-                .write_record(&record)
-                .map_err(|error| format!("producer write failed: {error:?}"))?;
+            publish_record(&mut producer, args.append_mode, &record, "producer write")?;
         }
     }
 
     for source_id in source_ids(args.sources) {
         let record =
             source_high_water_record_with_expected_abs(&producer, source_id, args.per_source)?;
-        producer
-            .write_record(&record)
-            .map_err(|error| format!("producer high-water write failed: {error:?}"))?;
+        publish_record(
+            &mut producer,
+            args.append_mode,
+            &record,
+            "producer high-water write",
+        )?;
     }
     write_done_atomic(&done_path(&args.shm))?;
     println!(
-        "producer: fence={} sources={} per_source={} data_total={} stream_total={} head_abs={} lost_count={}",
+        "producer: fence={} append_mode={} sources={} per_source={} data_total={} stream_total={} head_abs={} lost_count={}",
         args.fence_mode.as_str(),
+        args.append_mode.as_str(),
         args.sources,
         args.per_source,
         u64::from(args.sources) * args.per_source,
@@ -100,6 +102,27 @@ fn producer_cmd(args: ProducerArgs) -> Result<(), Box<dyn Error>> {
         producer.store().load_lost_acquire()
     );
     Ok(())
+}
+
+fn publish_record(
+    producer: &mut ConcurrentProducer<SharedConcurrentStore>,
+    append_mode: AppendMode,
+    record: &Record,
+    context: &str,
+) -> Result<(), Box<dyn Error>> {
+    match append_mode {
+        AppendMode::WriteRecord => producer
+            .write_record(record)
+            .map_err(|error| format!("{context} failed: {error:?}").into()),
+        AppendMode::Encoded => {
+            let encoded = record
+                .encode(true)
+                .map_err(|error| format!("{context} encode failed: {error:?}"))?;
+            producer
+                .append_encoded(&encoded)
+                .map_err(|error| format!("{context} encoded append failed: {error:?}").into())
+        }
+    }
 }
 
 fn consumer_cmd(args: ConsumerArgs) -> Result<(), Box<dyn Error>> {
@@ -135,6 +158,7 @@ fn consumer_cmd(args: ConsumerArgs) -> Result<(), Box<dyn Error>> {
     let observed = ObservedReport::from_consumer(ReportInputs {
         mode: args.mode,
         fence_mode: args.fence_mode,
+        append_mode: args.append_mode,
         source_count: args.sources,
         per_source: args.per_source,
         raw: &raw,
@@ -166,6 +190,8 @@ fn run_cmd(args: RunArgs) -> Result<(), Box<dyn Error>> {
         .arg("--mode")
         .arg(args.mode.as_str())
         .arg(fence_flag(args.fence_mode))
+        .arg("--append-mode")
+        .arg(args.append_mode.as_str())
         .arg("--shm")
         .arg(&args.shm)
         .arg("--done")
@@ -188,6 +214,8 @@ fn run_cmd(args: RunArgs) -> Result<(), Box<dyn Error>> {
     producer
         .arg("producer")
         .arg(fence_flag(args.fence_mode))
+        .arg("--append-mode")
+        .arg(args.append_mode.as_str())
         .arg("--shm")
         .arg(&args.shm)
         .arg("--cap")
@@ -218,9 +246,10 @@ fn run_cmd(args: RunArgs) -> Result<(), Box<dyn Error>> {
     )?;
     let elapsed = started.elapsed();
     println!(
-        "run: mode={} fence={} elapsed_ms={} pinned={} stale_violations={}",
+        "run: mode={} fence={} append_mode={} elapsed_ms={} pinned={} stale_violations={}",
         args.mode.as_str(),
         args.fence_mode.as_str(),
+        args.append_mode.as_str(),
         elapsed.as_millis(),
         pinning,
         observed.stale_violations.len()
@@ -323,6 +352,7 @@ struct ProducerArgs {
     sources: u32,
     per_source: u64,
     fence_mode: FenceMode,
+    append_mode: AppendMode,
 }
 
 impl ProducerArgs {
@@ -334,6 +364,7 @@ impl ProducerArgs {
             sources: parser.u32("--sources")?,
             per_source: parser.u64("--per-source")?,
             fence_mode: parser.fence_mode()?,
+            append_mode: parser.append_mode()?.unwrap_or(AppendMode::WriteRecord),
         };
         parser.finish()?;
         Ok(parsed)
@@ -352,6 +383,7 @@ struct ConsumerArgs {
     recheck_stall_us: u64,
     timeout_ms: u64,
     fence_mode: FenceMode,
+    append_mode: AppendMode,
 }
 
 impl ConsumerArgs {
@@ -377,6 +409,7 @@ impl ConsumerArgs {
                 .optional_u64("--timeout-ms")?
                 .unwrap_or(DEFAULT_TIMEOUT_MS),
             fence_mode: parser.fence_mode()?,
+            append_mode: parser.append_mode()?.unwrap_or(AppendMode::WriteRecord),
         };
         parser.finish()?;
         Ok(parsed)
@@ -394,6 +427,7 @@ struct RunArgs {
     recheck_stall_us: u64,
     timeout_ms: u64,
     fence_mode: FenceMode,
+    append_mode: AppendMode,
 }
 
 impl RunArgs {
@@ -421,6 +455,7 @@ impl RunArgs {
                 .optional_u64("--timeout-ms")?
                 .unwrap_or(DEFAULT_TIMEOUT_MS),
             fence_mode: parser.fence_mode()?,
+            append_mode: parser.append_mode()?.unwrap_or(AppendMode::WriteRecord),
         };
         parser.finish()?;
         Ok(parsed)
@@ -491,6 +526,12 @@ impl ArgParser {
             (_, true) => Ok(FenceMode::Unfenced),
             _ => Ok(FenceMode::Fenced),
         }
+    }
+
+    fn append_mode(&mut self) -> Result<Option<AppendMode>, String> {
+        self.take("--append-mode")?
+            .map(|value| AppendMode::parse(&value.to_string_lossy()))
+            .transpose()
     }
 
     fn take_flag(&mut self, name: &str) -> Result<bool, String> {
@@ -579,6 +620,31 @@ struct RunDefaults {
     per_source: u64,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AppendMode {
+    WriteRecord,
+    Encoded,
+}
+
+impl AppendMode {
+    fn parse(value: &str) -> Result<Self, String> {
+        match value {
+            "write-record" => Ok(Self::WriteRecord),
+            "encoded" => Ok(Self::Encoded),
+            _ => Err(format!(
+                "invalid --append-mode {value}; expected write-record or encoded"
+            )),
+        }
+    }
+
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::WriteRecord => "write-record",
+            Self::Encoded => "encoded",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 struct SourceExpected {
     source_id: u32,
@@ -606,6 +672,7 @@ struct StaleViolation {
 struct ObservedReport {
     mode: RunMode,
     fence_mode: FenceMode,
+    append_mode: AppendMode,
     cap: usize,
     head_abs: u64,
     lost_count: u64,
@@ -621,6 +688,7 @@ struct ObservedReport {
 struct ReportInputs<'a> {
     mode: RunMode,
     fence_mode: FenceMode,
+    append_mode: AppendMode,
     source_count: u32,
     per_source: u64,
     raw: &'a ConcurrentRawConsumer<SharedConcurrentStore>,
@@ -649,6 +717,7 @@ impl ObservedReport {
         Self {
             mode: inputs.mode,
             fence_mode: inputs.fence_mode,
+            append_mode: inputs.append_mode,
             cap: inputs.store.capacity(),
             head_abs: inputs.store.load_head_acquire(),
             lost_count: inputs.store.load_lost_acquire(),
@@ -666,6 +735,7 @@ impl ObservedReport {
         let mut out = String::new();
         out.push_str(&format!("mode {}\n", self.mode.as_str()));
         out.push_str(&format!("fence {}\n", self.fence_mode.as_str()));
+        out.push_str(&format!("append_mode {}\n", self.append_mode.as_str()));
         out.push_str(&format!("cap {}\n", self.cap));
         out.push_str(&format!("head_abs {}\n", self.head_abs));
         out.push_str(&format!("lost_count {}\n", self.lost_count));
@@ -700,6 +770,7 @@ impl ObservedReport {
         let content = fs::read_to_string(path)?;
         let mut mode = None;
         let mut fence_mode = None;
+        let mut append_mode = None;
         let mut cap = None;
         let mut head_abs = None;
         let mut lost_count = None;
@@ -717,6 +788,7 @@ impl ObservedReport {
             match parts.as_slice() {
                 ["mode", value] => mode = Some(RunMode::parse(value)?),
                 ["fence", value] => fence_mode = Some(FenceMode::parse(value)?),
+                ["append_mode", value] => append_mode = Some(AppendMode::parse(value)?),
                 ["cap", value] => cap = Some(value.parse()?),
                 ["head_abs", value] => head_abs = Some(value.parse()?),
                 ["lost_count", value] => lost_count = Some(value.parse()?),
@@ -760,6 +832,7 @@ impl ObservedReport {
         Ok(Self {
             mode: mode.ok_or("missing mode")?,
             fence_mode: fence_mode.ok_or("missing fence")?,
+            append_mode: append_mode.ok_or("missing append_mode")?,
             cap: cap.ok_or("missing cap")?,
             head_abs: head_abs.ok_or("missing head_abs")?,
             lost_count: lost_count.ok_or("missing lost_count")?,
@@ -775,9 +848,10 @@ impl ObservedReport {
 
     fn summary_line(&self) -> String {
         format!(
-            "summary: mode={} fence={} cap={} head_abs={} lost_count={} delivered={} lost={} lapped={} retries={} rejected={} stale={}",
+            "summary: mode={} fence={} append_mode={} cap={} head_abs={} lost_count={} delivered={} lost={} lapped={} retries={} rejected={} stale={}",
             self.mode.as_str(),
             self.fence_mode.as_str(),
+            self.append_mode.as_str(),
             self.cap,
             self.head_abs,
             self.lost_count,

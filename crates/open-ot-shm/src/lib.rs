@@ -371,8 +371,8 @@ pub(crate) struct SharedRegion {
 
 /// Safe publisher wrapper over the proven concurrent carriage producer.
 ///
-/// The wrapper accepts structured [`Record`] values and delegates to
-/// [`ConcurrentProducer::write_record`]. It intentionally does not expose a raw byte append path.
+/// The wrapper accepts structured [`Record`] values or already-encoded OpenOT record bytes and
+/// delegates to the carriage producer's shared publish protocol.
 #[derive(Debug)]
 pub struct SharedRecordPublisher {
     producer: ConcurrentProducer<SharedConcurrentStore>,
@@ -416,6 +416,11 @@ impl SharedRecordPublisher {
     /// Appends `record` through the carriage protocol's proven encode-and-publish path.
     pub fn append_record(&mut self, record: &Record) -> Result<(), RingError> {
         self.producer.write_record(record)
+    }
+
+    /// Appends one already-encoded CRC-protected OpenOT record.
+    pub fn append_encoded(&mut self, bytes: &[u8]) -> Result<(), RingError> {
+        self.producer.append_encoded(bytes)
     }
 
     /// Returns the underlying shared-memory store.
@@ -554,6 +559,28 @@ mod tests {
             .expect("record appends through carriage producer");
 
         assert!(publisher.head_abs() > 0);
+        assert_eq!(publisher.oldest_abs(), 0);
+        assert_eq!(publisher.lost_count(), 0);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn record_publisher_appends_encoded_record_through_shared_store() {
+        let path = std::env::temp_dir().join(format!(
+            "open-ot-shm-encoded-publisher-{}-{}.bin",
+            std::process::id(),
+            unique_suffix()
+        ));
+        let mut publisher =
+            SharedRecordPublisher::create(&path, 256).expect("shared publisher creates");
+        let record = Record::new(1_780_000_000_000_000_000, 1, 0, 7, EVENT_MESSAGE);
+        let encoded = record.encode(true).expect("record encodes");
+
+        publisher
+            .append_encoded(&encoded)
+            .expect("encoded record appends through carriage producer");
+
+        assert_eq!(publisher.head_abs(), encoded.len() as u64);
         assert_eq!(publisher.oldest_abs(), 0);
         assert_eq!(publisher.lost_count(), 0);
         let _ = std::fs::remove_file(path);

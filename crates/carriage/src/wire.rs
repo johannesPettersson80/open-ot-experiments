@@ -214,8 +214,12 @@ pub enum WireError {
     WrongSync,
 }
 
-/// Decodes one record from the front of `bytes`, validating sync, length, padding, and CRC.
-pub fn decode(bytes: &[u8]) -> Result<DecodedRecord, WireError> {
+/// Validates one record at the front of `bytes` without allocating decoded slots.
+///
+/// Returns the record's `TotalRecordLength`. The returned length may be smaller than
+/// `bytes.len()`; callers that require exactly one record must compare the return
+/// value with the input length.
+pub fn validate_record(bytes: &[u8]) -> Result<usize, WireError> {
     if bytes.len() < HEADER_LEN {
         return Err(WireError::Truncated {
             needed: HEADER_LEN,
@@ -261,15 +265,12 @@ pub fn decode(bytes: &[u8]) -> Result<DecodedRecord, WireError> {
         total_len
     };
 
-    let mut slots = Vec::new();
     let mut offset = HEADER_LEN;
     while offset < slots_end {
         if slots_end - offset < 4 {
             return Err(WireError::InvalidSlot { offset });
         }
 
-        let key = read_u16(bytes, offset);
-        let ty = bytes[offset + 2];
         let len = usize::from(bytes[offset + 3]);
         let payload_start = offset + 4;
         let payload_end = payload_start + len;
@@ -289,6 +290,33 @@ pub fn decode(bytes: &[u8]) -> Result<DecodedRecord, WireError> {
                 });
             }
         }
+
+        offset = next;
+    }
+
+    Ok(total_len)
+}
+
+/// Decodes one record from the front of `bytes`, validating sync, length, padding, and CRC.
+pub fn decode(bytes: &[u8]) -> Result<DecodedRecord, WireError> {
+    let total_len = validate_record(bytes)?;
+    let flags = read_u16(bytes, 6);
+    let has_crc = flags & FLAG_HAS_CRC != 0;
+    let slots_end = if has_crc {
+        total_len - CRC_LEN
+    } else {
+        total_len
+    };
+
+    let mut slots = Vec::new();
+    let mut offset = HEADER_LEN;
+    while offset < slots_end {
+        let key = read_u16(bytes, offset);
+        let ty = bytes[offset + 2];
+        let len = usize::from(bytes[offset + 3]);
+        let payload_start = offset + 4;
+        let payload_end = payload_start + len;
+        let next = payload_end + padding_len(len);
 
         slots.push(Slot {
             key,

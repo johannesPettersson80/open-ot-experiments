@@ -442,6 +442,18 @@ pub enum RingError {
         /// Total ring capacity in bytes.
         capacity: usize,
     },
+    /// A raw append slice contained a valid leading record plus trailing bytes.
+    EncodedRecordLengthMismatch {
+        /// Length declared in the record's `TotalRecordLength` field.
+        declared_len: usize,
+        /// Actual byte slice length passed to the append operation.
+        actual_len: usize,
+    },
+    /// A raw append slice was a record without the required CRC trailer flag.
+    EncodedRecordMissingCrc {
+        /// Flags field read from the encoded record header.
+        flags: u16,
+    },
     /// The control-block snapshot describes a different ring capacity.
     ControlBlockCapacityMismatch {
         /// Capacity advertised by the control-block snapshot.
