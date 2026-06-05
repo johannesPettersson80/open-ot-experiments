@@ -9,5 +9,5 @@ readme = "README.md"
 repository = "https://github.com/johannesPettersson80/open-ot-experiments"
 
 [dependencies]
-libc = "0.2"
+memmap2 = "0.9"
 open-ot-carriage = { path = "../carriage" }

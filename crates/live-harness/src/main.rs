@@ -11,7 +11,9 @@ use std::time::{Duration, Instant};
 
 use open_ot_carriage::concurrent::{ConcurrentProducer, ConcurrentRawConsumer, ConcurrentStore};
 use open_ot_carriage::consumer::LossAccountingConsumer;
-use open_ot_carriage::registry::{EVENT_MESSAGE, TY_ULINT};
+use open_ot_carriage::registry::{
+    EVENT_MESSAGE, EVENT_SOURCE_HIGH_WATER, KEY_SOURCE_HIGH_WATER, TY_ULINT,
+};
 use open_ot_carriage::ring::ReadRecord;
 use open_ot_carriage::wire::{Record, Slot};
 use open_ot_live_harness::{FenceMode, SharedConcurrentStore};
@@ -69,7 +71,6 @@ fn producer_cmd(args: ProducerArgs) -> Result<(), Box<dyn Error>> {
         SharedConcurrentStore::create_with_mode(&args.shm, args.cap, args.fence_mode)?
     };
     let mut producer = ConcurrentProducer::with_store(store);
-    let mut counts = Vec::new();
 
     for seq in 0..args.per_source {
         for source_id in source_ids(args.sources) {
@@ -81,18 +82,20 @@ fn producer_cmd(args: ProducerArgs) -> Result<(), Box<dyn Error>> {
     }
 
     for source_id in source_ids(args.sources) {
-        counts.push(SourceCount {
-            source_id,
-            produced: args.per_source,
-        });
+        let record =
+            source_high_water_record_with_expected_abs(&producer, source_id, args.per_source)?;
+        producer
+            .write_record(&record)
+            .map_err(|error| format!("producer high-water write failed: {error:?}"))?;
     }
-    write_counts_atomic(&counts_path(&args.shm), &counts)?;
+    write_done_atomic(&done_path(&args.shm))?;
     println!(
-        "producer: fence={} sources={} per_source={} total={} head_abs={} lost_count={}",
+        "producer: fence={} sources={} per_source={} data_total={} stream_total={} head_abs={} lost_count={}",
         args.fence_mode.as_str(),
         args.sources,
         args.per_source,
         u64::from(args.sources) * args.per_source,
+        u64::from(args.sources) * (args.per_source + 1),
         producer.store().load_head_acquire(),
         producer.store().load_lost_acquire()
     );
@@ -105,7 +108,6 @@ fn consumer_cmd(args: ConsumerArgs) -> Result<(), Box<dyn Error>> {
     let mut raw = ConcurrentRawConsumer::with_store(store.clone());
     let mut accounting = LossAccountingConsumer::new();
     let deadline = Instant::now() + Duration::from_millis(args.timeout_ms);
-    let mut counts = None;
     let mut stale_violations = Vec::new();
 
     loop {
@@ -115,11 +117,7 @@ fn consumer_cmd(args: ConsumerArgs) -> Result<(), Box<dyn Error>> {
         stale_violations.extend(stale_violations_from_batch(&batch.records)?);
         accounting.account_batch(&batch);
 
-        if counts.is_none() && args.status.exists() {
-            counts = Some(read_counts(&args.status)?);
-        }
-
-        if counts.is_some() && raw.cursor_abs() == raw.head_abs() {
+        if args.done.exists() && raw.cursor_abs() == raw.head_abs() {
             break;
         }
 
@@ -134,16 +132,16 @@ fn consumer_cmd(args: ConsumerArgs) -> Result<(), Box<dyn Error>> {
         }
     }
 
-    let counts = counts.expect("checked above");
-    let observed = ObservedReport::from_consumer(
-        args.mode,
-        args.fence_mode,
-        &counts,
-        &raw,
-        &accounting,
-        &store,
+    let observed = ObservedReport::from_consumer(ReportInputs {
+        mode: args.mode,
+        fence_mode: args.fence_mode,
+        source_count: args.sources,
+        per_source: args.per_source,
+        raw: &raw,
+        accounting: &accounting,
+        store: &store,
         stale_violations,
-    );
+    });
     observed.write(&args.out)?;
     println!("{}", observed.summary_line());
     Ok(())
@@ -152,9 +150,9 @@ fn consumer_cmd(args: ConsumerArgs) -> Result<(), Box<dyn Error>> {
 fn run_cmd(args: RunArgs) -> Result<(), Box<dyn Error>> {
     let started = Instant::now();
     let _ = fs::remove_file(&args.shm);
-    let status = counts_path(&args.shm);
-    let observed = observed_path(&status);
-    let _ = fs::remove_file(&status);
+    let done = done_path(&args.shm);
+    let observed = observed_path(&done);
+    let _ = fs::remove_file(&done);
     let _ = fs::remove_file(&observed);
 
     let store = SharedConcurrentStore::create_with_mode(&args.shm, args.cap, args.fence_mode)?;
@@ -170,10 +168,14 @@ fn run_cmd(args: RunArgs) -> Result<(), Box<dyn Error>> {
         .arg(fence_flag(args.fence_mode))
         .arg("--shm")
         .arg(&args.shm)
-        .arg("--status")
-        .arg(&status)
+        .arg("--done")
+        .arg(&done)
         .arg("--out")
         .arg(&observed)
+        .arg("--sources")
+        .arg(args.sources.to_string())
+        .arg("--per-source")
+        .arg(args.per_source.to_string())
         .arg("--poll-sleep-us")
         .arg(args.poll_sleep_us.to_string())
         .arg("--recheck-stall-us")
@@ -206,9 +208,14 @@ fn run_cmd(args: RunArgs) -> Result<(), Box<dyn Error>> {
         return Err(format!("consumer failed with {consumer_status}").into());
     }
 
-    let counts = read_counts(&status)?;
     let observed = ObservedReport::read(&observed)?;
-    assert_run_result(args.fence_mode, args.cap, &counts, &observed)?;
+    assert_run_result(
+        args.fence_mode,
+        args.cap,
+        args.sources,
+        args.per_source,
+        &observed,
+    )?;
     let elapsed = started.elapsed();
     println!(
         "run: mode={} fence={} elapsed_ms={} pinned={} stale_violations={}",
@@ -221,9 +228,9 @@ fn run_cmd(args: RunArgs) -> Result<(), Box<dyn Error>> {
     println!("{}", observed.summary_line());
     for source in &observed.sources {
         println!(
-            "source {}: produced={} delivered={} lost={} reconciled={}",
+            "source {}: expected_total={} delivered={} lost={} reconciled={}",
             source.source_id,
-            source.produced,
+            source.expected_total,
             source.delivered,
             source.lost,
             source.delivered + source.lost
@@ -246,7 +253,8 @@ fn run_cmd(args: RunArgs) -> Result<(), Box<dyn Error>> {
 fn assert_run_result(
     fence_mode: FenceMode,
     cap: usize,
-    counts: &[SourceCount],
+    sources: u32,
+    per_source: u64,
     observed: &ObservedReport,
 ) -> Result<(), Box<dyn Error>> {
     if observed.delivered_total == 0 {
@@ -262,8 +270,15 @@ fn assert_run_result(
     if observed.lost_count == 0 {
         return Err("producer did not report ring evictions".into());
     }
-    if observed.lapped_batches + observed.overwritten_retries + observed.rejected_records == 0 {
-        return Err("consumer did not observe overwrite pressure".into());
+    let expected_total = u64::from(sources) * (per_source + 1);
+    if fence_mode == FenceMode::Fenced
+        && observed.delivered_total + observed.lost_total < expected_total
+    {
+        return Err(format!(
+            "consumer did not reconcile the full in-band stream: delivered={} lost={} expected_total={expected_total}",
+            observed.delivered_total, observed.lost_total
+        )
+        .into());
     }
     if fence_mode == FenceMode::Fenced && !observed.stale_violations.is_empty() {
         return Err(format!(
@@ -277,21 +292,23 @@ fn assert_run_result(
         .iter()
         .map(|source| (source.source_id, source))
         .collect::<BTreeMap<_, _>>();
-    for count in counts {
-        let Some(source) = observed_by_source.get(&count.source_id) else {
-            return Err(format!("missing observed source {}", count.source_id).into());
+    for expected in expected_sources(sources, per_source) {
+        let Some(source) = observed_by_source.get(&expected.source_id) else {
+            return Err(format!("missing observed source {}", expected.source_id).into());
         };
-        if source.produced != count.produced {
+        if source.expected_total != expected.expected_total {
             return Err(format!(
-                "source {} produced mismatch: counts={} observed={}",
-                count.source_id, count.produced, source.produced
+                "source {} expected-total mismatch: run={} observed={}",
+                expected.source_id, expected.expected_total, source.expected_total
             )
             .into());
         }
-        if fence_mode == FenceMode::Fenced && source.delivered + source.lost != count.produced {
+        if fence_mode == FenceMode::Fenced
+            && source.delivered + source.lost != expected.expected_total
+        {
             return Err(format!(
-                "source {} reconciliation failed: delivered={} lost={} produced={}",
-                count.source_id, source.delivered, source.lost, count.produced
+                "source {} in-band reconciliation failed: delivered={} lost={} expected_total={}",
+                expected.source_id, source.delivered, source.lost, expected.expected_total
             )
             .into());
         }
@@ -327,8 +344,10 @@ impl ProducerArgs {
 struct ConsumerArgs {
     mode: RunMode,
     shm: PathBuf,
-    status: PathBuf,
+    done: PathBuf,
     out: PathBuf,
+    sources: u32,
+    per_source: u64,
     poll_sleep_us: u64,
     recheck_stall_us: u64,
     timeout_ms: u64,
@@ -339,15 +358,17 @@ impl ConsumerArgs {
     fn parse(args: &[OsString]) -> Result<Self, String> {
         let mut parser = ArgParser::new(args);
         let mode = parser.run_mode()?.unwrap_or(RunMode::Smoke);
-        let status = parser.path("--status")?;
+        let done = parser.path("--done")?;
         let out = parser
             .optional_path("--out")?
-            .unwrap_or_else(|| observed_path(&status));
+            .unwrap_or_else(|| observed_path(&done));
         let parsed = Self {
             mode,
             shm: parser.path("--shm")?,
-            status,
+            done,
             out,
+            sources: parser.u32("--sources")?,
+            per_source: parser.u64("--per-source")?,
             poll_sleep_us: parser
                 .optional_u64("--poll-sleep-us")?
                 .unwrap_or(DEFAULT_POLL_SLEEP_US),
@@ -559,15 +580,15 @@ struct RunDefaults {
 }
 
 #[derive(Debug, Clone, Copy)]
-struct SourceCount {
+struct SourceExpected {
     source_id: u32,
-    produced: u64,
+    expected_total: u64,
 }
 
 #[derive(Debug, Clone)]
 struct SourceObserved {
     source_id: u32,
-    produced: u64,
+    expected_total: u64,
     delivered: u64,
     lost: u64,
 }
@@ -597,42 +618,47 @@ struct ObservedReport {
     sources: Vec<SourceObserved>,
 }
 
+struct ReportInputs<'a> {
+    mode: RunMode,
+    fence_mode: FenceMode,
+    source_count: u32,
+    per_source: u64,
+    raw: &'a ConcurrentRawConsumer<SharedConcurrentStore>,
+    accounting: &'a LossAccountingConsumer,
+    store: &'a SharedConcurrentStore,
+    stale_violations: Vec<StaleViolation>,
+}
+
 impl ObservedReport {
-    fn from_consumer(
-        mode: RunMode,
-        fence_mode: FenceMode,
-        counts: &[SourceCount],
-        raw: &ConcurrentRawConsumer<SharedConcurrentStore>,
-        accounting: &LossAccountingConsumer,
-        store: &SharedConcurrentStore,
-        stale_violations: Vec<StaleViolation>,
-    ) -> Self {
-        let mut sources = Vec::new();
-        for count in counts {
-            let delivered = accounting.delivered_in_run(RUN_ID, count.source_id);
-            let lost = accounting.lost_in_run(RUN_ID, count.source_id);
-            sources.push(SourceObserved {
-                source_id: count.source_id,
-                produced: count.produced,
+    fn from_consumer(inputs: ReportInputs<'_>) -> Self {
+        let mut observed_sources = Vec::new();
+        for expected in expected_sources(inputs.source_count, inputs.per_source) {
+            let delivered = inputs
+                .accounting
+                .delivered_in_run(RUN_ID, expected.source_id);
+            let lost = inputs.accounting.lost_in_run(RUN_ID, expected.source_id);
+            observed_sources.push(SourceObserved {
+                source_id: expected.source_id,
+                expected_total: expected.expected_total,
                 delivered,
                 lost,
             });
         }
-        let delivered_total = sources.iter().map(|source| source.delivered).sum();
-        let lost_total = sources.iter().map(|source| source.lost).sum();
+        let delivered_total = observed_sources.iter().map(|source| source.delivered).sum();
+        let lost_total = observed_sources.iter().map(|source| source.lost).sum();
         Self {
-            mode,
-            fence_mode,
-            cap: store.capacity(),
-            head_abs: store.load_head_acquire(),
-            lost_count: store.load_lost_acquire(),
-            lapped_batches: raw.lapped_batches(),
-            overwritten_retries: raw.overwritten_retries(),
-            rejected_records: raw.rejected_records(),
+            mode: inputs.mode,
+            fence_mode: inputs.fence_mode,
+            cap: inputs.store.capacity(),
+            head_abs: inputs.store.load_head_acquire(),
+            lost_count: inputs.store.load_lost_acquire(),
+            lapped_batches: inputs.raw.lapped_batches(),
+            overwritten_retries: inputs.raw.overwritten_retries(),
+            rejected_records: inputs.raw.rejected_records(),
             delivered_total,
             lost_total,
-            stale_violations,
-            sources,
+            stale_violations: inputs.stale_violations,
+            sources: observed_sources,
         }
     }
 
@@ -664,7 +690,7 @@ impl ObservedReport {
         for source in &self.sources {
             out.push_str(&format!(
                 "source {} {} {} {}\n",
-                source.source_id, source.produced, source.delivered, source.lost
+                source.source_id, source.expected_total, source.delivered, source.lost
             ));
         }
         fs::write(path, out)
@@ -716,12 +742,14 @@ impl ObservedReport {
                         crc_passed: crc_passed.parse()?,
                     });
                 }
-                ["source", source_id, produced, delivered, lost] => sources.push(SourceObserved {
-                    source_id: source_id.parse()?,
-                    produced: produced.parse()?,
-                    delivered: delivered.parse()?,
-                    lost: lost.parse()?,
-                }),
+                ["source", source_id, expected_total, delivered, lost] => {
+                    sources.push(SourceObserved {
+                        source_id: source_id.parse()?,
+                        expected_total: expected_total.parse()?,
+                        delivered: delivered.parse()?,
+                        lost: lost.parse()?,
+                    })
+                }
                 _ => return Err(format!("invalid observed line: {line}").into()),
             }
         }
@@ -763,30 +791,19 @@ impl ObservedReport {
     }
 }
 
-fn write_counts_atomic(path: &Path, counts: &[SourceCount]) -> io::Result<()> {
-    let tmp = path.with_extension("counts.tmp");
+fn write_done_atomic(path: &Path) -> io::Result<()> {
+    let tmp = path.with_extension("done.tmp");
     let mut file = fs::File::create(&tmp)?;
-    for count in counts {
-        writeln!(file, "{} {}", count.source_id, count.produced)?;
-    }
+    writeln!(file, "done")?;
     file.sync_all()?;
     fs::rename(tmp, path)
 }
 
-fn read_counts(path: &Path) -> Result<Vec<SourceCount>, Box<dyn Error>> {
-    let content = fs::read_to_string(path)?;
-    let mut counts = Vec::new();
-    for line in content.lines() {
-        let parts = line.split_whitespace().collect::<Vec<_>>();
-        match parts.as_slice() {
-            [source_id, produced] => counts.push(SourceCount {
-                source_id: source_id.parse()?,
-                produced: produced.parse()?,
-            }),
-            _ => return Err(format!("invalid counts line: {line}").into()),
-        }
-    }
-    Ok(counts)
+fn expected_sources(count: u32, per_source: u64) -> impl Iterator<Item = SourceExpected> {
+    source_ids(count).map(move |source_id| SourceExpected {
+        source_id,
+        expected_total: per_source + 1,
+    })
 }
 
 fn source_ids(count: u32) -> impl Iterator<Item = u32> {
@@ -798,7 +815,38 @@ fn message_record_with_expected_abs(
     source_id: u32,
     seq: u64,
 ) -> Result<Record, Box<dyn Error>> {
-    let mut record = message_record(source_id, seq);
+    record_with_expected_abs(producer, message_record(source_id, seq))
+}
+
+fn source_high_water_record_with_expected_abs(
+    producer: &ConcurrentProducer<SharedConcurrentStore>,
+    source_id: u32,
+    produced_count: u64,
+) -> Result<Record, Box<dyn Error>> {
+    let mut record = Record::new(
+        1_780_000_000_000_000_000 + produced_count,
+        RUN_ID,
+        produced_count,
+        source_id,
+        EVENT_SOURCE_HIGH_WATER,
+    );
+    record.slots.push(Slot::new(
+        KEY_SOURCE_HIGH_WATER,
+        TY_ULINT,
+        produced_count.to_le_bytes(),
+    ));
+    record_with_expected_abs(producer, record)
+}
+
+fn record_with_expected_abs(
+    producer: &ConcurrentProducer<SharedConcurrentStore>,
+    mut record: Record,
+) -> Result<Record, Box<dyn Error>> {
+    record.slots.push(Slot::new(
+        KEY_EXPECTED_RECORD_START_ABS,
+        TY_ULINT,
+        0u64.to_le_bytes(),
+    ));
     let encoded_len = record
         .encode(true)
         .map_err(|error| format!("placeholder encode failed: {error:?}"))?
@@ -814,19 +862,13 @@ fn message_record_with_expected_abs(
 }
 
 fn message_record(source_id: u32, seq: u64) -> Record {
-    let mut record = Record::new(
+    Record::new(
         1_780_000_000_000_000_000 + seq,
         RUN_ID,
         seq,
         source_id,
         EVENT_MESSAGE,
-    );
-    record.slots.push(Slot::new(
-        KEY_EXPECTED_RECORD_START_ABS,
-        TY_ULINT,
-        0u64.to_le_bytes(),
-    ));
-    record
+    )
 }
 
 fn stale_violations_from_batch(records: &[ReadRecord]) -> Result<Vec<StaleViolation>, String> {
@@ -902,8 +944,8 @@ fn can_use_taskset() -> bool {
         .is_ok_and(|status| status.success())
 }
 
-fn counts_path(shm: &Path) -> PathBuf {
-    PathBuf::from(format!("{}.counts", shm.display()))
+fn done_path(shm: &Path) -> PathBuf {
+    PathBuf::from(format!("{}.done", shm.display()))
 }
 
 fn observed_path(status: &Path) -> PathBuf {
@@ -917,5 +959,5 @@ fn default_shm_path() -> PathBuf {
 fn usage() -> &'static str {
     "usage: open-ot-live-harness run [--mode smoke|litmus] [--fenced|--unfenced] [--shm PATH] [--cap BYTES] [--sources N] [--per-source N]\n\
      or: open-ot-live-harness producer [--fenced|--unfenced] --shm PATH --cap BYTES --sources N --per-source N\n\
-     or: open-ot-live-harness consumer [--mode smoke|litmus] [--fenced|--unfenced] --shm PATH --status FILE [--out FILE]"
+     or: open-ot-live-harness consumer [--mode smoke|litmus] [--fenced|--unfenced] --shm PATH --done FILE --sources N --per-source N [--out FILE]"
 }

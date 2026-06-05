@@ -1,13 +1,12 @@
 //! Shared-memory store for the live OpenOT carriage harness.
 //!
-//! The crate maps a `/dev/shm` file with `mmap(MAP_SHARED)` and exposes it as a
+//! The crate maps a `/dev/shm` file with a shared mutable mapping and exposes it as a
 //! [`ConcurrentStore`]. It is a test harness, not the normative carriage API; the
-//! dependency on `libc` stays here so `open-ot-carriage` remains dependency-light.
+//! mapping dependency stays here so `open-ot-carriage` remains dependency-light.
 
 use std::fs::{File, OpenOptions};
 use std::io;
 use std::num::TryFromIntError;
-use std::os::fd::AsRawFd;
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::Path;
 use std::ptr::NonNull;
@@ -16,6 +15,7 @@ use std::sync::atomic::{AtomicU8, AtomicU32, AtomicU64, Ordering, fence};
 use std::thread;
 use std::time::Duration;
 
+use memmap2::MmapMut;
 use open_ot_carriage::concurrent::ConcurrentStore;
 use open_ot_carriage::control::{
     CONTROL_BLOCK_LEN, CONTROL_BLOCK_SYNC, ControlBlockError, ControlBlockSnapshot,
@@ -92,7 +92,7 @@ impl SharedConcurrentStore {
             .truncate(true)
             .mode(FILE_MODE)
             .open(path)?;
-        truncate_file(&file, len)?;
+        file.set_len(u64::try_from(len).map_err(int_error)?)?;
         let store = Self {
             region: Arc::new(SharedRegion::map(&file, len)?),
             capacity,
@@ -351,9 +351,10 @@ impl ConcurrentStore for SharedConcurrentStore {
     }
 }
 
-/// Owns a live mmap mapping and unmaps it on drop.
+/// Owns a live shared-memory mapping.
 #[derive(Debug)]
 pub struct SharedRegion {
+    _mapping: MmapMut,
     ptr: NonNull<u8>,
     len: usize,
 }
@@ -372,33 +373,17 @@ impl SharedRegion {
                 "cannot mmap zero bytes",
             ));
         }
-        // SAFETY: the file descriptor is valid; length is non-zero; the mapping is
-        // MAP_SHARED and read/write; the returned pointer is checked against MAP_FAILED
-        // and then owned by SharedRegion until munmap in Drop.
-        let mapped = unsafe {
-            libc::mmap(
-                std::ptr::null_mut(),
-                len,
-                libc::PROT_READ | libc::PROT_WRITE,
-                libc::MAP_SHARED,
-                file.as_raw_fd(),
-                0,
-            )
-        };
-        if mapped == libc::MAP_FAILED {
-            return Err(io::Error::last_os_error());
-        }
-        let ptr = NonNull::new(mapped.cast::<u8>())
+        // SAFETY: the file is opened read/write and sized before mapping. `MmapMut`
+        // creates a shared mutable file mapping on Unix; the mapping is owned by
+        // `SharedRegion` and unmapped by `MmapMut` on drop.
+        let mut mapping = unsafe { MmapMut::map_mut(file)? };
+        let ptr = NonNull::new(mapping.as_mut_ptr())
             .ok_or_else(|| io::Error::other("mmap returned null"))?;
-        Ok(Self { ptr, len })
-    }
-}
-
-impl Drop for SharedRegion {
-    fn drop(&mut self) {
-        // SAFETY: this is the same pointer and length returned by mmap and owned by self.
-        let rc = unsafe { libc::munmap(self.ptr.as_ptr().cast(), self.len) };
-        debug_assert_eq!(rc, 0);
+        Ok(Self {
+            _mapping: mapping,
+            ptr,
+            len,
+        })
     }
 }
 
@@ -437,17 +422,6 @@ fn mapping_len(capacity: usize) -> io::Result<usize> {
     DATA_OFFSET
         .checked_add(capacity)
         .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "mapping length overflow"))
-}
-
-fn truncate_file(file: &File, len: usize) -> io::Result<()> {
-    let len = libc::off_t::try_from(len).map_err(int_error)?;
-    // SAFETY: `file` owns a valid descriptor and `len` was range-checked above.
-    let rc = unsafe { libc::ftruncate(file.as_raw_fd(), len) };
-    if rc == 0 {
-        Ok(())
-    } else {
-        Err(io::Error::last_os_error())
-    }
 }
 
 fn int_error(error: TryFromIntError) -> io::Error {
