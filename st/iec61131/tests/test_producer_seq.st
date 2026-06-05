@@ -106,6 +106,7 @@ Passed :=
     (ANextSeq = ULINT#3) AND
     (BNextSeq = ULINT#2) AND
     (Producer.SourceCount = UINT#2) AND
+    (Producer.PublishedRecordCount = ULINT#5) AND
     ReservedSourceRejected AND
     FillOk AND
     (SourceCountAfterFill = UINT#16) AND

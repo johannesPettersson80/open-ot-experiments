@@ -115,6 +115,7 @@ Passed :=
     SourceFound AND
     (SourceNextSeq = ULINT#1) AND
     (SourceCountAfterColdData = UINT#1) AND
+    (Producer.PublishedRecordCount = ULINT#6) AND
     (Producer.RunId = ULINT#2) AND
     (Producer.EpochId = ULINT#2) AND
     (Producer.SystemSeq = ULINT#1) AND

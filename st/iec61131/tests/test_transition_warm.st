@@ -130,6 +130,7 @@ Passed :=
     DataDuringTransitionRejected AND
     LogOk AND
     SourceFound AND
+    (Producer.PublishedRecordCount = ULINT#7) AND
     (SourceNextSeq = ULINT#4) AND
     (Producer.SourceTime = ULINT#1780000000000000007) AND
     EpochFirstAbsSet AND

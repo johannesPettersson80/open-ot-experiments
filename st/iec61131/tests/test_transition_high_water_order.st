@@ -45,6 +45,7 @@ END_IF;
 Passed :=
     OpsOk AND
     (Producer.EmissionCount = UINT#5) AND
+    (Producer.PublishedRecordCount = ULINT#5) AND
     (Producer.Emissions[2].EventTypeId = UDINT#16#0102) AND
     (Producer.Emissions[3].EventTypeId = UDINT#16#0108) AND
     (Producer.Emissions[3].SourceId = UDINT#10) AND

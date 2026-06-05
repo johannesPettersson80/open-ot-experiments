@@ -61,6 +61,7 @@ VAR_OUTPUT
     DefinitionChangedEmitted : BOOL;
     Emissions : OPENOT_EMISSION_LOG;
     EmissionCount : UINT;
+    PublishedRecordCount : ULINT;
 END_VAR
 VAR
     Sources : ARRAY[0..15] OF OPENOT_SOURCE_ENTRY;
@@ -86,6 +87,7 @@ VAR
     StateEpochFirstAbs : ULINT;
     StateDefinitionHash : OPENOT_HASH8;
     StatePrevDefinitionHash : OPENOT_HASH8;
+    StatePublishedRecordCount : ULINT;
     PendingDefHashOld : OPENOT_HASH8;
     PendingDefHashNew : OPENOT_HASH8;
     PendingEpochId : ULINT;
@@ -107,6 +109,7 @@ IF NOT Initialized THEN
     StateSystemSeq := ULINT#0;
     StateEpochId := ULINT#1;
     StateEpochFirstAbs := ULINT#0;
+    StatePublishedRecordCount := ULINT#0;
     Initialized := TRUE;
 END_IF;
 
@@ -158,6 +161,7 @@ IF ExecuteEdge THEN
 
                 IF RingProducer.Done AND (NOT RingProducer.Error) THEN
                     Sources[EntryIndex].NextSeq := ProducedCount + ULINT#1;
+                    StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
                     IF EmissionCount < UINT#32 THEN
                         Emissions[EmissionCount].EventTypeId := UDINT#16#0108;
                         Emissions[EmissionCount].RunId := StateRunId;
@@ -229,6 +233,7 @@ IF ExecuteEdge THEN
                     Seq := AssignedSeq);
 
                 IF RingProducer.Done AND (NOT RingProducer.Error) THEN
+                    StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
                     IF EmissionCount < UINT#32 THEN
                         Emissions[EmissionCount].EventTypeId := UDINT#16#0003;
                         Emissions[EmissionCount].RunId := StateRunId;
@@ -260,6 +265,7 @@ IF ExecuteEdge THEN
                 Seq := EmitSeq);
 
             IF RingProducer.Done AND (NOT RingProducer.Error) THEN
+                StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
                 IF EmissionCount < UINT#32 THEN
                     Emissions[EmissionCount].EventTypeId := UDINT#16#0102;
                     Emissions[EmissionCount].RunId := StateRunId;
@@ -309,6 +315,7 @@ IF ExecuteEdge THEN
 
                     IF RingProducer.Done AND (NOT RingProducer.Error) THEN
                         Sources[SelectedIndex].NextSeq := ProducedCount + ULINT#1;
+                        StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
                         IF EmissionCount < UINT#32 THEN
                             Emissions[EmissionCount].EventTypeId := UDINT#16#0108;
                             Emissions[EmissionCount].RunId := StateRunId;
@@ -364,6 +371,7 @@ IF ExecuteEdge THEN
                 Seq := EmitSeq);
 
             IF RingProducer.Done AND (NOT RingProducer.Error) THEN
+                StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
                 IF EmissionCount < UINT#32 THEN
                     Emissions[EmissionCount].EventTypeId := UDINT#16#0106;
                     Emissions[EmissionCount].RunId := StateRunId;
@@ -409,6 +417,7 @@ IF ExecuteEdge THEN
                 END_FOR;
                 PendingOpen := FALSE;
                 PendingDefChangedEmitted := FALSE;
+                StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
                 IF EmissionCount < UINT#32 THEN
                     Emissions[EmissionCount].EventTypeId := UDINT#16#0101;
                     Emissions[EmissionCount].RunId := StateRunId;
@@ -462,6 +471,7 @@ IF ExecuteEdge THEN
                 END_FOR;
                 PendingOpen := FALSE;
                 PendingDefChangedEmitted := FALSE;
+                StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
                 IF EmissionCount < UINT#32 THEN
                     Emissions[EmissionCount].EventTypeId := UDINT#16#0101;
                     Emissions[EmissionCount].RunId := StateRunId;
@@ -494,6 +504,7 @@ END_FOR;
 RunId := StateRunId;
 SourceTime := StateSourceTime;
 SystemSeq := StateSystemSeq;
+PublishedRecordCount := StatePublishedRecordCount;
 EpochId := StateEpochId;
 EpochFirstAbs := StateEpochFirstAbs;
 TransitionOpen := PendingOpen;

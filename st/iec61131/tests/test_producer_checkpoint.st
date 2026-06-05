@@ -84,5 +84,6 @@ Passed :=
     EnvelopeSeqIsFive AND
     PayloadProducedCountIsFive AND
     SourceFound AND
+    (Producer.PublishedRecordCount = ULINT#6) AND
     (NextSeqAfterCheckpoint = ULINT#6);
 END_FUNCTION_BLOCK
