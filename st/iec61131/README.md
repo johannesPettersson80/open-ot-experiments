@@ -4,7 +4,9 @@ This directory contains vendor-neutral IEC 61131-3 Structured Text for the OpenO
 carriage format. The current slices cover CRC-32C, the 40-byte `OOT2` record header,
 TLV slots, 4-byte slot padding, the CRC trailer, the 88-byte control-block image,
 a fixed 128-byte ring write/wrap image, producer-side loss-range formation, and
-the producer `RecordsDropped` record.
+the producer `RecordsDropped` record. It also includes a minimal message encoder
+and a producer function block that assigns independent per-source sequence numbers
+before writing each record into the S2 producer ring.
 
 The conformance contract is byte-exact comparison against:
 
@@ -15,6 +17,7 @@ The conformance contract is byte-exact comparison against:
 - `crates/carriage/vectors/control_block.hex`
 - `crates/carriage/vectors/wrap_marker_boundary.hex`
 - `crates/carriage/vectors/records_dropped.hex`
+- `crates/carriage/vectors/minimal_message.hex`
 
 No specific toolchain, runtime, or test framework is required by this public artifact.
 The test POUs expose pass/fail state and mismatch metadata for harnesses that can run
@@ -54,6 +57,10 @@ reading a `STRING` representation.
 - `src/openot_records_dropped.st` defines the producer `RecordsDropped` encoder.
 - `src/openot_ring256_producer.st` defines the fixed-capacity producer loss-range
   formation path.
+- `src/openot_message.st` defines the minimal `Message` encoder used by the
+  producer sequence slice.
+- `src/openot_producer.st` composes the 256-byte producer ring with a fixed
+  per-source sequence table.
 - `tests/*.st` defines self-checking POUs. Each test exposes:
   - `Passed : BOOL`
   - `MismatchIndex : UINT`
