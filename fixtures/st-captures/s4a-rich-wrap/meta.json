@@ -1,0 +1,43 @@
+{
+  "scenario": "s4a-rich-wrap",
+  "capacity": 256,
+  "capturePou": "OPENOT_CaptureRichWrap",
+  "control": {
+    "format": "dynamic-fields",
+    "fields": [
+      "headAbs",
+      "oldestAbs",
+      "lostCount",
+      "runId",
+      "epochId",
+      "epochFirstAbs",
+      "definitionHash",
+      "prevDefinitionHash"
+    ]
+  },
+  "operations": [
+    {"op": "data", "sourceId": 10},
+    {"op": "data", "sourceId": 10},
+    {"op": "data", "sourceId": 10},
+    {"op": "data", "sourceId": 20},
+    {"op": "data", "sourceId": 20},
+    {"op": "checkpoint", "sourceId": 10},
+    {"op": "checkpoint", "sourceId": 20},
+    {"op": "beginTransition", "oldHashAscii": "oldhash1", "newHashAscii": "newhash2", "epochId": 2},
+    {"op": "definitionChanged"},
+    {"op": "finishWarm"},
+    {"op": "data", "sourceId": 10},
+    {"op": "data", "sourceId": 20}
+  ],
+  "expectedReference": {
+    "headAbs": 812,
+    "oldestAbs": 568,
+    "lostCount": 10,
+    "survivors": [
+      {"startAbs": 568, "eventTypeId": "0x0106", "sourceId": 0, "seq": 1},
+      {"startAbs": 648, "eventTypeId": "0x0101", "sourceId": 0, "seq": 2},
+      {"startAbs": 700, "eventTypeId": "0x0003", "sourceId": 10, "seq": 5},
+      {"startAbs": 768, "eventTypeId": "0x0003", "sourceId": 20, "seq": 4}
+    ]
+  }
+}

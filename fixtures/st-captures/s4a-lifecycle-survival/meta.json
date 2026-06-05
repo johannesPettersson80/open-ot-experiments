@@ -1,0 +1,34 @@
+{
+  "scenario": "s4a-lifecycle-survival",
+  "capacity": 256,
+  "capturePou": "OPENOT_CaptureLifecycleSurvival",
+  "control": {
+    "format": "dynamic-fields",
+    "fields": [
+      "headAbs",
+      "oldestAbs",
+      "lostCount",
+      "runId",
+      "epochId",
+      "epochFirstAbs",
+      "definitionHash",
+      "prevDefinitionHash"
+    ]
+  },
+  "operations": [
+    {"op": "data", "sourceId": 21},
+    {"op": "beginTransition", "oldHashAscii": "oldhash1", "newHashAscii": "newhash2", "epochId": 2},
+    {"op": "definitionChanged"},
+    {"op": "finishWarm"}
+  ],
+  "expectedReference": {
+    "headAbs": 308,
+    "oldestAbs": 88,
+    "lostCount": 2,
+    "survivors": [
+      {"startAbs": 88, "eventTypeId": "0x0108", "sourceId": 21, "seq": 1},
+      {"startAbs": 144, "eventTypeId": "0x0106", "sourceId": 0, "seq": 1},
+      {"startAbs": 256, "eventTypeId": "0x0101", "sourceId": 0, "seq": 2}
+    ]
+  }
+}

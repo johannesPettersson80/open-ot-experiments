@@ -12,6 +12,9 @@ per-source `SourceHighWater` checkpoints where the envelope sequence and
 the system-source `LoggerStarted`, `LoggerStopped`, and `DefinitionChanged` records,
 and the producer orchestrates cold and warm epoch transitions with a system sequence
 counter, source high-water checkpoints, and exposed transition state.
+The capture POUs drive fixed multi-record scenarios and expose the final
+256-byte ring plus dynamic control fields for cross-language validation by the
+Rust carriage harness.
 
 The conformance contract is byte-exact comparison against:
 
@@ -74,6 +77,10 @@ reading a `STRING` representation.
   records.
 - `src/openot_producer.st` composes the 256-byte producer ring with a fixed
   per-source sequence table and the cold/warm epoch transition state machine.
+- `captures/openot_s4a_capture.st` defines the S4a scenario drivers
+  `OPENOT_CaptureRichWrap` and `OPENOT_CaptureLifecycleSurvival`. Call the POU
+  once, confirm `Complete = TRUE`, then dump its public `Ring` and control-field
+  outputs.
 - `tests/*.st` defines self-checking POUs. Each test exposes:
   - `Passed : BOOL`
   - `MismatchIndex : UINT`

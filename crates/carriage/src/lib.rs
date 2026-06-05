@@ -17,6 +17,7 @@
 //! - [`epoch`] — run, epoch, definition-change, and source high-water producer logic.
 //! - [`concurrent`] — the release/acquire publish/read protocol for a ring whose
 //!   bytes a consumer may observe asynchronously.
+//! - [`capture`] — cross-language captured-ring conformance validation.
 //! - [`crc`] — CRC-32C (Castagnoli).
 //! - [`vectors`] — deterministic conformance-vector generation.
 //!
@@ -27,6 +28,7 @@
 //! and source high-water (see [`epoch::EpochProducer::checkpoint_high_water`]) closes
 //! the tail of a source that was dropped and then went silent.
 
+pub mod capture;
 pub mod concurrent;
 pub mod consumer;
 pub mod control;
@@ -38,6 +40,11 @@ pub mod ring;
 pub mod vectors;
 pub mod wire;
 
+pub use capture::{
+    CaptureScenario, CaptureValidation, CaptureValidationError, CapturedControlFields,
+    CapturedImage, CapturedRecordSummary, S4A_CAPTURE_CAPACITY, reference_capture,
+    validate_capture,
+};
 pub use concurrent::{
     ConcurrentProducer, ConcurrentRawConsumer, ConcurrentRing, ConcurrentStore,
     OwnedConcurrentStore,

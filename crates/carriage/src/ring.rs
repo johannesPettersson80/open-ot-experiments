@@ -105,6 +105,48 @@ impl RingBuffer {
         }
     }
 
+    /// Builds a read-only ring view from a captured physical byte image and control fields.
+    ///
+    /// The in-memory producer index is intentionally empty. Consumers that validate a
+    /// captured image must use [`read_raw_from`](Self::read_raw_from) or
+    /// [`read_raw_from_snapshot`](Self::read_raw_from_snapshot), which walk the raw bytes
+    /// and do not depend on the producer's private index.
+    pub fn from_captured(
+        bytes: Vec<u8>,
+        head_abs: u64,
+        oldest_abs: u64,
+        lost_count: u64,
+    ) -> Result<Self, RingError> {
+        let capacity = bytes.len();
+        if capacity == 0 {
+            return Err(RingError::CapturedCapacityZero);
+        }
+        if oldest_abs > head_abs {
+            return Err(RingError::InvalidCapturedWindow {
+                head_abs,
+                oldest_abs,
+                capacity,
+            });
+        }
+        if head_abs - oldest_abs > capacity as u64 {
+            return Err(RingError::InvalidCapturedWindow {
+                head_abs,
+                oldest_abs,
+                capacity,
+            });
+        }
+
+        Ok(Self {
+            bytes,
+            head_abs,
+            oldest_abs,
+            lost_count,
+            wraps: 0,
+            index: VecDeque::new(),
+            producer_loss_ranges: Vec::new(),
+        })
+    }
+
     /// Byte capacity of the ring.
     pub fn capacity(&self) -> usize {
         self.bytes.len()
@@ -407,6 +449,17 @@ pub enum RingError {
         /// Capacity of the ring being read.
         capacity: usize,
     },
+    /// A captured ring image had zero capacity.
+    CapturedCapacityZero,
+    /// A captured ring image advertised an impossible absolute live window.
+    InvalidCapturedWindow {
+        /// Published absolute head from the capture.
+        head_abs: u64,
+        /// Published oldest retained absolute byte from the capture.
+        oldest_abs: u64,
+        /// Captured physical byte capacity.
+        capacity: usize,
+    },
     /// A coherent control-block snapshot could not be read.
     ControlBlock(ControlBlockError),
     /// A `0x00` wrap marker appeared at physical offset 0, which is never valid.
@@ -575,6 +628,60 @@ mod tests {
                 snapshot_bytes: 128,
                 capacity: 256,
             })
+        );
+    }
+
+    #[test]
+    fn captured_ring_snapshot_walks_raw_bytes_without_index() {
+        let mut produced = RingBuffer::new(256);
+        produced.write_record(&minimal_record(75, 0)).unwrap();
+        produced.write_record(&minimal_record(75, 1)).unwrap();
+        let snapshot = snapshot_for_ring(&produced);
+        let captured = RingBuffer::from_captured(
+            produced.physical_bytes().to_vec(),
+            produced.head_abs(),
+            produced.oldest_abs(),
+            produced.lost_count(),
+        )
+        .unwrap();
+
+        assert!(
+            captured.read_from(0).unwrap().records.is_empty(),
+            "captured rings deliberately do not synthesize the producer index"
+        );
+
+        let batch = captured.read_raw_from_snapshot(0, &snapshot).unwrap();
+        assert_eq!(
+            batch
+                .records
+                .iter()
+                .map(|read| read.record.seq)
+                .collect::<Vec<_>>(),
+            vec![0, 1]
+        );
+    }
+
+    #[test]
+    fn captured_ring_rejects_invalid_windows() {
+        assert_eq!(
+            RingBuffer::from_captured(Vec::new(), 0, 0, 0).unwrap_err(),
+            RingError::CapturedCapacityZero
+        );
+        assert_eq!(
+            RingBuffer::from_captured(vec![0; 16], 7, 8, 0).unwrap_err(),
+            RingError::InvalidCapturedWindow {
+                head_abs: 7,
+                oldest_abs: 8,
+                capacity: 16,
+            }
+        );
+        assert_eq!(
+            RingBuffer::from_captured(vec![0; 16], 32, 0, 0).unwrap_err(),
+            RingError::InvalidCapturedWindow {
+                head_abs: 32,
+                oldest_abs: 0,
+                capacity: 16,
+            }
         );
     }
 

@@ -1,0 +1,10 @@
+{
+  "headAbs": 308,
+  "oldestAbs": 88,
+  "lostCount": 2,
+  "runId": 1,
+  "epochId": 2,
+  "epochFirstAbs": 256,
+  "definitionHash": "6e65776861736832",
+  "prevDefinitionHash": "6f6c646861736831"
+}
