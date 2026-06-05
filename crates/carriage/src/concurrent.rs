@@ -21,8 +21,76 @@ mod sync {
 
 use sync::{Arc, AtomicU8, AtomicU64, Ordering, fence};
 
-use crate::ring::{ReadBatch, ReadRecord, RingError};
+use std::collections::VecDeque;
+
+use crate::control::{ControlBlockError, ControlBlockSnapshot};
+use crate::ring::{DEFAULT_BUFFER_ID, ReadBatch, ReadRecord, RingError};
 use crate::wire::{HEADER_LEN, Record, SYNC, WireError, decode};
+
+/// Operation-based storage contract for the concurrent publish/read protocol.
+///
+/// The protocol is intentionally expressed in terms of loads, stores, and fences
+/// rather than borrowed atomic references. That keeps the implementation usable over
+/// both the owned in-process store and a future mmap-backed store whose atomics are
+/// constructed from checked shared-memory offsets.
+pub trait ConcurrentStore: Clone + Send + Sync + 'static {
+    /// Byte capacity of the ring storage.
+    fn capacity(&self) -> usize;
+
+    /// Relaxed-loads one physical byte.
+    fn load_byte_relaxed(&self, phys: usize) -> u8;
+
+    /// Relaxed-stores one physical byte.
+    fn store_byte_relaxed(&self, phys: usize, value: u8);
+
+    /// Acquire-loads the committed head.
+    fn load_head_acquire(&self) -> u64;
+
+    /// Release-stores the committed head.
+    fn store_head_release(&self, value: u64);
+
+    /// Acquire-loads the oldest retained absolute byte.
+    fn load_oldest_acquire(&self) -> u64;
+
+    /// Relaxed-loads the oldest retained absolute byte after an acquire fence.
+    fn load_oldest_relaxed(&self) -> u64;
+
+    /// Relaxed-stores the oldest retained absolute byte before the release fence.
+    fn store_oldest_relaxed(&self, value: u64);
+
+    /// Release-adds producer-known lost records.
+    fn fetch_add_lost_release(&self, value: u64);
+
+    /// Acquire-loads producer-known lost records.
+    fn load_lost_acquire(&self) -> u64;
+
+    /// Marks the start of a control snapshot update.
+    ///
+    /// Seqlock-backed stores set the version odd and apply the writer-entry barrier
+    /// before any snapshot field is updated.
+    fn begin_control_update(&self) {}
+
+    /// Release-publishes the end of a control snapshot update.
+    fn end_control_update_release(&self) {}
+
+    /// Reads a coherent control snapshot when the store has one.
+    fn read_control_snapshot(&self) -> Result<ControlBlockSnapshot, ControlBlockError>;
+
+    /// Reads `OldestAbs` for the post-record overwrite check.
+    fn read_oldest_after_record(&self) -> Result<u64, ControlBlockError> {
+        Ok(self.load_oldest_relaxed())
+    }
+
+    /// Release-fences after advancing `OldestAbs`, before clobbering reclaimed bytes.
+    fn release_before_clobber(&self) {
+        fence(Ordering::Release);
+    }
+
+    /// Acquire-fences after reading candidate bytes, before re-checking `OldestAbs`.
+    fn acquire_before_recheck(&self) {
+        fence(Ordering::Acquire);
+    }
+}
 
 /// A ring whose bytes and control fields are atomics, so a consumer on another core or
 /// processor can read it while the producer writes.
@@ -67,128 +135,247 @@ impl ConcurrentRing {
     pub fn lost_count(&self) -> u64 {
         self.lost_count.load(Ordering::Acquire)
     }
+}
 
-    fn physical_offset(&self, abs: u64) -> usize {
-        (abs % self.capacity as u64) as usize
+/// Cloneable adapter that lets the concurrent protocol run over an owned in-process ring.
+#[derive(Debug, Clone)]
+pub struct OwnedConcurrentStore {
+    ring: Arc<ConcurrentRing>,
+}
+
+impl OwnedConcurrentStore {
+    /// Creates an owned-store adapter for `ring`.
+    pub fn new(ring: Arc<ConcurrentRing>) -> Self {
+        Self { ring }
     }
 
-    fn load_byte(&self, phys: usize) -> u8 {
-        self.bytes[phys].load(Ordering::Relaxed)
+    /// Returns the underlying ring handle.
+    pub fn ring(&self) -> Arc<ConcurrentRing> {
+        Arc::clone(&self.ring)
+    }
+}
+
+impl ConcurrentStore for OwnedConcurrentStore {
+    fn capacity(&self) -> usize {
+        self.ring.capacity
     }
 
-    fn store_byte(&self, phys: usize, byte: u8) {
-        self.bytes[phys].store(byte, Ordering::Relaxed);
+    fn load_byte_relaxed(&self, phys: usize) -> u8 {
+        self.ring.bytes[phys].load(Ordering::Relaxed)
     }
 
-    fn read_raw_from(&self, cursor_abs: u64) -> Result<ReadBatch, RingError> {
-        let first_oldest = self.oldest_abs.load(Ordering::Acquire);
-        let head_abs = self.head_abs.load(Ordering::Acquire);
-        let lapped = cursor_abs < first_oldest;
-        let mut abs = if lapped { first_oldest } else { cursor_abs };
-        let mut records = Vec::new();
+    fn store_byte_relaxed(&self, phys: usize, value: u8) {
+        self.ring.bytes[phys].store(value, Ordering::Relaxed);
+    }
 
-        while abs < head_abs {
-            let oldest_before = self.oldest_abs.load(Ordering::Acquire);
-            if oldest_before > abs {
-                return Err(RingError::OverwrittenMidRead {
-                    read_abs: abs,
-                    oldest_abs: oldest_before,
-                });
-            }
+    fn load_head_acquire(&self) -> u64 {
+        self.ring.head_abs.load(Ordering::Acquire)
+    }
 
-            let phys = self.physical_offset(abs);
-            let first = self.load_byte(phys);
-            if first == 0 {
-                if phys == 0 {
-                    return Err(RingError::UnexpectedWrapMarker { abs });
-                }
-                abs += (self.capacity - phys) as u64;
-                continue;
-            }
+    fn store_head_release(&self, value: u64) {
+        self.ring.head_abs.store(value, Ordering::Release);
+    }
 
-            if phys + HEADER_LEN > self.capacity {
-                return Err(RingError::RecordCrossesBoundary { abs });
-            }
-            let sync = [
-                self.load_byte(phys),
-                self.load_byte(phys + 1),
-                self.load_byte(phys + 2),
-                self.load_byte(phys + 3),
-            ];
-            if sync != SYNC {
-                return Err(WireError::WrongSync.into());
-            }
+    fn load_oldest_acquire(&self) -> u64 {
+        self.ring.oldest_abs.load(Ordering::Acquire)
+    }
 
-            let total_len =
-                u16::from_le_bytes([self.load_byte(phys + 4), self.load_byte(phys + 5)]) as usize;
-            if total_len < HEADER_LEN {
-                return Err(WireError::InvalidLength {
-                    total_len,
-                    available: self.capacity - phys,
-                }
-                .into());
-            }
-            if phys + total_len > self.capacity {
-                return Err(RingError::RecordCrossesBoundary { abs });
-            }
+    fn load_oldest_relaxed(&self) -> u64 {
+        self.ring.oldest_abs.load(Ordering::Relaxed)
+    }
 
-            let mut bytes = Vec::with_capacity(total_len);
-            for i in 0..total_len {
-                bytes.push(self.load_byte(phys + i));
-            }
+    fn store_oldest_relaxed(&self, value: u64) {
+        self.ring.oldest_abs.store(value, Ordering::Relaxed);
+    }
 
-            // Pairs with the producer's release fence before clobbering reclaimed bytes.
-            fence(Ordering::Acquire);
-            let oldest_after = self.oldest_abs.load(Ordering::Relaxed);
-            if oldest_after > abs {
-                return Err(RingError::OverwrittenMidRead {
-                    read_abs: abs,
-                    oldest_abs: oldest_after,
-                });
-            }
+    fn fetch_add_lost_release(&self, value: u64) {
+        self.ring.lost_count.fetch_add(value, Ordering::Release);
+    }
 
-            let decoded = decode(&bytes)?;
+    fn load_lost_acquire(&self) -> u64 {
+        self.ring.lost_count.load(Ordering::Acquire)
+    }
 
-            records.push(ReadRecord {
-                start_abs: abs,
-                end_abs: abs + decoded.consumed as u64,
-                record: decoded.record,
-            });
-            abs += total_len as u64;
-        }
-
-        let final_oldest = self.oldest_abs.load(Ordering::Acquire);
-        if final_oldest != first_oldest && final_oldest > cursor_abs {
-            return Err(RingError::OverwrittenMidRead {
-                read_abs: cursor_abs,
-                oldest_abs: final_oldest,
-            });
-        }
-
-        Ok(ReadBatch {
-            records,
-            next_abs: head_abs,
-            lapped,
+    fn read_control_snapshot(&self) -> Result<ControlBlockSnapshot, ControlBlockError> {
+        Ok(ControlBlockSnapshot {
+            version: 2,
+            caps: 0,
+            buffer_id: DEFAULT_BUFFER_ID,
+            buffer_bytes: u32::try_from(self.capacity()).unwrap_or(u32::MAX),
+            head_abs: self.load_head_acquire(),
+            oldest_abs: self.load_oldest_acquire(),
+            lost_count: self.load_lost_acquire(),
+            run_id: 0,
+            epoch_id: 0,
+            epoch_first_abs: 0,
+            definition_hash: [0; 8],
+            prev_definition_hash: [0; 8],
         })
     }
 }
 
-/// Single writer for a [`ConcurrentRing`]: evicts (with a release fence) before clobber,
+fn physical_offset<S: ConcurrentStore>(store: &S, abs: u64) -> usize {
+    (abs % store.capacity() as u64) as usize
+}
+
+fn read_raw_from_store<S: ConcurrentStore>(
+    store: &S,
+    cursor_abs: u64,
+) -> Result<ReadBatch, RingError> {
+    let snapshot = store
+        .read_control_snapshot()
+        .map_err(RingError::ControlBlock)?;
+    let snapshot_bytes = usize::try_from(snapshot.buffer_bytes).unwrap_or(usize::MAX);
+    if snapshot_bytes != store.capacity() {
+        return Err(RingError::ControlBlockCapacityMismatch {
+            snapshot_bytes: snapshot.buffer_bytes,
+            capacity: store.capacity(),
+        });
+    }
+
+    let first_oldest = snapshot.oldest_abs;
+    let head_abs = snapshot.head_abs;
+    let lapped = cursor_abs < first_oldest;
+    let mut abs = if lapped { first_oldest } else { cursor_abs };
+    let mut records = Vec::new();
+
+    while abs < head_abs {
+        if first_oldest > abs {
+            return Err(RingError::OverwrittenMidRead {
+                read_abs: abs,
+                oldest_abs: first_oldest,
+            });
+        }
+
+        let phys = physical_offset(store, abs);
+        let first = store.load_byte_relaxed(phys);
+        if first == 0 {
+            if phys == 0 {
+                return Err(RingError::UnexpectedWrapMarker { abs });
+            }
+            abs += (store.capacity() - phys) as u64;
+            continue;
+        }
+
+        if phys + HEADER_LEN > store.capacity() {
+            return Err(RingError::RecordCrossesBoundary { abs });
+        }
+        let sync = [
+            store.load_byte_relaxed(phys),
+            store.load_byte_relaxed(phys + 1),
+            store.load_byte_relaxed(phys + 2),
+            store.load_byte_relaxed(phys + 3),
+        ];
+        if sync != SYNC {
+            return Err(WireError::WrongSync.into());
+        }
+
+        let total_len = u16::from_le_bytes([
+            store.load_byte_relaxed(phys + 4),
+            store.load_byte_relaxed(phys + 5),
+        ]) as usize;
+        if total_len < HEADER_LEN {
+            return Err(WireError::InvalidLength {
+                total_len,
+                available: store.capacity() - phys,
+            }
+            .into());
+        }
+        if phys + total_len > store.capacity() {
+            return Err(RingError::RecordCrossesBoundary { abs });
+        }
+
+        let mut bytes = Vec::with_capacity(total_len);
+        for i in 0..total_len {
+            bytes.push(store.load_byte_relaxed(phys + i));
+        }
+
+        // Pairs with the producer's release fence before clobbering reclaimed bytes.
+        store.acquire_before_recheck();
+        let oldest_after = store
+            .read_oldest_after_record()
+            .map_err(RingError::ControlBlock)?;
+        if oldest_after > abs {
+            return Err(RingError::OverwrittenMidRead {
+                read_abs: abs,
+                oldest_abs: oldest_after,
+            });
+        }
+
+        let decoded = decode(&bytes)?;
+
+        records.push(ReadRecord {
+            start_abs: abs,
+            end_abs: abs + decoded.consumed as u64,
+            record: decoded.record,
+        });
+        abs += total_len as u64;
+    }
+
+    let final_oldest = store.load_oldest_acquire();
+    if final_oldest != first_oldest && final_oldest > cursor_abs {
+        return Err(RingError::OverwrittenMidRead {
+            read_abs: cursor_abs,
+            oldest_abs: final_oldest,
+        });
+    }
+
+    Ok(ReadBatch {
+        records,
+        next_abs: head_abs,
+        lapped,
+    })
+}
+
+/// Single writer for a concurrent store: evicts (with a release fence) before clobber,
 /// then publishes the new head with `Release`.
 #[derive(Debug)]
-pub struct ConcurrentProducer {
-    ring: Arc<ConcurrentRing>,
-    spans: std::collections::VecDeque<(u64, u64)>,
+pub struct ConcurrentProducer<S = OwnedConcurrentStore>
+where
+    S: ConcurrentStore,
+{
+    store: S,
+    spans: VecDeque<(u64, u64)>,
     head_abs: u64,
 }
 
-impl ConcurrentProducer {
+impl ConcurrentProducer<OwnedConcurrentStore> {
     /// Creates a producer bound to `ring`.
     pub fn new(ring: Arc<ConcurrentRing>) -> Self {
+        Self::with_store(OwnedConcurrentStore::new(ring))
+    }
+}
+
+impl<S> ConcurrentProducer<S>
+where
+    S: ConcurrentStore,
+{
+    /// Creates a producer bound to any concurrent store.
+    pub fn with_store(store: S) -> Self {
         Self {
-            ring,
-            spans: std::collections::VecDeque::new(),
+            store,
+            spans: VecDeque::new(),
             head_abs: 0,
+        }
+    }
+
+    /// Returns the underlying store.
+    pub fn store(&self) -> &S {
+        &self.store
+    }
+
+    /// Computes the absolute start offset the next encoded record of `encoded_len` bytes will use.
+    ///
+    /// This is the same wrap-boundary calculation used by [`write_record`](Self::write_record).
+    /// Callers that need to embed the physical/absolute write position in a record should query this
+    /// after encoding a fixed-size placeholder record and before calling `write_record`.
+    pub fn next_start_abs(&self, encoded_len: usize) -> u64 {
+        let capacity = self.store.capacity();
+        let start_phys = physical_offset(&self.store, self.head_abs);
+        if start_phys == 0 || start_phys + encoded_len <= capacity {
+            self.head_abs
+        } else {
+            self.head_abs + (capacity - start_phys) as u64
         }
     }
 
@@ -198,41 +385,39 @@ impl ConcurrentProducer {
     /// bytes, write the record bytes, then `Release`-store the new `head_abs`.
     pub fn write_record(&mut self, record: &Record) -> Result<(), RingError> {
         let encoded = record.encode(true)?;
-        if encoded.len() > self.ring.capacity {
+        let capacity = self.store.capacity();
+        if encoded.len() > capacity {
             return Err(RingError::RecordExceedsCapacity {
                 record_len: encoded.len(),
-                capacity: self.ring.capacity,
+                capacity,
             });
         }
 
-        let start_phys = self.ring.physical_offset(self.head_abs);
-        let record_start_abs =
-            if start_phys == 0 || start_phys + encoded.len() <= self.ring.capacity {
-                self.head_abs
-            } else {
-                self.head_abs + (self.ring.capacity - start_phys) as u64
-            };
+        let start_phys = physical_offset(&self.store, self.head_abs);
+        let record_start_abs = self.next_start_abs(encoded.len());
         let final_head = record_start_abs + encoded.len() as u64;
 
+        self.store.begin_control_update();
         self.evict_before_clobber(final_head, record_start_abs);
 
         if record_start_abs != self.head_abs {
-            self.ring.store_byte(start_phys, 0);
+            self.store.store_byte_relaxed(start_phys, 0);
         }
 
-        let record_start = self.ring.physical_offset(record_start_abs);
+        let record_start = physical_offset(&self.store, record_start_abs);
         for (i, byte) in encoded.iter().enumerate() {
-            self.ring.store_byte(record_start + i, *byte);
+            self.store.store_byte_relaxed(record_start + i, *byte);
         }
 
         self.spans.push_back((record_start_abs, final_head));
         self.head_abs = final_head;
-        self.ring.head_abs.store(final_head, Ordering::Release);
+        self.store.store_head_release(final_head);
+        self.store.end_control_update_release();
         Ok(())
     }
 
     fn evict_before_clobber(&mut self, final_head: u64, next_record_start: u64) {
-        let retention_floor = final_head.saturating_sub(self.ring.capacity as u64);
+        let retention_floor = final_head.saturating_sub(self.store.capacity() as u64);
         let mut evicted = 0u64;
         while self
             .spans
@@ -243,33 +428,46 @@ impl ConcurrentProducer {
             evicted += 1;
         }
         if evicted > 0 {
-            self.ring.lost_count.fetch_add(evicted, Ordering::Release);
+            self.store.fetch_add_lost_release(evicted);
         }
         let new_oldest = self
             .spans
             .front()
             .map_or(next_record_start, |(start_abs, _)| *start_abs);
-        self.ring.oldest_abs.store(new_oldest, Ordering::Relaxed);
-        fence(Ordering::Release);
+        self.store.store_oldest_relaxed(new_oldest);
+        self.store.release_before_clobber();
     }
 }
 
-/// Reads a [`ConcurrentRing`] by walking raw bytes with the acquire-fenced overwrite
+/// Reads a concurrent store by walking raw bytes with the acquire-fenced overwrite
 /// re-check, recovering by lapping to `oldest_abs` when it falls behind.
 #[derive(Debug)]
-pub struct ConcurrentRawConsumer {
-    ring: Arc<ConcurrentRing>,
+pub struct ConcurrentRawConsumer<S = OwnedConcurrentStore>
+where
+    S: ConcurrentStore,
+{
+    store: S,
     cursor_abs: u64,
     lapped_batches: u64,
     overwritten_retries: u64,
     rejected_records: u64,
 }
 
-impl ConcurrentRawConsumer {
+impl ConcurrentRawConsumer<OwnedConcurrentStore> {
     /// Creates a consumer bound to `ring`.
     pub fn new(ring: Arc<ConcurrentRing>) -> Self {
+        Self::with_store(OwnedConcurrentStore::new(ring))
+    }
+}
+
+impl<S> ConcurrentRawConsumer<S>
+where
+    S: ConcurrentStore,
+{
+    /// Creates a consumer bound to any concurrent store.
+    pub fn with_store(store: S) -> Self {
         Self {
-            ring,
+            store,
             cursor_abs: 0,
             lapped_batches: 0,
             overwritten_retries: 0,
@@ -277,10 +475,15 @@ impl ConcurrentRawConsumer {
         }
     }
 
+    /// Returns the underlying store.
+    pub fn store(&self) -> &S {
+        &self.store
+    }
+
     /// Reads available records, recovering from overwrite and decode faults by lapping
     /// the cursor to `oldest_abs` and counting the event.
     pub fn poll(&mut self) -> Result<ReadBatch, RingError> {
-        match self.ring.read_raw_from(self.cursor_abs) {
+        match read_raw_from_store(&self.store, self.cursor_abs) {
             Ok(batch) => {
                 if batch.lapped {
                     self.lapped_batches += 1;
@@ -297,8 +500,16 @@ impl ConcurrentRawConsumer {
                     lapped: true,
                 })
             }
+            Err(RingError::ControlBlock(_)) => {
+                self.overwritten_retries += 1;
+                Ok(ReadBatch {
+                    records: Vec::new(),
+                    next_abs: self.cursor_abs,
+                    lapped: false,
+                })
+            }
             Err(error @ RingError::Wire(_)) => {
-                let oldest = self.ring.oldest_abs();
+                let oldest = self.store.load_oldest_acquire();
                 if oldest > self.cursor_abs {
                     self.cursor_abs = oldest;
                     self.rejected_records += 1;
@@ -320,6 +531,11 @@ impl ConcurrentRawConsumer {
         self.cursor_abs
     }
 
+    /// Acquire-loads the committed head from the underlying store.
+    pub fn head_abs(&self) -> u64 {
+        self.store.load_head_acquire()
+    }
+
     /// Number of batches that observed a lap (cursor behind `oldest_abs`).
     pub fn lapped_batches(&self) -> u64 {
         self.lapped_batches
@@ -338,7 +554,9 @@ impl ConcurrentRawConsumer {
 
 #[cfg(all(test, not(loom)))]
 mod tests {
-    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::atomic::{
+        AtomicBool, AtomicU8 as StdAtomicU8, AtomicU64 as StdAtomicU64, Ordering, fence,
+    };
     use std::thread;
 
     use super::*;
@@ -378,7 +596,7 @@ mod tests {
                 accounting.account_batch(&batch);
 
                 if consumer_done.load(Ordering::Acquire)
-                    && consumer.cursor_abs() == consumer.ring.head_abs()
+                    && consumer.cursor_abs() == consumer.head_abs()
                 {
                     break;
                 }
@@ -409,6 +627,251 @@ mod tests {
                 records_per_source,
                 "loss reconciliation failed for source {source}"
             );
+        }
+    }
+
+    #[test]
+    fn owned_store_protocol_uses_fence_hooks() {
+        let ring = ConcurrentRing::new(256);
+        let store = InstrumentedStore::new(OwnedConcurrentStore::new(Arc::clone(&ring)));
+        let mut producer = ConcurrentProducer::with_store(store.clone());
+        let mut consumer = ConcurrentRawConsumer::with_store(store.clone());
+
+        producer.write_record(&minimal_record(41, 0)).unwrap();
+        let batch = consumer.poll().unwrap();
+
+        assert_eq!(batch.records.len(), 1);
+        assert_eq!(batch.records[0].record.source_id, 41);
+        assert_eq!(store.release_fences(), 1);
+        assert_eq!(store.acquire_fences(), 1);
+        assert_eq!(ring.head_abs(), consumer.cursor_abs());
+    }
+
+    #[test]
+    fn next_start_abs_matches_written_record_start_across_wraps() {
+        let ring = ConcurrentRing::new(100);
+        let mut producer = ConcurrentProducer::new(Arc::clone(&ring));
+        let mut consumer = ConcurrentRawConsumer::new(Arc::clone(&ring));
+        let mut starts = Vec::new();
+
+        for seq in 0..6 {
+            let record = minimal_record(42, seq);
+            let encoded_len = record.encode(true).unwrap().len();
+            let expected_start = producer.next_start_abs(encoded_len);
+            producer.write_record(&record).unwrap();
+
+            let batch = consumer.poll().unwrap();
+            let delivered = batch
+                .records
+                .iter()
+                .find(|read| read.record.seq == seq)
+                .expect("new record delivered");
+            assert_eq!(delivered.start_abs, expected_start);
+            starts.push(delivered.start_abs);
+        }
+
+        assert_eq!(starts, vec![0, 44, 100, 144, 200, 244]);
+    }
+
+    #[test]
+    fn consumer_uses_snapshot_head_and_fresh_oldest_recheck() {
+        let record = minimal_record(51, 0);
+        let encoded = record.encode(true).unwrap();
+        let store = SnapshotOnlyStore::new(128, &encoded, encoded.len() as u64);
+        let mut consumer = ConcurrentRawConsumer::with_store(store.clone());
+
+        let batch = consumer.poll().unwrap();
+
+        assert!(batch.records.is_empty());
+        assert_eq!(consumer.cursor_abs(), encoded.len() as u64);
+        assert_eq!(store.snapshot_reads(), 1);
+        assert_eq!(store.head_loads(), 0);
+        assert_eq!(store.post_record_oldest_reads(), 1);
+    }
+
+    #[derive(Debug, Clone)]
+    struct InstrumentedStore {
+        inner: OwnedConcurrentStore,
+        release_fences: Arc<StdAtomicU64>,
+        acquire_fences: Arc<StdAtomicU64>,
+    }
+
+    impl InstrumentedStore {
+        fn new(inner: OwnedConcurrentStore) -> Self {
+            Self {
+                inner,
+                release_fences: Arc::new(StdAtomicU64::new(0)),
+                acquire_fences: Arc::new(StdAtomicU64::new(0)),
+            }
+        }
+
+        fn release_fences(&self) -> u64 {
+            self.release_fences.load(Ordering::Acquire)
+        }
+
+        fn acquire_fences(&self) -> u64 {
+            self.acquire_fences.load(Ordering::Acquire)
+        }
+    }
+
+    impl ConcurrentStore for InstrumentedStore {
+        fn capacity(&self) -> usize {
+            self.inner.capacity()
+        }
+
+        fn load_byte_relaxed(&self, phys: usize) -> u8 {
+            self.inner.load_byte_relaxed(phys)
+        }
+
+        fn store_byte_relaxed(&self, phys: usize, value: u8) {
+            self.inner.store_byte_relaxed(phys, value);
+        }
+
+        fn load_head_acquire(&self) -> u64 {
+            self.inner.load_head_acquire()
+        }
+
+        fn store_head_release(&self, value: u64) {
+            self.inner.store_head_release(value);
+        }
+
+        fn load_oldest_acquire(&self) -> u64 {
+            self.inner.load_oldest_acquire()
+        }
+
+        fn load_oldest_relaxed(&self) -> u64 {
+            self.inner.load_oldest_relaxed()
+        }
+
+        fn store_oldest_relaxed(&self, value: u64) {
+            self.inner.store_oldest_relaxed(value);
+        }
+
+        fn fetch_add_lost_release(&self, value: u64) {
+            self.inner.fetch_add_lost_release(value);
+        }
+
+        fn load_lost_acquire(&self) -> u64 {
+            self.inner.load_lost_acquire()
+        }
+
+        fn read_control_snapshot(&self) -> Result<ControlBlockSnapshot, ControlBlockError> {
+            self.inner.read_control_snapshot()
+        }
+
+        fn read_oldest_after_record(&self) -> Result<u64, ControlBlockError> {
+            self.inner.read_oldest_after_record()
+        }
+
+        fn release_before_clobber(&self) {
+            self.release_fences.fetch_add(1, Ordering::Release);
+            fence(Ordering::Release);
+        }
+
+        fn acquire_before_recheck(&self) {
+            fence(Ordering::Acquire);
+            self.acquire_fences.fetch_add(1, Ordering::Release);
+        }
+    }
+
+    #[derive(Debug, Clone)]
+    struct SnapshotOnlyStore {
+        bytes: Arc<Vec<StdAtomicU8>>,
+        capacity: usize,
+        snapshot_head: u64,
+        post_record_oldest: u64,
+        snapshot_reads: Arc<StdAtomicU64>,
+        head_loads: Arc<StdAtomicU64>,
+        post_record_oldest_reads: Arc<StdAtomicU64>,
+    }
+
+    impl SnapshotOnlyStore {
+        fn new(capacity: usize, encoded: &[u8], post_record_oldest: u64) -> Self {
+            let bytes = (0..capacity)
+                .map(|index| StdAtomicU8::new(encoded.get(index).copied().unwrap_or(0)))
+                .collect();
+            Self {
+                bytes: Arc::new(bytes),
+                capacity,
+                snapshot_head: encoded.len() as u64,
+                post_record_oldest,
+                snapshot_reads: Arc::new(StdAtomicU64::new(0)),
+                head_loads: Arc::new(StdAtomicU64::new(0)),
+                post_record_oldest_reads: Arc::new(StdAtomicU64::new(0)),
+            }
+        }
+
+        fn snapshot_reads(&self) -> u64 {
+            self.snapshot_reads.load(Ordering::Acquire)
+        }
+
+        fn head_loads(&self) -> u64 {
+            self.head_loads.load(Ordering::Acquire)
+        }
+
+        fn post_record_oldest_reads(&self) -> u64 {
+            self.post_record_oldest_reads.load(Ordering::Acquire)
+        }
+    }
+
+    impl ConcurrentStore for SnapshotOnlyStore {
+        fn capacity(&self) -> usize {
+            self.capacity
+        }
+
+        fn load_byte_relaxed(&self, phys: usize) -> u8 {
+            self.bytes[phys].load(Ordering::Relaxed)
+        }
+
+        fn store_byte_relaxed(&self, phys: usize, value: u8) {
+            self.bytes[phys].store(value, Ordering::Relaxed);
+        }
+
+        fn load_head_acquire(&self) -> u64 {
+            self.head_loads.fetch_add(1, Ordering::Release);
+            0
+        }
+
+        fn store_head_release(&self, _value: u64) {}
+
+        fn load_oldest_acquire(&self) -> u64 {
+            0
+        }
+
+        fn load_oldest_relaxed(&self) -> u64 {
+            0
+        }
+
+        fn store_oldest_relaxed(&self, _value: u64) {}
+
+        fn fetch_add_lost_release(&self, _value: u64) {}
+
+        fn load_lost_acquire(&self) -> u64 {
+            0
+        }
+
+        fn read_control_snapshot(&self) -> Result<ControlBlockSnapshot, ControlBlockError> {
+            self.snapshot_reads.fetch_add(1, Ordering::Release);
+            Ok(ControlBlockSnapshot {
+                version: 2,
+                caps: 0,
+                buffer_id: DEFAULT_BUFFER_ID,
+                buffer_bytes: u32::try_from(self.capacity).unwrap(),
+                head_abs: self.snapshot_head,
+                oldest_abs: 0,
+                lost_count: 0,
+                run_id: 0,
+                epoch_id: 0,
+                epoch_first_abs: 0,
+                definition_hash: [0; 8],
+                prev_definition_hash: [0; 8],
+            })
+        }
+
+        fn read_oldest_after_record(&self) -> Result<u64, ControlBlockError> {
+            self.post_record_oldest_reads
+                .fetch_add(1, Ordering::Release);
+            Ok(self.post_record_oldest)
         }
     }
 

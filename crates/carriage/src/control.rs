@@ -6,22 +6,38 @@ pub const CONTROL_BLOCK_LEN: usize = 88;
 /// Sync bytes for the Phase-0 shared-memory control block.
 pub const CONTROL_BLOCK_SYNC: [u8; 4] = *b"OOT2";
 
-const OFF_SYNC: usize = 0;
-const OFF_VERSION: usize = 4;
-const OFF_CAPS: usize = 5;
-const OFF_RESERVED: usize = 6;
-const OFF_BUFFER_ID: usize = 8;
-const OFF_BUFFER_BYTES: usize = 12;
-const OFF_SEQ_LOCK: usize = 16;
-const OFF_RESERVED2: usize = 20;
-const OFF_HEAD_ABS: usize = 24;
-const OFF_OLDEST_ABS: usize = 32;
-const OFF_LOST_COUNT: usize = 40;
-const OFF_RUN_ID: usize = 48;
-const OFF_EPOCH_ID: usize = 56;
-const OFF_EPOCH_FIRST_ABS: usize = 64;
-const OFF_DEFINITION_HASH: usize = 72;
-const OFF_PREV_DEFINITION_HASH: usize = 80;
+/// Offset of the `Sync` bytes.
+pub const OFF_SYNC: usize = 0;
+/// Offset of the one-byte control-block version.
+pub const OFF_VERSION: usize = 4;
+/// Offset of the one-byte capabilities bitset.
+pub const OFF_CAPS: usize = 5;
+/// Offset of the first reserved byte range.
+pub const OFF_RESERVED: usize = 6;
+/// Offset of the logical buffer id.
+pub const OFF_BUFFER_ID: usize = 8;
+/// Offset of the ring byte capacity.
+pub const OFF_BUFFER_BYTES: usize = 12;
+/// Offset of the 32-bit seqlock word.
+pub const OFF_SEQ_LOCK: usize = 16;
+/// Offset of the second reserved byte range.
+pub const OFF_RESERVED2: usize = 20;
+/// Offset of the published absolute head.
+pub const OFF_HEAD_ABS: usize = 24;
+/// Offset of the oldest retained absolute byte.
+pub const OFF_OLDEST_ABS: usize = 32;
+/// Offset of the persisted lost-record count.
+pub const OFF_LOST_COUNT: usize = 40;
+/// Offset of the current run id.
+pub const OFF_RUN_ID: usize = 48;
+/// Offset of the current epoch id.
+pub const OFF_EPOCH_ID: usize = 56;
+/// Offset of the current epoch's first absolute byte.
+pub const OFF_EPOCH_FIRST_ABS: usize = 64;
+/// Offset of the current definition hash prefix.
+pub const OFF_DEFINITION_HASH: usize = 72;
+/// Offset of the previous definition hash prefix.
+pub const OFF_PREV_DEFINITION_HASH: usize = 80;
 
 /// A coherent snapshot of the producer-owned control block fields.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -264,6 +280,7 @@ mod loom_tests {
             let writer = model.clone();
             let writer_thread = thread::spawn(move || {
                 writer.seq_lock.fetch_add(1, Ordering::Relaxed);
+                fence(Ordering::Release);
                 writer.oldest_abs.store(4, Ordering::Relaxed);
                 fence(Ordering::Release);
                 writer.write_new_record();

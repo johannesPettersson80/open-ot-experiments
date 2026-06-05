@@ -12,7 +12,7 @@
 
 use std::collections::VecDeque;
 
-use crate::control::ControlBlockSnapshot;
+use crate::control::{ControlBlockError, ControlBlockSnapshot};
 use crate::wire::{HEADER_LEN, Record, SYNC, WireError, decode};
 
 /// Default logical buffer identifier used when a single ring is in play.
@@ -407,6 +407,8 @@ pub enum RingError {
         /// Capacity of the ring being read.
         capacity: usize,
     },
+    /// A coherent control-block snapshot could not be read.
+    ControlBlock(ControlBlockError),
     /// A `0x00` wrap marker appeared at physical offset 0, which is never valid.
     UnexpectedWrapMarker {
         /// Absolute offset at which the stray wrap marker was found.

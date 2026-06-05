@@ -38,7 +38,10 @@ pub mod ring;
 pub mod vectors;
 pub mod wire;
 
-pub use concurrent::{ConcurrentProducer, ConcurrentRawConsumer, ConcurrentRing};
+pub use concurrent::{
+    ConcurrentProducer, ConcurrentRawConsumer, ConcurrentRing, ConcurrentStore,
+    OwnedConcurrentStore,
+};
 pub use consumer::{LossAccountingConsumer, RawByteConsumer};
 pub use control::{CONTROL_BLOCK_LEN, ControlBlockError, ControlBlockSnapshot};
 pub use crc::crc32c;
