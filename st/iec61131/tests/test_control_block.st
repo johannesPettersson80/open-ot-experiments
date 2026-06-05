@@ -1,0 +1,40 @@
+FUNCTION_BLOCK OPENOT_TestControlBlock
+VAR_OUTPUT
+    Passed : BOOL;
+    MismatchIndex : UINT;
+    ActualLength : UINT;
+    ExpectedLength : UINT;
+END_VAR
+VAR
+    Writer : OPENOT_WriteControlBlockFixture;
+    Expected : ARRAY[0..87] OF BYTE := [
+        BYTE#16#4F, BYTE#16#4F, BYTE#16#54, BYTE#16#32, BYTE#16#02, BYTE#16#03, BYTE#16#00, BYTE#16#00,
+        BYTE#16#07, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#10, BYTE#16#00, BYTE#16#00,
+        BYTE#16#02, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00,
+        BYTE#16#00, BYTE#16#20, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00,
+        BYTE#16#00, BYTE#16#18, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00,
+        BYTE#16#0C, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00,
+        BYTE#16#03, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00,
+        BYTE#16#05, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00,
+        BYTE#16#58, BYTE#16#1B, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00,
+        BYTE#16#64, BYTE#16#65, BYTE#16#66, BYTE#16#68, BYTE#16#61, BYTE#16#73, BYTE#16#68, BYTE#16#31,
+        BYTE#16#6F, BYTE#16#6C, BYTE#16#64, BYTE#16#68, BYTE#16#61, BYTE#16#73, BYTE#16#68, BYTE#16#31
+    ];
+    Index : UINT;
+END_VAR
+
+Writer();
+ActualLength := Writer.Length;
+ExpectedLength := UINT#88;
+Passed := ActualLength = ExpectedLength;
+MismatchIndex := UINT#65535;
+
+IF Passed THEN
+    FOR Index := UINT#0 TO ExpectedLength - UINT#1 DO
+        IF (Writer.Buffer[Index] <> Expected[Index]) AND (MismatchIndex = UINT#65535) THEN
+            Passed := FALSE;
+            MismatchIndex := Index;
+        END_IF;
+    END_FOR;
+END_IF;
+END_FUNCTION_BLOCK

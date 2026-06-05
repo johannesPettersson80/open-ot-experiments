@@ -1,9 +1,8 @@
 # OpenOT IEC 61131-3 Structured Text Encoder
 
-This directory contains a vendor-neutral IEC 61131-3 Structured Text encoder for the
-OpenOT carriage record format. It is intentionally limited to the S1 carriage-codec
-slice: CRC-32C, the 40-byte `OOT2` record header, TLV slots, 4-byte slot padding,
-and the CRC trailer.
+This directory contains vendor-neutral IEC 61131-3 Structured Text for the OpenOT
+carriage format. The current slices cover CRC-32C, the 40-byte `OOT2` record header,
+TLV slots, 4-byte slot padding, the CRC trailer, and the 88-byte control-block image.
 
 The conformance contract is byte-exact comparison against:
 
@@ -11,6 +10,7 @@ The conformance contract is byte-exact comparison against:
 - `crates/carriage/vectors/conformant_message.hex`
 - `crates/carriage/vectors/conformant_records_dropped.hex`
 - `crates/carriage/vectors/conformant_source_high_water.hex`
+- `crates/carriage/vectors/control_block.hex`
 
 No specific compiler, runtime, or test framework is required by this public artifact.
 The test POUs expose pass/fail state and mismatch metadata for harnesses that can run
@@ -44,6 +44,7 @@ reading a `STRING` representation.
 - `src/openot_crc32c.st` defines `OPENOT_BYTE_BUFFER` and `OPENOT_Crc32c`.
 - `src/openot_wire_encode.st` defines little-endian writer helpers and one encoder
   function block per conformant vector.
+- `src/openot_control_block.st` defines the 88-byte control-block writer.
 - `tests/*.st` defines self-checking POUs. Each test exposes:
   - `Passed : BOOL`
   - `MismatchIndex : UINT`
