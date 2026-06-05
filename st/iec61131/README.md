@@ -8,7 +8,8 @@ the producer `RecordsDropped` record. It also includes a minimal message encoder
 and a producer function block that assigns independent per-source sequence numbers
 before writing each record into the S2 producer ring. The producer can also emit
 per-source `SourceHighWater` checkpoints where the envelope sequence and
-`producedCount` payload are the same value by construction.
+`producedCount` payload are the same value by construction. Lifecycle encoders cover
+the system-source `LoggerStarted`, `LoggerStopped`, and `DefinitionChanged` records.
 
 The conformance contract is byte-exact comparison against:
 
@@ -20,6 +21,10 @@ The conformance contract is byte-exact comparison against:
 - `crates/carriage/vectors/wrap_marker_boundary.hex`
 - `crates/carriage/vectors/records_dropped.hex`
 - `crates/carriage/vectors/minimal_message.hex`
+- `crates/carriage/vectors/logger_started_cold.hex`
+- `crates/carriage/vectors/logger_started_warm.hex`
+- `crates/carriage/vectors/logger_stopped.hex`
+- `crates/carriage/vectors/definition_changed.hex`
 
 No specific toolchain, runtime, or test framework is required by this public artifact.
 The test POUs expose pass/fail state and mismatch metadata for harnesses that can run
@@ -63,6 +68,8 @@ reading a `STRING` representation.
   producer sequence slice.
 - `src/openot_source_high_water.st` defines the parameterized `SourceHighWater`
   encoder used by producer checkpoints.
+- `src/openot_lifecycle.st` defines byte-exact encoders for system lifecycle
+  records.
 - `src/openot_producer.st` composes the 256-byte producer ring with a fixed
   per-source sequence table.
 - `tests/*.st` defines self-checking POUs. Each test exposes:
