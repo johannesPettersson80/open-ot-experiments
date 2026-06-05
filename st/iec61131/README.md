@@ -2,7 +2,8 @@
 
 This directory contains vendor-neutral IEC 61131-3 Structured Text for the OpenOT
 carriage format. The current slices cover CRC-32C, the 40-byte `OOT2` record header,
-TLV slots, 4-byte slot padding, the CRC trailer, and the 88-byte control-block image.
+TLV slots, 4-byte slot padding, the CRC trailer, the 88-byte control-block image,
+and a fixed 128-byte ring write/wrap image.
 
 The conformance contract is byte-exact comparison against:
 
@@ -11,6 +12,7 @@ The conformance contract is byte-exact comparison against:
 - `crates/carriage/vectors/conformant_records_dropped.hex`
 - `crates/carriage/vectors/conformant_source_high_water.hex`
 - `crates/carriage/vectors/control_block.hex`
+- `crates/carriage/vectors/wrap_marker_boundary.hex`
 
 No specific compiler, runtime, or test framework is required by this public artifact.
 The test POUs expose pass/fail state and mismatch metadata for harnesses that can run
@@ -18,7 +20,7 @@ this ST subset.
 
 ## Conservative ST Subset
 
-The S1 source stays inside this subset:
+The ST source stays inside this subset:
 
 - fixed `ARRAY[..] OF BYTE` buffers;
 - explicit output lengths;
@@ -45,6 +47,8 @@ reading a `STRING` representation.
 - `src/openot_wire_encode.st` defines little-endian writer helpers and one encoder
   function block per conformant vector.
 - `src/openot_control_block.st` defines the 88-byte control-block writer.
+- `src/openot_ring.st` defines the fixed-capacity ring write path used by the
+  wrap-marker boundary vector.
 - `tests/*.st` defines self-checking POUs. Each test exposes:
   - `Passed : BOOL`
   - `MismatchIndex : UINT`
