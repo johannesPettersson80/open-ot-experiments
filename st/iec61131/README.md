@@ -6,7 +6,9 @@ TLV slots, 4-byte slot padding, the CRC trailer, the 88-byte control-block image
 a fixed 128-byte ring write/wrap image, producer-side loss-range formation, and
 the producer `RecordsDropped` record. It also includes a minimal message encoder
 and a producer function block that assigns independent per-source sequence numbers
-before writing each record into the S2 producer ring.
+before writing each record into the S2 producer ring. The producer can also emit
+per-source `SourceHighWater` checkpoints where the envelope sequence and
+`producedCount` payload are the same value by construction.
 
 The conformance contract is byte-exact comparison against:
 
@@ -59,6 +61,8 @@ reading a `STRING` representation.
   formation path.
 - `src/openot_message.st` defines the minimal `Message` encoder used by the
   producer sequence slice.
+- `src/openot_source_high_water.st` defines the parameterized `SourceHighWater`
+  encoder used by producer checkpoints.
 - `src/openot_producer.st` composes the 256-byte producer ring with a fixed
   per-source sequence table.
 - `tests/*.st` defines self-checking POUs. Each test exposes:

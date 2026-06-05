@@ -14,12 +14,15 @@ FUNCTION_BLOCK OPENOT_Producer
 VAR_INPUT
     Execute : BOOL;
     SourceId : UDINT;
+    Checkpoint : BOOL;
 END_VAR
 VAR_OUTPUT
     AssignedSeq : ULINT;
+    ProducedCount : ULINT;
     Error : BOOL;
     SourceTableFull : BOOL;
     Done : BOOL;
+    CheckpointDone : BOOL;
     SourceCount : UINT;
     SourceUsed : OPENOT_SOURCE_USED_TABLE;
     SourceIds : OPENOT_SOURCE_ID_TABLE;
@@ -39,6 +42,7 @@ VAR
     Sources : ARRAY[0..15] OF OPENOT_SOURCE_ENTRY;
     RingProducer : OPENOT_Ring256Producer;
     Encoder : OPENOT_EncodeMinimalMessage;
+    HighWaterEncoder : OPENOT_EncodeSourceHighWater;
     Index : UINT;
     ByteIndex : UINT;
     LossIndex : UINT;
@@ -51,6 +55,8 @@ Done := FALSE;
 Error := FALSE;
 SourceTableFull := FALSE;
 AssignedSeq := ULINT#0;
+ProducedCount := ULINT#0;
+CheckpointDone := FALSE;
 
 IF Execute THEN
     IF SourceId = UDINT#0 THEN
@@ -77,7 +83,9 @@ IF Execute THEN
                 END_IF;
             END_FOR;
 
-            IF FreeFound THEN
+            IF Checkpoint THEN
+                Error := TRUE;
+            ELSIF FreeFound THEN
                 Sources[EntryIndex].Used := TRUE;
                 Sources[EntryIndex].SourceId := SourceId;
                 Sources[EntryIndex].NextSeq := ULINT#0;
@@ -88,22 +96,42 @@ IF Execute THEN
         END_IF;
 
         IF NOT Error THEN
-            AssignedSeq := Sources[EntryIndex].NextSeq;
-            Sources[EntryIndex].NextSeq := Sources[EntryIndex].NextSeq + ULINT#1;
+            IF Checkpoint THEN
+                ProducedCount := Sources[EntryIndex].NextSeq;
+                HighWaterEncoder(SourceId := SourceId, ProducedCount := ProducedCount, SourceTime := ULINT#0);
+                RingProducer(
+                    Execute := TRUE,
+                    Record := HighWaterEncoder.Buffer,
+                    Length := HighWaterEncoder.Length,
+                    RunId := ULINT#1,
+                    SourceId := SourceId,
+                    Seq := ProducedCount);
 
-            Encoder(SourceId := SourceId, Seq := AssignedSeq);
-            RingProducer(
-                Execute := TRUE,
-                Record := Encoder.Buffer,
-                Length := Encoder.Length,
-                RunId := ULINT#1,
-                SourceId := SourceId,
-                Seq := AssignedSeq);
-
-            IF RingProducer.Done AND (NOT RingProducer.Error) THEN
-                Done := TRUE;
+                IF RingProducer.Done AND (NOT RingProducer.Error) THEN
+                    Sources[EntryIndex].NextSeq := ProducedCount + ULINT#1;
+                    Done := TRUE;
+                    CheckpointDone := TRUE;
+                ELSE
+                    Error := TRUE;
+                END_IF;
             ELSE
-                Error := TRUE;
+                AssignedSeq := Sources[EntryIndex].NextSeq;
+                Sources[EntryIndex].NextSeq := Sources[EntryIndex].NextSeq + ULINT#1;
+
+                Encoder(SourceId := SourceId, Seq := AssignedSeq);
+                RingProducer(
+                    Execute := TRUE,
+                    Record := Encoder.Buffer,
+                    Length := Encoder.Length,
+                    RunId := ULINT#1,
+                    SourceId := SourceId,
+                    Seq := AssignedSeq);
+
+                IF RingProducer.Done AND (NOT RingProducer.Error) THEN
+                    Done := TRUE;
+                ELSE
+                    Error := TRUE;
+                END_IF;
             END_IF;
         END_IF;
     END_IF;
