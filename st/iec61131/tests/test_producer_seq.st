@@ -32,25 +32,31 @@ IF NOT Ran THEN
     Producer(Execute := TRUE, SourceId := UDINT#10);
     ASeq0 := Producer.AssignedSeq;
     WritesOk := WritesOk AND Producer.Done AND (NOT Producer.Error);
+    Producer(Execute := FALSE, SourceId := UDINT#10);
 
     Producer(Execute := TRUE, SourceId := UDINT#10);
     ASeq1 := Producer.AssignedSeq;
     WritesOk := WritesOk AND Producer.Done AND (NOT Producer.Error);
+    Producer(Execute := FALSE, SourceId := UDINT#10);
 
     Producer(Execute := TRUE, SourceId := UDINT#10);
     ASeq2 := Producer.AssignedSeq;
     WritesOk := WritesOk AND Producer.Done AND (NOT Producer.Error);
+    Producer(Execute := FALSE, SourceId := UDINT#10);
 
     Producer(Execute := TRUE, SourceId := UDINT#20);
     BSeq0 := Producer.AssignedSeq;
     WritesOk := WritesOk AND Producer.Done AND (NOT Producer.Error);
+    Producer(Execute := FALSE, SourceId := UDINT#20);
 
     Producer(Execute := TRUE, SourceId := UDINT#20);
     BSeq1 := Producer.AssignedSeq;
     WritesOk := WritesOk AND Producer.Done AND (NOT Producer.Error);
+    Producer(Execute := FALSE, SourceId := UDINT#20);
 
     ReservedProducer(Execute := TRUE, SourceId := UDINT#0);
     ReservedSourceRejected := ReservedProducer.Error AND (NOT ReservedProducer.Done);
+    ReservedProducer(Execute := FALSE, SourceId := UDINT#0);
 
     FOR Index := UINT#0 TO UINT#15 DO
         FillSource := UINT_TO_UDINT(Index) + UDINT#1;
@@ -60,6 +66,7 @@ IF NOT Ran THEN
             FullProducer.Done AND
             (NOT FullProducer.Error) AND
             (NOT FullProducer.SourceTableFull);
+        FullProducer(Execute := FALSE, SourceId := FillSource);
     END_FOR;
 
     SourceCountAfterFill := FullProducer.SourceCount;

@@ -21,14 +21,19 @@ IF NOT Ran THEN
 
     Producer(Execute := TRUE, SourceId := UDINT#88, Checkpoint := FALSE);
     WritesOk := WritesOk AND Producer.Done AND (NOT Producer.Error) AND (Producer.AssignedSeq = ULINT#0);
+    Producer(Execute := FALSE, SourceId := UDINT#88, Checkpoint := FALSE);
     Producer(Execute := TRUE, SourceId := UDINT#88, Checkpoint := FALSE);
     WritesOk := WritesOk AND Producer.Done AND (NOT Producer.Error) AND (Producer.AssignedSeq = ULINT#1);
+    Producer(Execute := FALSE, SourceId := UDINT#88, Checkpoint := FALSE);
     Producer(Execute := TRUE, SourceId := UDINT#88, Checkpoint := FALSE);
     WritesOk := WritesOk AND Producer.Done AND (NOT Producer.Error) AND (Producer.AssignedSeq = ULINT#2);
+    Producer(Execute := FALSE, SourceId := UDINT#88, Checkpoint := FALSE);
     Producer(Execute := TRUE, SourceId := UDINT#88, Checkpoint := FALSE);
     WritesOk := WritesOk AND Producer.Done AND (NOT Producer.Error) AND (Producer.AssignedSeq = ULINT#3);
+    Producer(Execute := FALSE, SourceId := UDINT#88, Checkpoint := FALSE);
     Producer(Execute := TRUE, SourceId := UDINT#88, Checkpoint := FALSE);
     WritesOk := WritesOk AND Producer.Done AND (NOT Producer.Error) AND (Producer.AssignedSeq = ULINT#4);
+    Producer(Execute := FALSE, SourceId := UDINT#88, Checkpoint := FALSE);
 
     Producer(Execute := TRUE, SourceId := UDINT#88, Checkpoint := TRUE);
     ProducedCount := Producer.ProducedCount;

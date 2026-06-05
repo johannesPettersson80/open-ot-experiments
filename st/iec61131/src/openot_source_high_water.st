@@ -1,6 +1,7 @@
 FUNCTION_BLOCK OPENOT_EncodeSourceHighWater
 VAR_INPUT
     SourceId : UDINT;
+    RunId : ULINT;
     ProducedCount : ULINT;
     SourceTime : ULINT;
 END_VAR
@@ -17,7 +18,7 @@ Pos := OPENOT_WriteHeader(
     TotalLength := UINT#56,
     Flags := UINT#16#0008,
     SourceTime := SourceTime,
-    RunId := ULINT#1,
+    RunId := RunId,
     Seq := ProducedCount,
     SourceId := SourceId,
     EventTypeId := UDINT#16#0108,

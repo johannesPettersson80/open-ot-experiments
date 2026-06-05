@@ -19,7 +19,7 @@ VAR
     Index : UINT;
 END_VAR
 
-Encoder(SourceId := UDINT#88, ProducedCount := ULINT#5, SourceTime := ULINT#0);
+Encoder(SourceId := UDINT#88, RunId := ULINT#1, ProducedCount := ULINT#5, SourceTime := ULINT#0);
 ActualLength := Encoder.Length;
 ExpectedLength := UINT#56;
 Passed := ActualLength = ExpectedLength;
