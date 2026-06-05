@@ -1,8 +1,9 @@
-//! Shared-memory store for the live OpenOT carriage harness.
+//! Safe shared-memory store for the OpenOT carriage protocol.
 //!
 //! The crate maps a `/dev/shm` file with a shared mutable mapping and exposes it as a
-//! [`ConcurrentStore`]. It is a test harness, not the normative carriage API; the
-//! mapping dependency stays here so `open-ot-carriage` remains dependency-light.
+//! [`ConcurrentStore`]. All raw mmap pointer and atomic-view construction stays internal to
+//! this crate, so callers can use the shared-memory publisher from `unsafe`-forbidden crates.
+//! The mapping dependency stays here so `open-ot-carriage` remains dependency-light.
 
 use std::fs::{File, OpenOptions};
 use std::io;
@@ -16,7 +17,7 @@ use std::thread;
 use std::time::Duration;
 
 use memmap2::MmapMut;
-use open_ot_carriage::concurrent::ConcurrentStore;
+use open_ot_carriage::concurrent::{ConcurrentProducer, ConcurrentStore};
 use open_ot_carriage::control::{
     CONTROL_BLOCK_LEN, CONTROL_BLOCK_SYNC, ControlBlockError, ControlBlockSnapshot,
     OFF_BUFFER_BYTES, OFF_BUFFER_ID, OFF_CAPS, OFF_DEFINITION_HASH, OFF_EPOCH_FIRST_ABS,
@@ -24,6 +25,8 @@ use open_ot_carriage::control::{
     OFF_RESERVED, OFF_RESERVED2, OFF_RUN_ID, OFF_SEQ_LOCK, OFF_SYNC, OFF_VERSION,
 };
 use open_ot_carriage::ring::DEFAULT_BUFFER_ID;
+use open_ot_carriage::ring::RingError;
+use open_ot_carriage::wire::Record;
 
 /// Byte offset where the ring byte pool begins.
 pub const DATA_OFFSET: usize = align_up(CONTROL_BLOCK_LEN, 64);
@@ -37,6 +40,8 @@ pub enum FenceMode {
     /// Use the release/acquire fences required by the carriage protocol.
     Fenced,
     /// Deliberately no-op the release/acquire fences for A/B stress testing.
+    ///
+    /// This mode is test/diagnostic-only; product publishers use [`FenceMode::Fenced`].
     Unfenced,
 }
 
@@ -135,6 +140,11 @@ impl SharedConcurrentStore {
     /// Returns the total mmap length for this store.
     pub fn mapping_len(&self) -> usize {
         self.region.len
+    }
+
+    /// Returns the ring byte capacity.
+    pub fn capacity(&self) -> usize {
+        self.capacity
     }
 
     /// Returns a copy that stalls between byte copy and oldest-offset recheck.
@@ -353,10 +363,90 @@ impl ConcurrentStore for SharedConcurrentStore {
 
 /// Owns a live shared-memory mapping.
 #[derive(Debug)]
-pub struct SharedRegion {
+pub(crate) struct SharedRegion {
     _mapping: MmapMut,
     ptr: NonNull<u8>,
     len: usize,
+}
+
+/// Safe publisher wrapper over the proven concurrent carriage producer.
+///
+/// The wrapper accepts structured [`Record`] values and delegates to
+/// [`ConcurrentProducer::write_record`]. It intentionally does not expose a raw byte append path.
+#[derive(Debug)]
+pub struct SharedRecordPublisher {
+    producer: ConcurrentProducer<SharedConcurrentStore>,
+}
+
+impl SharedRecordPublisher {
+    /// Creates or truncates `path`, maps it as a shared ring, and binds a fenced publisher.
+    pub fn create(path: impl AsRef<Path>, capacity: usize) -> io::Result<Self> {
+        Self::create_with_mode(path, capacity, FenceMode::Fenced)
+    }
+
+    /// Creates or truncates `path`, maps it as a shared ring, and binds a publisher.
+    pub fn create_with_mode(
+        path: impl AsRef<Path>,
+        capacity: usize,
+        fence_mode: FenceMode,
+    ) -> io::Result<Self> {
+        SharedConcurrentStore::create_with_mode(path, capacity, fence_mode).map(Self::with_store)
+    }
+
+    /// Opens an existing mapped ring and binds a fenced publisher.
+    pub fn open_existing(path: impl AsRef<Path>) -> io::Result<Self> {
+        Self::open_existing_with_mode(path, FenceMode::Fenced)
+    }
+
+    /// Opens an existing mapped ring and binds a publisher with the selected fence behavior.
+    pub fn open_existing_with_mode(
+        path: impl AsRef<Path>,
+        fence_mode: FenceMode,
+    ) -> io::Result<Self> {
+        SharedConcurrentStore::open_existing_with_mode(path, fence_mode).map(Self::with_store)
+    }
+
+    /// Binds a publisher to an existing shared-memory store.
+    pub fn with_store(store: SharedConcurrentStore) -> Self {
+        Self {
+            producer: ConcurrentProducer::with_store(store),
+        }
+    }
+
+    /// Appends `record` through the carriage protocol's proven encode-and-publish path.
+    pub fn append_record(&mut self, record: &Record) -> Result<(), RingError> {
+        self.producer.write_record(record)
+    }
+
+    /// Returns the underlying shared-memory store.
+    pub fn store(&self) -> &SharedConcurrentStore {
+        self.producer.store()
+    }
+
+    /// Returns the ring byte capacity.
+    pub fn capacity(&self) -> usize {
+        self.store().capacity()
+    }
+
+    /// Returns the selected fence behavior.
+    pub fn fence_mode(&self) -> FenceMode {
+        self.store().fence_mode()
+    }
+
+    /// Acquire-loads the committed absolute head.
+    pub fn head_abs(&self) -> u64 {
+        self.store().load_head_acquire()
+    }
+
+    /// Acquire-loads the oldest retained absolute byte offset.
+    pub fn oldest_abs(&self) -> u64 {
+        self.store().load_oldest_acquire()
+    }
+
+    /// Acquire-loads the producer's lost-record count.
+    pub fn lost_count(&self) -> u64 {
+        self.store().load_lost_acquire()
+    }
 }
 
 // SAFETY: `SharedRegion` only exposes checked atomic operations through
@@ -435,6 +525,7 @@ const fn align_up(value: usize, alignment: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use open_ot_carriage::registry::EVENT_MESSAGE;
 
     #[test]
     fn shared_layout_uses_control_block_offsets_and_aligned_data_pool() {
@@ -445,5 +536,33 @@ mod tests {
         assert_eq!(OFF_OLDEST_ABS, 32);
         assert_eq!(OFF_LOST_COUNT, 40);
         assert_eq!(DATA_OFFSET, 128);
+    }
+
+    #[test]
+    fn record_publisher_appends_through_shared_store() {
+        let path = std::env::temp_dir().join(format!(
+            "open-ot-shm-publisher-{}-{}.bin",
+            std::process::id(),
+            unique_suffix()
+        ));
+        let mut publisher =
+            SharedRecordPublisher::create(&path, 256).expect("shared publisher creates");
+        let record = Record::new(1_780_000_000_000_000_000, 1, 0, 7, EVENT_MESSAGE);
+
+        publisher
+            .append_record(&record)
+            .expect("record appends through carriage producer");
+
+        assert!(publisher.head_abs() > 0);
+        assert_eq!(publisher.oldest_abs(), 0);
+        assert_eq!(publisher.lost_count(), 0);
+        let _ = std::fs::remove_file(path);
+    }
+
+    fn unique_suffix() -> u128 {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system clock after epoch")
+            .as_nanos()
     }
 }

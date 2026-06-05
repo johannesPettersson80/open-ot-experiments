@@ -5,4 +5,5 @@ members = [
     "crates/definition",
     "crates/document",
     "crates/live-harness",
+    "crates/open-ot-shm",
 ]

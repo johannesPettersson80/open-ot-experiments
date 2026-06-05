@@ -204,6 +204,14 @@ dependencies = [
 name = "open-ot-live-harness"
 version = "0.1.0"
 dependencies = [
+ "open-ot-carriage",
+ "open-ot-shm",
+]
+
+[[package]]
+name = "open-ot-shm"
+version = "0.1.0"
+dependencies = [
  "memmap2",
  "open-ot-carriage",
 ]

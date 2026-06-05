@@ -16,7 +16,7 @@ use open_ot_carriage::registry::{
 };
 use open_ot_carriage::ring::ReadRecord;
 use open_ot_carriage::wire::{Record, Slot};
-use open_ot_live_harness::{FenceMode, SharedConcurrentStore};
+use open_ot_shm::{FenceMode, SharedConcurrentStore};
 
 const RUN_ID: u64 = 1;
 const KEY_EXPECTED_RECORD_START_ABS: u16 = 0x8001;
