@@ -8,7 +8,7 @@ Every record uses a 40-byte little-endian header followed by TLV slots, padding,
 
 | Offset | Size | Field | Notes |
 | --- | ---: | --- | --- |
-| 0 | 4 | Sync | `OOT!` |
+| 0 | 4 | Sync | `OOT2` |
 | 4 | 2 | TotalRecordLength | Header + slots + padding + CRC trailer. |
 | 6 | 2 | Flags | Reserved by the current prototype. |
 | 8 | 8 | SourceTime | Producer timestamp. |
