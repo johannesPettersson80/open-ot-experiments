@@ -14,12 +14,14 @@ use open_ot_carriage::consumer::LossAccountingConsumer;
 use open_ot_carriage::registry::{
     EVENT_MESSAGE, EVENT_SOURCE_HIGH_WATER, KEY_SOURCE_HIGH_WATER, TY_ULINT,
 };
-use open_ot_carriage::ring::ReadRecord;
 use open_ot_carriage::wire::{Record, Slot};
+use open_ot_conformance::{
+    BatchObserver, EmbeddedAbsOracle, ExpectedSource, ObservationMetadata, ObservedReport,
+    ReportInputs, expected_abs_slot,
+};
 use open_ot_shm::{FenceMode, SharedConcurrentStore};
 
 const RUN_ID: u64 = 1;
-const KEY_EXPECTED_RECORD_START_ABS: u16 = 0x8001;
 const DEFAULT_CAP: usize = 4096;
 const DEFAULT_SOURCES: u32 = 4;
 const DEFAULT_PER_SOURCE: u64 = 5_000;
@@ -131,13 +133,13 @@ fn consumer_cmd(args: ConsumerArgs) -> Result<(), Box<dyn Error>> {
     let mut raw = ConcurrentRawConsumer::with_store(store.clone());
     let mut accounting = LossAccountingConsumer::new();
     let deadline = Instant::now() + Duration::from_millis(args.timeout_ms);
-    let mut stale_violations = Vec::new();
+    let mut observer = BatchObserver::new(EmbeddedAbsOracle);
 
     loop {
         let batch = raw
             .poll()
             .map_err(|error| format!("consumer poll failed: {error:?}"))?;
-        stale_violations.extend(stale_violations_from_batch(&batch.records)?);
+        observer.observe_batch(&batch)?;
         accounting.account_batch(&batch);
 
         if args.done.exists() && raw.cursor_abs() == raw.head_abs() {
@@ -156,15 +158,16 @@ fn consumer_cmd(args: ConsumerArgs) -> Result<(), Box<dyn Error>> {
     }
 
     let observed = ObservedReport::from_consumer(ReportInputs {
-        mode: args.mode,
-        fence_mode: args.fence_mode,
-        append_mode: args.append_mode,
-        source_count: args.sources,
-        per_source: args.per_source,
+        metadata: ObservationMetadata::new(
+            args.mode.as_str(),
+            args.append_mode.as_str(),
+            args.fence_mode,
+        ),
+        expected_sources: expected_sources(args.sources, args.per_source).collect(),
         raw: &raw,
         accounting: &accounting,
         store: &store,
-        stale_violations,
+        stale_violations: observer.into_violations(),
     });
     observed.write(&args.out)?;
     println!("{}", observed.summary_line());
@@ -272,8 +275,13 @@ fn run_cmd(args: RunArgs) -> Result<(), Box<dyn Error>> {
     }
     for stale in &observed.stale_violations {
         println!(
-            "stale: source={} seq={} expected_abs={} actual_abs={} crc_passed={}",
-            stale.source_id, stale.seq, stale.expected_abs, stale.actual_abs, stale.crc_passed
+            "stale: kind={} source={} seq={} expected_abs={} actual_abs={} crc_passed={}",
+            stale.kind.as_str(),
+            stale.source_id,
+            stale.seq,
+            stale.expected_abs,
+            stale.actual_abs,
+            stale.crc_passed
         );
     }
     Ok(())
@@ -645,226 +653,6 @@ impl AppendMode {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-struct SourceExpected {
-    source_id: u32,
-    expected_total: u64,
-}
-
-#[derive(Debug, Clone)]
-struct SourceObserved {
-    source_id: u32,
-    expected_total: u64,
-    delivered: u64,
-    lost: u64,
-}
-
-#[derive(Debug, Clone)]
-struct StaleViolation {
-    source_id: u32,
-    seq: u64,
-    expected_abs: u64,
-    actual_abs: u64,
-    crc_passed: bool,
-}
-
-#[derive(Debug, Clone)]
-struct ObservedReport {
-    mode: RunMode,
-    fence_mode: FenceMode,
-    append_mode: AppendMode,
-    cap: usize,
-    head_abs: u64,
-    lost_count: u64,
-    lapped_batches: u64,
-    overwritten_retries: u64,
-    rejected_records: u64,
-    delivered_total: u64,
-    lost_total: u64,
-    stale_violations: Vec<StaleViolation>,
-    sources: Vec<SourceObserved>,
-}
-
-struct ReportInputs<'a> {
-    mode: RunMode,
-    fence_mode: FenceMode,
-    append_mode: AppendMode,
-    source_count: u32,
-    per_source: u64,
-    raw: &'a ConcurrentRawConsumer<SharedConcurrentStore>,
-    accounting: &'a LossAccountingConsumer,
-    store: &'a SharedConcurrentStore,
-    stale_violations: Vec<StaleViolation>,
-}
-
-impl ObservedReport {
-    fn from_consumer(inputs: ReportInputs<'_>) -> Self {
-        let mut observed_sources = Vec::new();
-        for expected in expected_sources(inputs.source_count, inputs.per_source) {
-            let delivered = inputs
-                .accounting
-                .delivered_in_run(RUN_ID, expected.source_id);
-            let lost = inputs.accounting.lost_in_run(RUN_ID, expected.source_id);
-            observed_sources.push(SourceObserved {
-                source_id: expected.source_id,
-                expected_total: expected.expected_total,
-                delivered,
-                lost,
-            });
-        }
-        let delivered_total = observed_sources.iter().map(|source| source.delivered).sum();
-        let lost_total = observed_sources.iter().map(|source| source.lost).sum();
-        Self {
-            mode: inputs.mode,
-            fence_mode: inputs.fence_mode,
-            append_mode: inputs.append_mode,
-            cap: inputs.store.capacity(),
-            head_abs: inputs.store.load_head_acquire(),
-            lost_count: inputs.store.load_lost_acquire(),
-            lapped_batches: inputs.raw.lapped_batches(),
-            overwritten_retries: inputs.raw.overwritten_retries(),
-            rejected_records: inputs.raw.rejected_records(),
-            delivered_total,
-            lost_total,
-            stale_violations: inputs.stale_violations,
-            sources: observed_sources,
-        }
-    }
-
-    fn write(&self, path: &Path) -> io::Result<()> {
-        let mut out = String::new();
-        out.push_str(&format!("mode {}\n", self.mode.as_str()));
-        out.push_str(&format!("fence {}\n", self.fence_mode.as_str()));
-        out.push_str(&format!("append_mode {}\n", self.append_mode.as_str()));
-        out.push_str(&format!("cap {}\n", self.cap));
-        out.push_str(&format!("head_abs {}\n", self.head_abs));
-        out.push_str(&format!("lost_count {}\n", self.lost_count));
-        out.push_str(&format!("lapped_batches {}\n", self.lapped_batches));
-        out.push_str(&format!(
-            "overwritten_retries {}\n",
-            self.overwritten_retries
-        ));
-        out.push_str(&format!("rejected_records {}\n", self.rejected_records));
-        out.push_str(&format!("delivered_total {}\n", self.delivered_total));
-        out.push_str(&format!("lost_total {}\n", self.lost_total));
-        out.push_str(&format!(
-            "stale_violations {}\n",
-            self.stale_violations.len()
-        ));
-        for stale in &self.stale_violations {
-            out.push_str(&format!(
-                "stale {} {} {} {} {}\n",
-                stale.source_id, stale.seq, stale.expected_abs, stale.actual_abs, stale.crc_passed
-            ));
-        }
-        for source in &self.sources {
-            out.push_str(&format!(
-                "source {} {} {} {}\n",
-                source.source_id, source.expected_total, source.delivered, source.lost
-            ));
-        }
-        fs::write(path, out)
-    }
-
-    fn read(path: &Path) -> Result<Self, Box<dyn Error>> {
-        let content = fs::read_to_string(path)?;
-        let mut mode = None;
-        let mut fence_mode = None;
-        let mut append_mode = None;
-        let mut cap = None;
-        let mut head_abs = None;
-        let mut lost_count = None;
-        let mut lapped_batches = None;
-        let mut overwritten_retries = None;
-        let mut rejected_records = None;
-        let mut delivered_total = None;
-        let mut lost_total = None;
-        let mut stale_count = None;
-        let mut stale_violations = Vec::new();
-        let mut sources = Vec::new();
-
-        for line in content.lines() {
-            let parts = line.split_whitespace().collect::<Vec<_>>();
-            match parts.as_slice() {
-                ["mode", value] => mode = Some(RunMode::parse(value)?),
-                ["fence", value] => fence_mode = Some(FenceMode::parse(value)?),
-                ["append_mode", value] => append_mode = Some(AppendMode::parse(value)?),
-                ["cap", value] => cap = Some(value.parse()?),
-                ["head_abs", value] => head_abs = Some(value.parse()?),
-                ["lost_count", value] => lost_count = Some(value.parse()?),
-                ["lapped_batches", value] => lapped_batches = Some(value.parse()?),
-                ["overwritten_retries", value] => overwritten_retries = Some(value.parse()?),
-                ["rejected_records", value] => rejected_records = Some(value.parse()?),
-                ["delivered_total", value] => delivered_total = Some(value.parse()?),
-                ["lost_total", value] => lost_total = Some(value.parse()?),
-                ["stale_violations", value] => stale_count = Some(value.parse()?),
-                [
-                    "stale",
-                    source_id,
-                    seq,
-                    expected_abs,
-                    actual_abs,
-                    crc_passed,
-                ] => {
-                    stale_violations.push(StaleViolation {
-                        source_id: source_id.parse()?,
-                        seq: seq.parse()?,
-                        expected_abs: expected_abs.parse()?,
-                        actual_abs: actual_abs.parse()?,
-                        crc_passed: crc_passed.parse()?,
-                    });
-                }
-                ["source", source_id, expected_total, delivered, lost] => {
-                    sources.push(SourceObserved {
-                        source_id: source_id.parse()?,
-                        expected_total: expected_total.parse()?,
-                        delivered: delivered.parse()?,
-                        lost: lost.parse()?,
-                    })
-                }
-                _ => return Err(format!("invalid observed line: {line}").into()),
-            }
-        }
-
-        if stale_count != Some(stale_violations.len()) {
-            return Err("stale_violations count mismatch".into());
-        }
-        Ok(Self {
-            mode: mode.ok_or("missing mode")?,
-            fence_mode: fence_mode.ok_or("missing fence")?,
-            append_mode: append_mode.ok_or("missing append_mode")?,
-            cap: cap.ok_or("missing cap")?,
-            head_abs: head_abs.ok_or("missing head_abs")?,
-            lost_count: lost_count.ok_or("missing lost_count")?,
-            lapped_batches: lapped_batches.ok_or("missing lapped_batches")?,
-            overwritten_retries: overwritten_retries.ok_or("missing overwritten_retries")?,
-            rejected_records: rejected_records.ok_or("missing rejected_records")?,
-            delivered_total: delivered_total.ok_or("missing delivered_total")?,
-            lost_total: lost_total.ok_or("missing lost_total")?,
-            stale_violations,
-            sources,
-        })
-    }
-
-    fn summary_line(&self) -> String {
-        format!(
-            "summary: mode={} fence={} append_mode={} cap={} head_abs={} lost_count={} delivered={} lost={} lapped={} retries={} rejected={} stale={}",
-            self.mode.as_str(),
-            self.fence_mode.as_str(),
-            self.append_mode.as_str(),
-            self.cap,
-            self.head_abs,
-            self.lost_count,
-            self.delivered_total,
-            self.lost_total,
-            self.lapped_batches,
-            self.overwritten_retries,
-            self.rejected_records,
-            self.stale_violations.len()
-        )
-    }
-}
-
 fn write_done_atomic(path: &Path) -> io::Result<()> {
     let tmp = path.with_extension("done.tmp");
     let mut file = fs::File::create(&tmp)?;
@@ -873,11 +661,8 @@ fn write_done_atomic(path: &Path) -> io::Result<()> {
     fs::rename(tmp, path)
 }
 
-fn expected_sources(count: u32, per_source: u64) -> impl Iterator<Item = SourceExpected> {
-    source_ids(count).map(move |source_id| SourceExpected {
-        source_id,
-        expected_total: per_source + 1,
-    })
+fn expected_sources(count: u32, per_source: u64) -> impl Iterator<Item = ExpectedSource> {
+    source_ids(count).map(move |source_id| ExpectedSource::new(RUN_ID, source_id, per_source + 1))
 }
 
 fn source_ids(count: u32) -> impl Iterator<Item = u32> {
@@ -916,11 +701,7 @@ fn record_with_expected_abs(
     producer: &ConcurrentProducer<SharedConcurrentStore>,
     mut record: Record,
 ) -> Result<Record, Box<dyn Error>> {
-    record.slots.push(Slot::new(
-        KEY_EXPECTED_RECORD_START_ABS,
-        TY_ULINT,
-        0u64.to_le_bytes(),
-    ));
+    record.slots.push(expected_abs_slot(0));
     let encoded_len = record
         .encode(true)
         .map_err(|error| format!("placeholder encode failed: {error:?}"))?
@@ -928,8 +709,7 @@ fn record_with_expected_abs(
     let expected_abs = producer.next_start_abs(encoded_len);
     let slot = record
         .slots
-        .iter_mut()
-        .find(|slot| slot.key == KEY_EXPECTED_RECORD_START_ABS)
+        .last_mut()
         .expect("message_record inserts oracle slot");
     slot.payload = expected_abs.to_le_bytes().to_vec();
     Ok(record)
@@ -943,50 +723,6 @@ fn message_record(source_id: u32, seq: u64) -> Record {
         source_id,
         EVENT_MESSAGE,
     )
-}
-
-fn stale_violations_from_batch(records: &[ReadRecord]) -> Result<Vec<StaleViolation>, String> {
-    let mut stale = Vec::new();
-    for read in records {
-        let expected_abs = expected_record_start_abs(&read.record)?;
-        if read.start_abs != expected_abs {
-            stale.push(StaleViolation {
-                source_id: read.record.source_id,
-                seq: read.record.seq,
-                expected_abs,
-                actual_abs: read.start_abs,
-                crc_passed: true,
-            });
-        }
-    }
-    Ok(stale)
-}
-
-fn expected_record_start_abs(record: &Record) -> Result<u64, String> {
-    record
-        .slots
-        .iter()
-        .find(|slot| slot.key == KEY_EXPECTED_RECORD_START_ABS)
-        .ok_or_else(|| {
-            format!(
-                "record source={} seq={} has no expectedRecordStartAbs slot",
-                record.source_id, record.seq
-            )
-        })
-        .and_then(|slot| {
-            if slot.ty != TY_ULINT || slot.payload.len() != 8 {
-                return Err(format!(
-                    "record source={} seq={} has invalid expectedRecordStartAbs slot",
-                    record.source_id, record.seq
-                ));
-            }
-            Ok(u64::from_le_bytes(
-                slot.payload
-                    .as_slice()
-                    .try_into()
-                    .expect("length checked above"),
-            ))
-        })
 }
 
 fn fence_flag(fence_mode: FenceMode) -> &'static str {

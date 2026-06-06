@@ -180,6 +180,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "open-ot-conformance"
+version = "0.1.0"
+dependencies = [
+ "open-ot-carriage",
+ "open-ot-shm",
+]
+
+[[package]]
 name = "open-ot-definition"
 version = "0.1.0"
 dependencies = [
@@ -205,6 +213,7 @@ name = "open-ot-live-harness"
 version = "0.1.0"
 dependencies = [
  "open-ot-carriage",
+ "open-ot-conformance",
  "open-ot-shm",
 ]
 

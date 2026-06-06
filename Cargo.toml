@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crates/carriage",
+    "crates/conformance",
     "crates/definition",
     "crates/document",
     "crates/live-harness",

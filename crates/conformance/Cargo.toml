@@ -1,14 +1,13 @@
 [package]
-name = "open-ot-live-harness"
+name = "open-ot-conformance"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.88"
-description = "Cross-process shared-memory harness for the experimental OpenOT carriage layer"
+description = "Reusable conformance oracles and reports for OpenOT shared-memory harnesses"
 license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/johannesPettersson80/open-ot-experiments"
 
 [dependencies]
 open-ot-carriage = { path = "../carriage" }
-open-ot-conformance = { path = "../conformance" }
 open-ot-shm = { path = "../open-ot-shm" }
