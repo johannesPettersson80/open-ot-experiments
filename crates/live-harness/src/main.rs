@@ -167,6 +167,7 @@ fn consumer_cmd(args: ConsumerArgs) -> Result<(), Box<dyn Error>> {
         raw: &raw,
         accounting: &accounting,
         store: &store,
+        poll_errors: 0,
         stale_violations: observer.into_violations(),
     });
     observed.write(&args.out)?;
@@ -269,9 +270,13 @@ fn run_cmd(args: RunArgs) -> Result<(), Box<dyn Error>> {
         );
     }
     if args.fence_mode == FenceMode::Unfenced && observed.stale_violations.is_empty() {
-        println!(
-            "unfenced: stale oracle did not fire in this run; this is a non-reproduction, not proof of safety"
-        );
+        let evidence = observed.unfenced_evidence();
+        if !evidence.hazard_observed {
+            println!(
+                "unfenced: {}",
+                open_ot_conformance::UnfencedEvidence::non_reproduction_note()
+            );
+        }
     }
     for stale in &observed.stale_violations {
         println!(

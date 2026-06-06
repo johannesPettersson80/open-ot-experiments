@@ -482,6 +482,8 @@ pub struct ReportInputs<'a> {
     pub accounting: &'a LossAccountingConsumer,
     /// Shared store counters.
     pub store: &'a SharedConcurrentStore,
+    /// Consumer poll errors captured as unfenced evidence instead of hard failures.
+    pub poll_errors: u64,
     /// Oracle violations.
     pub stale_violations: Vec<StaleViolation>,
 }
@@ -507,6 +509,8 @@ pub struct ObservedReport {
     pub overwritten_retries: u64,
     /// Number of post-overtake wire/CRC rejections.
     pub rejected_records: u64,
+    /// Number of consumer poll errors captured by an experimental unfenced run.
+    pub poll_errors: u64,
     /// Delivered total across expected sources.
     pub delivered_total: u64,
     /// Reconciled lost total across expected sources.
@@ -549,6 +553,7 @@ impl ObservedReport {
             lapped_batches: inputs.raw.lapped_batches(),
             overwritten_retries: inputs.raw.overwritten_retries(),
             rejected_records: inputs.raw.rejected_records(),
+            poll_errors: inputs.poll_errors,
             delivered_total,
             lost_total,
             stale_violations: inputs.stale_violations,
@@ -572,6 +577,7 @@ impl ObservedReport {
             self.overwritten_retries
         ));
         out.push_str(&format!("rejected_records {}\n", self.rejected_records));
+        out.push_str(&format!("poll_errors {}\n", self.poll_errors));
         out.push_str(&format!("delivered_total {}\n", self.delivered_total));
         out.push_str(&format!("lost_total {}\n", self.lost_total));
         out.push_str(&format!(
@@ -616,6 +622,7 @@ impl ObservedReport {
         let mut lapped_batches = None;
         let mut overwritten_retries = None;
         let mut rejected_records = None;
+        let mut poll_errors = Some(0);
         let mut delivered_total = None;
         let mut lost_total = None;
         let mut stale_count = None;
@@ -642,6 +649,9 @@ impl ObservedReport {
                 }
                 ["rejected_records", value] => {
                     rejected_records = Some(parse_value(value, "rejected_records")?);
+                }
+                ["poll_errors", value] => {
+                    poll_errors = Some(parse_value(value, "poll_errors")?);
                 }
                 ["delivered_total", value] => {
                     delivered_total = Some(parse_value(value, "delivered_total")?);
@@ -728,6 +738,7 @@ impl ObservedReport {
                 .ok_or_else(|| ConformanceError::new("missing overwritten_retries"))?,
             rejected_records: rejected_records
                 .ok_or_else(|| ConformanceError::new("missing rejected_records"))?,
+            poll_errors: poll_errors.ok_or_else(|| ConformanceError::new("missing poll_errors"))?,
             delivered_total: delivered_total
                 .ok_or_else(|| ConformanceError::new("missing delivered_total"))?,
             lost_total: lost_total.ok_or_else(|| ConformanceError::new("missing lost_total"))?,
@@ -740,7 +751,7 @@ impl ObservedReport {
     #[must_use]
     pub fn summary_line(&self) -> String {
         format!(
-            "summary: mode={} fence={} append_mode={} cap={} head_abs={} lost_count={} delivered={} lost={} lapped={} retries={} rejected={} stale={}",
+            "summary: mode={} fence={} append_mode={} cap={} head_abs={} lost_count={} delivered={} lost={} lapped={} retries={} rejected={} poll_errors={} stale={}",
             self.mode,
             self.fence_mode.as_str(),
             self.append_mode,
@@ -752,6 +763,7 @@ impl ObservedReport {
             self.lapped_batches,
             self.overwritten_retries,
             self.rejected_records,
+            self.poll_errors,
             self.stale_violations.len()
         )
     }
@@ -784,6 +796,12 @@ impl ObservedReport {
                 self.rejected_records
             )));
         }
+        if self.poll_errors != 0 {
+            return Err(ConformanceError::new(format!(
+                "fenced run captured {} poll errors",
+                self.poll_errors
+            )));
+        }
         if !self.stale_violations.is_empty() {
             return Err(ConformanceError::new(format!(
                 "fenced run accepted stale records: {}",
@@ -803,6 +821,87 @@ impl ObservedReport {
             }
         }
         Ok(())
+    }
+
+    /// Summarizes an unfenced run without treating non-reproduction as success or failure.
+    #[must_use]
+    pub fn unfenced_evidence(&self) -> UnfencedEvidence {
+        let stale_violations = self.stale_violations.len();
+        let hazard_observed =
+            stale_violations > 0 || self.rejected_records > 0 || self.poll_errors > 0;
+        UnfencedEvidence {
+            fence_mode: self.fence_mode,
+            hazard_observed,
+            stale_violations,
+            rejected_records: self.rejected_records,
+            poll_errors: self.poll_errors,
+            overwritten_retries: self.overwritten_retries,
+            lapped_batches: self.lapped_batches,
+            delivered_total: self.delivered_total,
+            lost_total: self.lost_total,
+            lost_count: self.lost_count,
+        }
+    }
+}
+
+/// Non-flaky evidence view for diagnostic unfenced runs.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnfencedEvidence {
+    /// Fence mode used by the run.
+    pub fence_mode: FenceMode,
+    /// True when stale/duplicate/misordered records, rejected wire/CRC records, or poll errors appeared.
+    pub hazard_observed: bool,
+    /// Number of stale-oracle or ordering violations.
+    pub stale_violations: usize,
+    /// Number of post-overtake wire/CRC rejections.
+    pub rejected_records: u64,
+    /// Number of captured consumer poll errors.
+    pub poll_errors: u64,
+    /// Number of mid-read overwrite/control retries.
+    pub overwritten_retries: u64,
+    /// Number of lapped batches.
+    pub lapped_batches: u64,
+    /// Delivered total across expected sources.
+    pub delivered_total: u64,
+    /// Reconciled lost total across expected sources.
+    pub lost_total: u64,
+    /// Producer retention-pressure counter.
+    pub lost_count: u64,
+}
+
+impl UnfencedEvidence {
+    /// Stable outcome label.
+    #[must_use]
+    pub const fn outcome(self: &Self) -> &'static str {
+        if self.hazard_observed {
+            "hazard-observed"
+        } else {
+            "non-reproduction"
+        }
+    }
+
+    /// Standard disclaimer for a clean unfenced run.
+    #[must_use]
+    pub const fn non_reproduction_note() -> &'static str {
+        "non-reproduction, NOT proof of safety"
+    }
+
+    /// One-line human summary.
+    #[must_use]
+    pub fn summary_line(&self) -> String {
+        format!(
+            "unfenced_evidence: outcome={} fence={} stale={} rejected={} poll_errors={} retries={} lapped={} delivered={} lost={} lost_count={}",
+            self.outcome(),
+            self.fence_mode.as_str(),
+            self.stale_violations,
+            self.rejected_records,
+            self.poll_errors,
+            self.overwritten_retries,
+            self.lapped_batches,
+            self.delivered_total,
+            self.lost_total,
+            self.lost_count
+        )
     }
 }
 
