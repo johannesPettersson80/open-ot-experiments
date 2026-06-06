@@ -8,6 +8,8 @@ TYPE
     OPENOT_SOURCE_USED_TABLE : ARRAY[0..15] OF BOOL;
     OPENOT_SOURCE_ID_TABLE : ARRAY[0..15] OF UDINT;
     OPENOT_SOURCE_NEXT_SEQ_TABLE : ARRAY[0..15] OF ULINT;
+    OPENOT_SCAN_RECORD_BUFFER : ARRAY[0..1023] OF BYTE;
+    OPENOT_SCAN_RECORD_UINT_TABLE : ARRAY[0..16] OF UINT;
 
     OPENOT_EMISSION_ENTRY : STRUCT
         EventTypeId : UDINT;
@@ -18,6 +20,40 @@ TYPE
 
     OPENOT_EMISSION_LOG : ARRAY[0..31] OF OPENOT_EMISSION_ENTRY;
 END_TYPE
+
+FUNCTION OPENOT_AppendScanRecord : BOOL
+VAR_INPUT
+    Record : OPENOT_BYTE_BUFFER;
+    Length : UINT;
+END_VAR
+VAR_IN_OUT
+    ScanRecords : OPENOT_SCAN_RECORD_BUFFER;
+    ScanRecordOffsets : OPENOT_SCAN_RECORD_UINT_TABLE;
+    ScanRecordLengths : OPENOT_SCAN_RECORD_UINT_TABLE;
+    ScanWritePos : UINT;
+    ScanRecordCount : UINT;
+END_VAR
+VAR
+    CopyIndex : UINT;
+    DestIndex : UINT;
+END_VAR
+
+IF (Length = UINT#0) OR (Length > UINT#256) OR (ScanRecordCount > UINT#16) OR ((ScanWritePos + Length) > UINT#1024) THEN
+    OPENOT_AppendScanRecord := FALSE;
+ELSE
+    ScanRecordOffsets[ScanRecordCount] := ScanWritePos;
+    ScanRecordLengths[ScanRecordCount] := Length;
+
+    FOR CopyIndex := UINT#0 TO Length - UINT#1 DO
+        DestIndex := ScanWritePos + CopyIndex;
+        ScanRecords[DestIndex] := Record[CopyIndex];
+    END_FOR;
+
+    ScanWritePos := ScanWritePos + Length;
+    ScanRecordCount := ScanRecordCount + UINT#1;
+    OPENOT_AppendScanRecord := TRUE;
+END_IF;
+END_FUNCTION
 
 FUNCTION_BLOCK OPENOT_Producer
 VAR_INPUT
@@ -62,6 +98,10 @@ VAR_OUTPUT
     Emissions : OPENOT_EMISSION_LOG;
     EmissionCount : UINT;
     PublishedRecordCount : ULINT;
+    ScanRecords : OPENOT_SCAN_RECORD_BUFFER;
+    ScanRecordOffsets : OPENOT_SCAN_RECORD_UINT_TABLE;
+    ScanRecordLengths : OPENOT_SCAN_RECORD_UINT_TABLE;
+    ScanRecordCount : UINT;
 END_VAR
 VAR
     Sources : ARRAY[0..15] OF OPENOT_SOURCE_ENTRY;
@@ -101,6 +141,8 @@ VAR
     NextSourceId : UDINT;
     SelectedIndex : UINT;
     CandidateFound : BOOL;
+    ScanWritePos : UINT;
+    AppendOk : BOOL;
 END_VAR
 
 IF NOT Initialized THEN
@@ -122,6 +164,13 @@ CheckpointDone := FALSE;
 ExecuteEdge := Execute AND (NOT PreviousExecute);
 
 IF ExecuteEdge THEN
+    ScanRecordCount := UINT#0;
+    ScanWritePos := UINT#0;
+    FOR Index := UINT#0 TO UINT#16 DO
+        ScanRecordOffsets[Index] := UINT#0;
+        ScanRecordLengths[Index] := UINT#0;
+    END_FOR;
+
     IF Checkpoint THEN
         IF PendingOpen THEN
             Error := TRUE;
@@ -160,17 +209,29 @@ IF ExecuteEdge THEN
                     Seq := ProducedCount);
 
                 IF RingProducer.Done AND (NOT RingProducer.Error) THEN
-                    Sources[EntryIndex].NextSeq := ProducedCount + ULINT#1;
-                    StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
-                    IF EmissionCount < UINT#32 THEN
-                        Emissions[EmissionCount].EventTypeId := UDINT#16#0108;
-                        Emissions[EmissionCount].RunId := StateRunId;
-                        Emissions[EmissionCount].SourceId := SourceId;
-                        Emissions[EmissionCount].Seq := ProducedCount;
-                        EmissionCount := EmissionCount + UINT#1;
+                    AppendOk := OPENOT_AppendScanRecord(
+                        Record := HighWaterEncoder.Buffer,
+                        Length := HighWaterEncoder.Length,
+                        ScanRecords := ScanRecords,
+                        ScanRecordOffsets := ScanRecordOffsets,
+                        ScanRecordLengths := ScanRecordLengths,
+                        ScanWritePos := ScanWritePos,
+                        ScanRecordCount := ScanRecordCount);
+                    IF AppendOk THEN
+                        Sources[EntryIndex].NextSeq := ProducedCount + ULINT#1;
+                        StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
+                        IF EmissionCount < UINT#32 THEN
+                            Emissions[EmissionCount].EventTypeId := UDINT#16#0108;
+                            Emissions[EmissionCount].RunId := StateRunId;
+                            Emissions[EmissionCount].SourceId := SourceId;
+                            Emissions[EmissionCount].Seq := ProducedCount;
+                            EmissionCount := EmissionCount + UINT#1;
+                        END_IF;
+                        Done := TRUE;
+                        CheckpointDone := TRUE;
+                    ELSE
+                        Error := TRUE;
                     END_IF;
-                    Done := TRUE;
-                    CheckpointDone := TRUE;
                 ELSE
                     Error := TRUE;
                 END_IF;
@@ -233,15 +294,27 @@ IF ExecuteEdge THEN
                     Seq := AssignedSeq);
 
                 IF RingProducer.Done AND (NOT RingProducer.Error) THEN
-                    StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
-                    IF EmissionCount < UINT#32 THEN
-                        Emissions[EmissionCount].EventTypeId := UDINT#16#0003;
-                        Emissions[EmissionCount].RunId := StateRunId;
-                        Emissions[EmissionCount].SourceId := SourceId;
-                        Emissions[EmissionCount].Seq := AssignedSeq;
-                        EmissionCount := EmissionCount + UINT#1;
+                    AppendOk := OPENOT_AppendScanRecord(
+                        Record := Encoder.Buffer,
+                        Length := Encoder.Length,
+                        ScanRecords := ScanRecords,
+                        ScanRecordOffsets := ScanRecordOffsets,
+                        ScanRecordLengths := ScanRecordLengths,
+                        ScanWritePos := ScanWritePos,
+                        ScanRecordCount := ScanRecordCount);
+                    IF AppendOk THEN
+                        StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
+                        IF EmissionCount < UINT#32 THEN
+                            Emissions[EmissionCount].EventTypeId := UDINT#16#0003;
+                            Emissions[EmissionCount].RunId := StateRunId;
+                            Emissions[EmissionCount].SourceId := SourceId;
+                            Emissions[EmissionCount].Seq := AssignedSeq;
+                            EmissionCount := EmissionCount + UINT#1;
+                        END_IF;
+                        Done := TRUE;
+                    ELSE
+                        Error := TRUE;
                     END_IF;
-                    Done := TRUE;
                 ELSE
                     Error := TRUE;
                 END_IF;
@@ -265,13 +338,25 @@ IF ExecuteEdge THEN
                 Seq := EmitSeq);
 
             IF RingProducer.Done AND (NOT RingProducer.Error) THEN
-                StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
-                IF EmissionCount < UINT#32 THEN
-                    Emissions[EmissionCount].EventTypeId := UDINT#16#0102;
-                    Emissions[EmissionCount].RunId := StateRunId;
-                    Emissions[EmissionCount].SourceId := UDINT#0;
-                    Emissions[EmissionCount].Seq := EmitSeq;
-                    EmissionCount := EmissionCount + UINT#1;
+                AppendOk := OPENOT_AppendScanRecord(
+                    Record := StoppedEncoder.Buffer,
+                    Length := StoppedEncoder.Length,
+                    ScanRecords := ScanRecords,
+                    ScanRecordOffsets := ScanRecordOffsets,
+                    ScanRecordLengths := ScanRecordLengths,
+                    ScanWritePos := ScanWritePos,
+                    ScanRecordCount := ScanRecordCount);
+                IF AppendOk THEN
+                    StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
+                    IF EmissionCount < UINT#32 THEN
+                        Emissions[EmissionCount].EventTypeId := UDINT#16#0102;
+                        Emissions[EmissionCount].RunId := StateRunId;
+                        Emissions[EmissionCount].SourceId := UDINT#0;
+                        Emissions[EmissionCount].Seq := EmitSeq;
+                        EmissionCount := EmissionCount + UINT#1;
+                    END_IF;
+                ELSE
+                    Error := TRUE;
                 END_IF;
             ELSE
                 Error := TRUE;
@@ -314,17 +399,30 @@ IF ExecuteEdge THEN
                         Seq := ProducedCount);
 
                     IF RingProducer.Done AND (NOT RingProducer.Error) THEN
-                        Sources[SelectedIndex].NextSeq := ProducedCount + ULINT#1;
-                        StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
-                        IF EmissionCount < UINT#32 THEN
-                            Emissions[EmissionCount].EventTypeId := UDINT#16#0108;
-                            Emissions[EmissionCount].RunId := StateRunId;
-                            Emissions[EmissionCount].SourceId := Sources[SelectedIndex].SourceId;
-                            Emissions[EmissionCount].Seq := ProducedCount;
-                            EmissionCount := EmissionCount + UINT#1;
+                        AppendOk := OPENOT_AppendScanRecord(
+                            Record := HighWaterEncoder.Buffer,
+                            Length := HighWaterEncoder.Length,
+                            ScanRecords := ScanRecords,
+                            ScanRecordOffsets := ScanRecordOffsets,
+                            ScanRecordLengths := ScanRecordLengths,
+                            ScanWritePos := ScanWritePos,
+                            ScanRecordCount := ScanRecordCount);
+                        IF AppendOk THEN
+                            Sources[SelectedIndex].NextSeq := ProducedCount + ULINT#1;
+                            StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
+                            IF EmissionCount < UINT#32 THEN
+                                Emissions[EmissionCount].EventTypeId := UDINT#16#0108;
+                                Emissions[EmissionCount].RunId := StateRunId;
+                                Emissions[EmissionCount].SourceId := Sources[SelectedIndex].SourceId;
+                                Emissions[EmissionCount].Seq := ProducedCount;
+                                EmissionCount := EmissionCount + UINT#1;
+                            END_IF;
+                            LastSourceId := NextSourceId;
+                            HasLastSourceId := TRUE;
+                        ELSE
+                            Error := TRUE;
+                            SourceLoopActive := FALSE;
                         END_IF;
-                        LastSourceId := NextSourceId;
-                        HasLastSourceId := TRUE;
                     ELSE
                         Error := TRUE;
                         SourceLoopActive := FALSE;
@@ -371,16 +469,28 @@ IF ExecuteEdge THEN
                 Seq := EmitSeq);
 
             IF RingProducer.Done AND (NOT RingProducer.Error) THEN
-                StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
-                IF EmissionCount < UINT#32 THEN
-                    Emissions[EmissionCount].EventTypeId := UDINT#16#0106;
-                    Emissions[EmissionCount].RunId := StateRunId;
-                    Emissions[EmissionCount].SourceId := UDINT#0;
-                    Emissions[EmissionCount].Seq := EmitSeq;
-                    EmissionCount := EmissionCount + UINT#1;
+                AppendOk := OPENOT_AppendScanRecord(
+                    Record := DefinitionEncoder.Buffer,
+                    Length := DefinitionEncoder.Length,
+                    ScanRecords := ScanRecords,
+                    ScanRecordOffsets := ScanRecordOffsets,
+                    ScanRecordLengths := ScanRecordLengths,
+                    ScanWritePos := ScanWritePos,
+                    ScanRecordCount := ScanRecordCount);
+                IF AppendOk THEN
+                    StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
+                    IF EmissionCount < UINT#32 THEN
+                        Emissions[EmissionCount].EventTypeId := UDINT#16#0106;
+                        Emissions[EmissionCount].RunId := StateRunId;
+                        Emissions[EmissionCount].SourceId := UDINT#0;
+                        Emissions[EmissionCount].Seq := EmitSeq;
+                        EmissionCount := EmissionCount + UINT#1;
+                    END_IF;
+                    PendingDefChangedEmitted := TRUE;
+                    Done := TRUE;
+                ELSE
+                    Error := TRUE;
                 END_IF;
-                PendingDefChangedEmitted := TRUE;
-                Done := TRUE;
             ELSE
                 Error := TRUE;
             END_IF;
@@ -410,22 +520,34 @@ IF ExecuteEdge THEN
                 Seq := EmitSeq);
 
             IF RingProducer.Done AND (NOT RingProducer.Error) THEN
-                StateEpochFirstAbs := RingProducer.LastStartAbs;
-                FOR Index := UINT#0 TO UINT#7 DO
-                    StatePrevDefinitionHash[Index] := PendingDefHashOld[Index];
-                    StateDefinitionHash[Index] := PendingDefHashNew[Index];
-                END_FOR;
-                PendingOpen := FALSE;
-                PendingDefChangedEmitted := FALSE;
-                StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
-                IF EmissionCount < UINT#32 THEN
-                    Emissions[EmissionCount].EventTypeId := UDINT#16#0101;
-                    Emissions[EmissionCount].RunId := StateRunId;
-                    Emissions[EmissionCount].SourceId := UDINT#0;
-                    Emissions[EmissionCount].Seq := EmitSeq;
-                    EmissionCount := EmissionCount + UINT#1;
+                AppendOk := OPENOT_AppendScanRecord(
+                    Record := StartedEncoder.Buffer,
+                    Length := StartedEncoder.Length,
+                    ScanRecords := ScanRecords,
+                    ScanRecordOffsets := ScanRecordOffsets,
+                    ScanRecordLengths := ScanRecordLengths,
+                    ScanWritePos := ScanWritePos,
+                    ScanRecordCount := ScanRecordCount);
+                IF AppendOk THEN
+                    StateEpochFirstAbs := RingProducer.LastStartAbs;
+                    FOR Index := UINT#0 TO UINT#7 DO
+                        StatePrevDefinitionHash[Index] := PendingDefHashOld[Index];
+                        StateDefinitionHash[Index] := PendingDefHashNew[Index];
+                    END_FOR;
+                    PendingOpen := FALSE;
+                    PendingDefChangedEmitted := FALSE;
+                    StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
+                    IF EmissionCount < UINT#32 THEN
+                        Emissions[EmissionCount].EventTypeId := UDINT#16#0101;
+                        Emissions[EmissionCount].RunId := StateRunId;
+                        Emissions[EmissionCount].SourceId := UDINT#0;
+                        Emissions[EmissionCount].Seq := EmitSeq;
+                        EmissionCount := EmissionCount + UINT#1;
+                    END_IF;
+                    Done := TRUE;
+                ELSE
+                    Error := TRUE;
                 END_IF;
-                Done := TRUE;
             ELSE
                 Error := TRUE;
             END_IF;
@@ -464,22 +586,34 @@ IF ExecuteEdge THEN
                 Seq := EmitSeq);
 
             IF RingProducer.Done AND (NOT RingProducer.Error) THEN
-                StateEpochFirstAbs := RingProducer.LastStartAbs;
-                FOR Index := UINT#0 TO UINT#7 DO
-                    StatePrevDefinitionHash[Index] := PendingDefHashOld[Index];
-                    StateDefinitionHash[Index] := PendingDefHashNew[Index];
-                END_FOR;
-                PendingOpen := FALSE;
-                PendingDefChangedEmitted := FALSE;
-                StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
-                IF EmissionCount < UINT#32 THEN
-                    Emissions[EmissionCount].EventTypeId := UDINT#16#0101;
-                    Emissions[EmissionCount].RunId := StateRunId;
-                    Emissions[EmissionCount].SourceId := UDINT#0;
-                    Emissions[EmissionCount].Seq := EmitSeq;
-                    EmissionCount := EmissionCount + UINT#1;
+                AppendOk := OPENOT_AppendScanRecord(
+                    Record := StartedEncoder.Buffer,
+                    Length := StartedEncoder.Length,
+                    ScanRecords := ScanRecords,
+                    ScanRecordOffsets := ScanRecordOffsets,
+                    ScanRecordLengths := ScanRecordLengths,
+                    ScanWritePos := ScanWritePos,
+                    ScanRecordCount := ScanRecordCount);
+                IF AppendOk THEN
+                    StateEpochFirstAbs := RingProducer.LastStartAbs;
+                    FOR Index := UINT#0 TO UINT#7 DO
+                        StatePrevDefinitionHash[Index] := PendingDefHashOld[Index];
+                        StateDefinitionHash[Index] := PendingDefHashNew[Index];
+                    END_FOR;
+                    PendingOpen := FALSE;
+                    PendingDefChangedEmitted := FALSE;
+                    StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
+                    IF EmissionCount < UINT#32 THEN
+                        Emissions[EmissionCount].EventTypeId := UDINT#16#0101;
+                        Emissions[EmissionCount].RunId := StateRunId;
+                        Emissions[EmissionCount].SourceId := UDINT#0;
+                        Emissions[EmissionCount].Seq := EmitSeq;
+                        EmissionCount := EmissionCount + UINT#1;
+                    END_IF;
+                    Done := TRUE;
+                ELSE
+                    Error := TRUE;
                 END_IF;
-                Done := TRUE;
             ELSE
                 Error := TRUE;
             END_IF;

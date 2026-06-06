@@ -11,7 +11,8 @@ per-source `SourceHighWater` checkpoints where the envelope sequence and
 `producedCount` payload are the same value by construction. Lifecycle encoders cover
 the system-source `LoggerStarted`, `LoggerStopped`, and `DefinitionChanged` records,
 and the producer orchestrates cold and warm epoch transitions with a system sequence
-counter, source high-water checkpoints, and exposed transition state.
+counter, source high-water checkpoints, exposed transition state, and a fixed
+per-scan record-list output for multi-record transition bursts.
 The capture POUs drive fixed multi-record scenarios and expose the final
 256-byte ring plus dynamic control fields for cross-language validation by the
 Rust carriage harness.
@@ -76,7 +77,8 @@ reading a `STRING` representation.
 - `src/openot_lifecycle.st` defines byte-exact encoders for system lifecycle
   records.
 - `src/openot_producer.st` composes the 256-byte producer ring with a fixed
-  per-source sequence table and the cold/warm epoch transition state machine.
+  per-source sequence table, per-scan record-list outputs, and the cold/warm
+  epoch transition state machine.
 - `captures/openot_s4a_capture.st` defines the S4a scenario drivers
   `OPENOT_CaptureRichWrap` and `OPENOT_CaptureLifecycleSurvival`. Call the POU
   once, confirm `Complete = TRUE`, then dump its public `Ring` and control-field
