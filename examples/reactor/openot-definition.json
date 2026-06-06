@@ -1,0 +1,278 @@
+{
+  "header": {
+    "wireVersion": 2,
+    "semanticVersion": "1.0.0",
+    "profiles": [
+      "Core",
+      "Full"
+    ],
+    "conformanceLevel": "Producer-Full",
+    "caps": {
+      "crc": true,
+      "sourceHighWater": true
+    },
+    "constraints": {
+      "maxRecordSize": 512,
+      "maxSlots": 16,
+      "overflowPolicy": "overwrite-oldest"
+    },
+    "epochStrategy": "retain",
+    "contentHash": "9cc70b3fa26af5a39d94452944daf75d4b4a090170fe00d7cf40632e9c113e8b"
+  },
+  "eventTypes": [
+    {
+      "id": 1,
+      "name": "StateTransition",
+      "profile": "Core",
+      "slots": [
+        {
+          "key": 1,
+          "type": 5,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 1
+        },
+        {
+          "key": 2,
+          "type": 3,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 2
+        },
+        {
+          "key": 3,
+          "type": 3,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 3
+        },
+        {
+          "key": 4,
+          "type": 3,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 4
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "ValueChanged",
+      "profile": "Core",
+      "slots": [
+        {
+          "key": 13,
+          "type": 5,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 1
+        },
+        {
+          "key": 15,
+          "type": 9,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 2
+        },
+        {
+          "key": 16,
+          "type": 9,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 3
+        },
+        {
+          "key": 17,
+          "type": 3,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 4
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Message",
+      "profile": "Core",
+      "slots": []
+    },
+    {
+      "id": 512,
+      "name": "ConditionActive",
+      "profile": "Full",
+      "slots": [
+        {
+          "key": 5,
+          "type": 5,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 1
+        },
+        {
+          "key": 6,
+          "type": 3,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 2
+        },
+        {
+          "key": 8,
+          "type": 3,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 3
+        }
+      ]
+    },
+    {
+      "id": 513,
+      "name": "ConditionCleared",
+      "profile": "Full",
+      "slots": [
+        {
+          "key": 5,
+          "type": 5,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 1
+        },
+        {
+          "key": 6,
+          "type": 3,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 2
+        },
+        {
+          "key": 8,
+          "type": 3,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 3
+        }
+      ]
+    },
+    {
+      "id": 2147483912,
+      "name": "SourceHighWater",
+      "profile": "Full",
+      "slots": [
+        {
+          "key": 56,
+          "type": 7,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 1
+        }
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "sourceId": 1,
+      "name": "source1",
+      "path": [
+        "source1"
+      ],
+      "hierarchy": [],
+      "dynamic": false
+    }
+  ],
+  "stateMachines": [
+    {
+      "stateMachineId": 7001,
+      "name": "Step",
+      "category": 2,
+      "proceduralModel": "ISA-88",
+      "enumSet": "E_ReactorStep"
+    }
+  ],
+  "conditions": [
+    {
+      "conditionId": 9001,
+      "name": "HighPhAlarm",
+      "conditionClass": 0,
+      "defaultSeverity": 900,
+      "causeOperands": []
+    }
+  ],
+  "messageTemplates": [
+    {
+      "messageTemplateId": 10001,
+      "name": "BatchStarted",
+      "format": "batch started",
+      "argTypes": []
+    }
+  ],
+  "values": [
+    {
+      "valueId": 2001,
+      "name": "Level",
+      "dataType": 9,
+      "semanticRole": 0,
+      "unit": 1,
+      "deadband": {
+        "decimal": "0.5",
+        "scaled": null
+      },
+      "samplingPolicy": null
+    },
+    {
+      "valueId": 2002,
+      "name": "BatchCount",
+      "dataType": 6,
+      "semanticRole": 0,
+      "unit": null,
+      "deadband": null,
+      "samplingPolicy": "on-change"
+    }
+  ],
+  "units": [
+    {
+      "unitId": 1,
+      "symbol": "L"
+    }
+  ],
+  "enumSets": [
+    {
+      "name": "E_ReactorStep",
+      "members": [
+        {
+          "value": 0,
+          "label": "Idle"
+        },
+        {
+          "value": 1,
+          "label": "Filling"
+        },
+        {
+          "value": 2,
+          "label": "Mixing"
+        },
+        {
+          "value": 3,
+          "label": "Draining"
+        },
+        {
+          "value": 4,
+          "label": "Done"
+        }
+      ]
+    }
+  ],
+  "severityScale": {
+    "name": "baseline",
+    "low": {
+      "min": 1,
+      "max": 332
+    },
+    "medium": {
+      "min": 333,
+      "max": 666
+    },
+    "high": {
+      "min": 667,
+      "max": 1000
+    }
+  }
+}

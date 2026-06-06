@@ -42,8 +42,8 @@ pub const EVENT_SOURCE_REGISTERED: u32 = 0x0105;
 pub const EVENT_DEFINITION_CHANGED: u32 = 0x0106;
 /// System event: time synchronization changed.
 pub const EVENT_TIME_SYNC_CHANGED: u32 = 0x0107;
-/// System event: per-source produced-count checkpoint.
-pub const EVENT_SOURCE_HIGH_WATER: u32 = 0x0108;
+/// Vendor extension event: per-source produced-count checkpoint.
+pub const EVENT_SOURCE_HIGH_WATER: u32 = 0x8000_0108;
 
 /// Condition event: active.
 pub const EVENT_CONDITION_ACTIVE: u32 = 0x0200;
@@ -1003,6 +1003,7 @@ mod tests {
         ids.dedup();
         assert_eq!(ids.len(), EVENT_SPECS.len());
         assert_eq!(EVENT_SPECS.len(), 38);
+        assert!(is_vendor_event_id(EVENT_SOURCE_HIGH_WATER));
         assert_eq!(
             event_spec(EVENT_SOURCE_HIGH_WATER).unwrap().name,
             "SourceHighWater"

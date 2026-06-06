@@ -1,0 +1,30 @@
+{
+  "name": "conformant_value_changed_dint",
+  "description": "definition-layer positive ValueChanged record carrying DINT previousValue/newValue plus quality",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "conformant_value_changed_dint.hex",
+  "byteCount": 76,
+  "headerLength": 40,
+  "totalRecordLength": 76,
+  "flags": "0x0008",
+  "crc32c": "0x2EE9BBA1",
+  "detail": {
+    "eventName": "ValueChanged",
+    "schemaExpected": "accept",
+    "fields": {
+      "sourceTime": 1000000030,
+      "runId": 1,
+      "seq": 4,
+      "sourceId": 66,
+      "eventTypeId": "0x0002"
+    },
+    "slots": [
+      { "key": "0x000D", "type": "UDInt", "name": "valueId", "value": 2002 },
+      { "key": "0x000F", "type": "DInt", "name": "previousValue", "value": 40 },
+      { "key": "0x0010", "type": "DInt", "name": "newValue", "value": 42 },
+      { "key": "0x0011", "type": "UInt", "name": "quality", "value": 0 }
+    ]
+  }
+}

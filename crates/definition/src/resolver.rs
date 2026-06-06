@@ -12,8 +12,9 @@ use crate::schema::{
 };
 use open_ot_carriage::control::ControlBlockSnapshot;
 use open_ot_carriage::registry::{
-    CATEGORY_VALUES, FieldKind, KEY_CATEGORY, KEY_NEW_STATE, KEY_PREVIOUS_STATE,
-    KEY_STATE_MACHINE_ID, SeverityBand, field_spec, severity_band, tlv_type_spec,
+    CATEGORY_VALUES, FieldKind, KEY_CATEGORY, KEY_CONDITION_ID, KEY_MESSAGE_TEMPLATE_ID,
+    KEY_NEW_STATE, KEY_NEW_VALUE, KEY_PREVIOUS_STATE, KEY_PREVIOUS_VALUE, KEY_STATE_MACHINE_ID,
+    KEY_VALUE_ID, SeverityBand, field_spec, severity_band, tlv_type_spec,
 };
 use open_ot_carriage::wire::{Record, Slot};
 use std::fmt;
@@ -414,7 +415,7 @@ fn resolve_slots(
                 ty: slot.ty,
             });
         };
-        let value = decode_value(slot).map_err(|reason| match reason {
+        let mut value = decode_value(slot).map_err(|reason| match reason {
             ValueDecodeError::InvalidUtf8 => {
                 ResolvePlaceholderReason::InvalidUtf8 { key: slot.key }
             }
@@ -423,13 +424,25 @@ fn resolve_slots(
                 ty: slot.ty,
             },
         })?;
+        let mut name = field.name.to_string();
+        let mut type_name = type_spec.name.to_string();
+        let mut enum_label = enum_label(slot.key, &value, &mut context, definition);
+        let unit = unit_label(slot.key, &value, &context, definition);
+        value = semantic_value(
+            slot.key,
+            value,
+            definition,
+            &mut name,
+            &mut type_name,
+            &mut enum_label,
+        );
 
         fields.push(ResolvedField {
             key: slot.key,
-            name: field.name.to_string(),
-            type_name: type_spec.name.to_string(),
-            enum_label: enum_label(slot.key, &value, &mut context, definition),
-            unit: unit_label(slot.key, &value, definition),
+            name,
+            type_name,
+            enum_label,
+            unit,
             value,
         });
 
@@ -506,6 +519,9 @@ fn decode_value(slot: &Slot) -> Result<ResolvedValue, ValueDecodeError> {
 struct FieldContext {
     state_machine_id: Option<u32>,
     category: Option<u16>,
+    value_id: Option<u32>,
+    condition_id: Option<u32>,
+    message_template_id: Option<u32>,
 }
 
 impl FieldContext {
@@ -519,11 +535,76 @@ impl FieldContext {
                 KEY_CATEGORY if slot.payload.len() == 2 => {
                     context.category = Some(read_u16(&slot.payload));
                 }
+                KEY_VALUE_ID if slot.payload.len() == 4 => {
+                    context.value_id = Some(read_u32(&slot.payload));
+                }
+                KEY_CONDITION_ID if slot.payload.len() == 4 => {
+                    context.condition_id = Some(read_u32(&slot.payload));
+                }
+                KEY_MESSAGE_TEMPLATE_ID if slot.payload.len() == 4 => {
+                    context.message_template_id = Some(read_u32(&slot.payload));
+                }
                 _ => {}
             }
         }
         context
     }
+}
+
+fn semantic_value(
+    key: u16,
+    value: ResolvedValue,
+    definition: &DefinitionFile,
+    name: &mut String,
+    type_name: &mut String,
+    enum_label: &mut Option<String>,
+) -> ResolvedValue {
+    match key {
+        KEY_STATE_MACHINE_ID => {
+            if let Some(id) = value.as_u32()
+                && let Some(machine_name) = state_machine_name(id, definition)
+            {
+                *name = "stateMachine".to_string();
+                *type_name = "StateMachineRef".to_string();
+                return ResolvedValue::String(machine_name);
+            }
+        }
+        KEY_VALUE_ID => {
+            if let Some(id) = value.as_u32()
+                && let Some(value_name) = value_name(id, definition)
+            {
+                *name = "value".to_string();
+                *type_name = "ValueRef".to_string();
+                return ResolvedValue::String(value_name);
+            }
+        }
+        KEY_CONDITION_ID => {
+            if let Some(id) = value.as_u32()
+                && let Some(condition_name) = condition_name(id, definition)
+            {
+                *name = "condition".to_string();
+                *type_name = "ConditionRef".to_string();
+                return ResolvedValue::String(condition_name);
+            }
+        }
+        KEY_MESSAGE_TEMPLATE_ID => {
+            if let Some(id) = value.as_u32()
+                && let Some(template_name) = message_template_name(id, definition)
+            {
+                *name = "messageTemplate".to_string();
+                *type_name = "MessageTemplateRef".to_string();
+                return ResolvedValue::String(template_name);
+            }
+        }
+        KEY_PREVIOUS_STATE | KEY_NEW_STATE => {
+            if let Some(label) = enum_label.clone() {
+                *type_name = "StateRef".to_string();
+                return ResolvedValue::String(label);
+            }
+        }
+        _ => {}
+    }
+    value
 }
 
 fn enum_label(
@@ -555,16 +636,67 @@ fn state_label(state_machine_id: u32, value: u16, definition: &DefinitionFile) -
     enum_set_member_label(&enum_set.members, value)
 }
 
-fn unit_label(key: u16, value: &ResolvedValue, definition: &DefinitionFile) -> Option<String> {
-    if key != open_ot_carriage::registry::KEY_UNIT {
+fn unit_label(
+    key: u16,
+    value: &ResolvedValue,
+    context: &FieldContext,
+    definition: &DefinitionFile,
+) -> Option<String> {
+    if key == open_ot_carriage::registry::KEY_UNIT {
+        let unit_id = value.as_u16()?;
+        return definition
+            .units
+            .iter()
+            .find(|unit| unit.unit_id == unit_id)
+            .map(|unit| unit.symbol.clone());
+    }
+
+    if !matches!(key, KEY_PREVIOUS_VALUE | KEY_NEW_VALUE) {
         return None;
     }
-    let unit_id = value.as_u16()?;
+    let value_id = context.value_id?;
+    let unit_id = definition
+        .values
+        .iter()
+        .find(|entry| entry.value_id == value_id)?
+        .unit?;
     definition
         .units
         .iter()
         .find(|unit| unit.unit_id == unit_id)
         .map(|unit| unit.symbol.clone())
+}
+
+fn state_machine_name(id: u32, definition: &DefinitionFile) -> Option<String> {
+    definition
+        .state_machines
+        .iter()
+        .find(|machine| machine.state_machine_id == id)
+        .map(|machine| machine.name.clone())
+}
+
+fn value_name(id: u32, definition: &DefinitionFile) -> Option<String> {
+    definition
+        .values
+        .iter()
+        .find(|value| value.value_id == id)
+        .map(|value| value.name.clone())
+}
+
+fn condition_name(id: u32, definition: &DefinitionFile) -> Option<String> {
+    definition
+        .conditions
+        .iter()
+        .find(|condition| condition.condition_id == id)
+        .map(|condition| condition.name.clone())
+}
+
+fn message_template_name(id: u32, definition: &DefinitionFile) -> Option<String> {
+    definition
+        .message_templates
+        .iter()
+        .find(|template| template.message_template_id == id)
+        .map(|template| template.name.clone())
 }
 
 fn resolve_source(source_id: u32, definition: &DefinitionFile) -> Option<ResolvedSource> {
@@ -610,6 +742,13 @@ fn severity_label(value: u16) -> Option<String> {
 }
 
 impl ResolvedValue {
+    fn as_u32(&self) -> Option<u32> {
+        match self {
+            ResolvedValue::UDInt(value) => Some(*value),
+            _ => None,
+        }
+    }
+
     fn as_u16(&self) -> Option<u16> {
         match self {
             ResolvedValue::UInt(value) => Some(*value),
@@ -730,9 +869,9 @@ mod tests {
             field(&record, KEY_STATE_MACHINE_ID),
             &ResolvedField {
                 key: KEY_STATE_MACHINE_ID,
-                name: "stateMachineId".to_string(),
-                type_name: "UDInt".to_string(),
-                value: ResolvedValue::UDInt(7),
+                name: "stateMachine".to_string(),
+                type_name: "StateMachineRef".to_string(),
+                value: ResolvedValue::String("CoreProcedure".to_string()),
                 unit: None,
                 enum_label: None,
             }
@@ -742,8 +881,16 @@ mod tests {
             Some("Procedural")
         );
         assert_eq!(
+            field(&record, KEY_PREVIOUS_STATE).value,
+            ResolvedValue::String("Previous".to_string())
+        );
+        assert_eq!(
             field(&record, KEY_PREVIOUS_STATE).enum_label.as_deref(),
             Some("Previous")
+        );
+        assert_eq!(
+            field(&record, KEY_NEW_STATE).value,
+            ResolvedValue::String("Current".to_string())
         );
         assert_eq!(
             field(&record, KEY_NEW_STATE).enum_label.as_deref(),
@@ -769,7 +916,7 @@ mod tests {
         assert_eq!(record.event_name, "Message");
         assert_eq!(
             field(&record, KEY_MESSAGE_TEMPLATE_ID).value,
-            ResolvedValue::UDInt(1001)
+            ResolvedValue::String("Status".to_string())
         );
         assert_eq!(
             field(&record, KEY_ARG).value,

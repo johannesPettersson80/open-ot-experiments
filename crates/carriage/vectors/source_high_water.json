@@ -9,7 +9,7 @@
   "headerLength": 40,
   "totalRecordLength": 56,
   "flags": "0x0008",
-  "crc32c": "0x9ECC3ED5",
+  "crc32c": "0x8674D4CD",
   "detail": {
     "eventName": "SourceHighWater",
     "fields": {
@@ -17,7 +17,7 @@
       "runId": 1,
       "seq": 5,
       "sourceId": 88,
-      "eventTypeId": "0x0108"
+      "eventTypeId": "0x80000108"
     },
     "slots": [
       { "key": "0x0038", "type": "ULInt", "name": "producedCount", "value": 5 }

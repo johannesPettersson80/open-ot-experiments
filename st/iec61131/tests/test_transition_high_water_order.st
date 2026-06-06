@@ -47,10 +47,10 @@ Passed :=
     (Producer.EmissionCount = UINT#5) AND
     (Producer.PublishedRecordCount = ULINT#5) AND
     (Producer.Emissions[2].EventTypeId = UDINT#16#0102) AND
-    (Producer.Emissions[3].EventTypeId = UDINT#16#0108) AND
+    (Producer.Emissions[3].EventTypeId = UDINT#16#80000108) AND
     (Producer.Emissions[3].SourceId = UDINT#10) AND
     (Producer.Emissions[3].Seq = ULINT#1) AND
-    (Producer.Emissions[4].EventTypeId = UDINT#16#0108) AND
+    (Producer.Emissions[4].EventTypeId = UDINT#16#80000108) AND
     (Producer.Emissions[4].SourceId = UDINT#30) AND
     (Producer.Emissions[4].Seq = ULINT#1);
 END_FUNCTION_BLOCK

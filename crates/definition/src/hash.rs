@@ -260,11 +260,11 @@ mod tests {
         assert!(hash.content_hash.chars().all(|ch| !ch.is_ascii_uppercase()));
         assert_eq!(
             hash.carriage_hash,
-            [0xc1, 0x75, 0xfb, 0x1a, 0xee, 0x05, 0x49, 0xe1]
+            [0x70, 0xdf, 0x73, 0x94, 0xb8, 0x75, 0xe4, 0x92]
         );
         assert_eq!(
             hash.content_hash,
-            "c175fb1aee0549e1ea6f0a4843c4eb291982a5992154ee45ed11535d0f923d7c"
+            "70df7394b875e492fd3f7359744939a5c700e7b2c51e744facac31692f3c034a"
         );
     }
 
@@ -287,17 +287,17 @@ mod tests {
 
         assert_eq!(
             canonical,
-            "{\"conditions\":[],\"enumSets\":[],\"eventTypes\":[],\"header\":{\"caps\":{\"crc\":true,\"sourceHighWater\":true},\"conformanceLevel\":\"Producer-Core\",\"constraints\":{\"maxRecordSize\":128,\"maxSlots\":4,\"overflowPolicy\":\"overwrite-oldest\"},\"contentHash\":\"\",\"epochStrategy\":\"retain\",\"profiles\":[\"Core\"],\"semanticVersion\":\"1.0.0\",\"wireVersion\":2},\"messageTemplates\":[],\"severityScale\":{\"high\":{\"max\":1000,\"min\":667},\"low\":{\"max\":332,\"min\":1},\"medium\":{\"max\":666,\"min\":333},\"name\":\"baseline\"},\"sources\":[],\"stateMachines\":[],\"units\":[],\"values\":[]}"
+            "{\"conditions\":[],\"enumSets\":[],\"eventTypes\":[],\"header\":{\"caps\":{\"crc\":true,\"sourceHighWater\":true},\"conformanceLevel\":\"Producer-Core\",\"constraints\":{\"maxRecordSize\":128,\"maxSlots\":4,\"overflowPolicy\":\"overwrite-oldest\"},\"contentHash\":\"\",\"epochStrategy\":\"retain\",\"profiles\":[\"Core\"],\"semanticVersion\":\"1.0.0\",\"wireVersion\":2},\"messageTemplates\":[],\"severityScale\":{\"high\":{\"max\":1000,\"min\":667},\"low\":{\"max\":332,\"min\":1},\"medium\":{\"max\":666,\"min\":333},\"name\":\"baseline\"},\"sources\":[],\"stateMachines\":[],\"units\":[],\"values\":[{\"dataType\":9,\"deadband\":{\"decimal\":\"0.5\",\"scaled\":null},\"name\":\"Temperature\",\"samplingPolicy\":null,\"semanticRole\":0,\"unit\":null,\"valueId\":2001},{\"dataType\":6,\"deadband\":null,\"name\":\"BatchCount\",\"samplingPolicy\":\"on-change\",\"semanticRole\":3,\"unit\":null,\"valueId\":2002}]}"
         );
 
         let hash = compute_content_hash(&definition).unwrap();
         assert_eq!(
             hash.content_hash,
-            "140b94088cceba40295d06e8c95e151a61eeb1b0b9849f6f877fae7bf9dfd7a4"
+            "ecd25cd81846dc108f36c8355aa7296466cc50330bd4ea359909b20f816ee843"
         );
         assert_eq!(
             hash.carriage_hash,
-            [0x14, 0x0b, 0x94, 0x08, 0x8c, 0xce, 0xba, 0x40]
+            [0xec, 0xd2, 0x5c, 0xd8, 0x18, 0x46, 0xdc, 0x10]
         );
     }
 }

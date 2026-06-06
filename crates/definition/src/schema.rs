@@ -460,16 +460,18 @@ fn validate_record_slots(
 }
 
 fn validate_record_slot_type(slot: &Slot, schema: &SlotDefinition) -> Result<(), SchemaViolation> {
-    if slot.ty != schema.tlv_type {
-        return Err(SchemaViolation::TypeMismatch {
-            key: slot.key,
-            actual: slot.ty,
-            expected: schema.tlv_type,
-        });
-    }
-
     if let Some(field) = field_spec(slot.key) {
         match field.kind {
+            FieldKind::ValuePayload => {
+                if tlv_type_spec(slot.ty).is_none() {
+                    Err(SchemaViolation::UnknownTlvType {
+                        key: slot.key,
+                        ty: slot.ty,
+                    })
+                } else {
+                    Ok(())
+                }
+            }
             FieldKind::Fixed(expected) if slot.ty != expected => {
                 Err(SchemaViolation::TypeMismatch {
                     key: slot.key,
@@ -477,11 +479,17 @@ fn validate_record_slot_type(slot: &Slot, schema: &SlotDefinition) -> Result<(),
                     expected,
                 })
             }
-            FieldKind::Fixed(_) | FieldKind::ValuePayload => Ok(()),
+            FieldKind::Fixed(_) => Ok(()),
             FieldKind::Reserved => Err(SchemaViolation::ReservedCoreKey { key: slot.key }),
         }
     } else if is_core_key(slot.key) {
         Err(SchemaViolation::ReservedCoreKey { key: slot.key })
+    } else if slot.ty != schema.tlv_type {
+        Err(SchemaViolation::TypeMismatch {
+            key: slot.key,
+            actual: slot.ty,
+            expected: schema.tlv_type,
+        })
     } else {
         Ok(())
     }
@@ -540,8 +548,8 @@ mod tests {
     use super::*;
     use crate::model::sample_definition;
     use open_ot_carriage::registry::{
-        KEY_ARG, KEY_CATEGORY, KEY_CONDITION_ID, KEY_NEW_STATE, KEY_SEVERITY, KEY_STATE_MACHINE_ID,
-        TY_STRING, TY_UDINT, TY_UINT,
+        KEY_ARG, KEY_CATEGORY, KEY_CONDITION_ID, KEY_NEW_STATE, KEY_NEW_VALUE, KEY_SEVERITY,
+        KEY_STATE_MACHINE_ID, TY_DINT, TY_STRING, TY_UDINT, TY_UINT,
     };
     use open_ot_carriage::wire::{Record, Slot, decode};
 
@@ -550,6 +558,12 @@ mod tests {
         for bytes in [
             hex_bytes(include_str!(
                 "../../carriage/vectors/conformant_state_transition.hex"
+            )),
+            hex_bytes(include_str!(
+                "../../carriage/vectors/conformant_value_changed_real.hex"
+            )),
+            hex_bytes(include_str!(
+                "../../carriage/vectors/conformant_value_changed_dint.hex"
             )),
             hex_bytes(include_str!(
                 "../../carriage/vectors/conformant_message.hex"
@@ -770,6 +784,25 @@ mod tests {
         );
     }
 
+    #[test]
+    fn value_payload_slot_type_is_the_logged_data_type() {
+        let mut record = conformant_value_changed_real_record();
+        let slot = record
+            .slots
+            .iter_mut()
+            .find(|slot| slot.key == KEY_NEW_VALUE)
+            .unwrap();
+        slot.ty = TY_DINT;
+        slot.payload = 12i32.to_le_bytes().to_vec();
+
+        assert_eq!(
+            validate_owned_record(&record),
+            SchemaValidation::Valid {
+                extension_keys: Vec::new()
+            }
+        );
+    }
+
     fn validate_owned_record(record: &Record) -> SchemaValidation {
         validate_record(
             record,
@@ -795,6 +828,13 @@ mod tests {
     fn conformant_message_record() -> Record {
         let bytes = hex_bytes(include_str!(
             "../../carriage/vectors/conformant_message.hex"
+        ));
+        decode(&bytes).unwrap().record
+    }
+
+    fn conformant_value_changed_real_record() -> Record {
+        let bytes = hex_bytes(include_str!(
+            "../../carriage/vectors/conformant_value_changed_real.hex"
         ));
         decode(&bytes).unwrap().record
     }

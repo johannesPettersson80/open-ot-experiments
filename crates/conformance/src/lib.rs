@@ -872,7 +872,7 @@ pub struct UnfencedEvidence {
 impl UnfencedEvidence {
     /// Stable outcome label.
     #[must_use]
-    pub const fn outcome(self: &Self) -> &'static str {
+    pub const fn outcome(&self) -> &'static str {
         if self.hazard_observed {
             "hazard-observed"
         } else {

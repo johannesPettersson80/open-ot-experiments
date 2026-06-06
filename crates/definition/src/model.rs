@@ -5,11 +5,12 @@
 //! resolve carriage vectors against.
 
 use open_ot_carriage::registry::{
-    EVENT_MESSAGE, EVENT_RECORDS_DROPPED, EVENT_SOURCE_HIGH_WATER, EVENT_STATE_TRANSITION, KEY_ARG,
-    KEY_CATEGORY, KEY_DROPPED_COUNT, KEY_FIRST_LOST_SEQ, KEY_LAST_LOST_SEQ,
-    KEY_MESSAGE_TEMPLATE_ID, KEY_NEW_STATE, KEY_PREVIOUS_STATE, KEY_SEVERITY,
-    KEY_SOURCE_HIGH_WATER, KEY_STATE_MACHINE_ID, KEY_WINDOW_END, KEY_WINDOW_START, TY_DATE_TIME,
-    TY_STRING, TY_UDINT, TY_UINT, TY_ULINT,
+    EVENT_MESSAGE, EVENT_RECORDS_DROPPED, EVENT_SOURCE_HIGH_WATER, EVENT_STATE_TRANSITION,
+    EVENT_VALUE_CHANGED, KEY_ARG, KEY_CATEGORY, KEY_DROPPED_COUNT, KEY_FIRST_LOST_SEQ,
+    KEY_LAST_LOST_SEQ, KEY_MESSAGE_TEMPLATE_ID, KEY_NEW_STATE, KEY_NEW_VALUE, KEY_PREVIOUS_STATE,
+    KEY_PREVIOUS_VALUE, KEY_QUALITY, KEY_SEVERITY, KEY_SOURCE_HIGH_WATER, KEY_STATE_MACHINE_ID,
+    KEY_VALUE_ID, KEY_WINDOW_END, KEY_WINDOW_START, TY_DATE_TIME, TY_DINT, TY_REAL, TY_STRING,
+    TY_UDINT, TY_UINT, TY_ULINT,
 };
 use serde::{Deserialize, Serialize};
 
@@ -176,6 +177,8 @@ pub struct SourceDefinition {
 pub struct StateMachineDefinition {
     /// State-machine id.
     pub state_machine_id: u32,
+    /// Human-facing state-machine name.
+    pub name: String,
     /// State-machine category code.
     pub category: u16,
     /// Optional procedural model (for example an ISA-88 model name).
@@ -190,6 +193,8 @@ pub struct StateMachineDefinition {
 pub struct ConditionDefinition {
     /// Condition id.
     pub condition_id: u32,
+    /// Human-facing condition name.
+    pub name: String,
     /// Condition class code.
     pub condition_class: u16,
     /// Default severity (1..1000) when an instance does not override it.
@@ -215,6 +220,8 @@ pub struct CauseOperandDefinition {
 pub struct MessageTemplateDefinition {
     /// Message-template id.
     pub message_template_id: u32,
+    /// Human-facing template name.
+    pub name: String,
     /// Format string with positional argument placeholders.
     pub format: String,
     /// TLV type tag expected for each positional argument.
@@ -227,6 +234,8 @@ pub struct MessageTemplateDefinition {
 pub struct ValueDefinition {
     /// Value id.
     pub value_id: u32,
+    /// Human-facing value name.
+    pub name: String,
     /// TLV type tag of the value's payload.
     pub data_type: u8,
     /// Semantic role code (what the value means).
@@ -346,6 +355,17 @@ pub fn sample_definition() -> DefinitionFile {
                 ],
             },
             EventTypeDefinition {
+                id: EVENT_VALUE_CHANGED,
+                name: "ValueChanged".to_string(),
+                profile: "Core".to_string(),
+                slots: vec![
+                    slot(KEY_VALUE_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
+                    slot(KEY_PREVIOUS_VALUE, TY_REAL, 0, MaxOccurs::Count(1), 2),
+                    slot(KEY_NEW_VALUE, TY_REAL, 1, MaxOccurs::Count(1), 3),
+                    slot(KEY_QUALITY, TY_UINT, 0, MaxOccurs::Count(1), 4),
+                ],
+            },
+            EventTypeDefinition {
                 id: EVENT_MESSAGE,
                 name: "Message".to_string(),
                 profile: "Core".to_string(),
@@ -399,6 +419,7 @@ pub fn sample_definition() -> DefinitionFile {
         }],
         state_machines: vec![StateMachineDefinition {
             state_machine_id: 7,
+            name: "CoreProcedure".to_string(),
             category: 2,
             procedural_model: Some("CoreProcedure".to_string()),
             enum_set: "CoreProcedureStates".to_string(),
@@ -406,10 +427,33 @@ pub fn sample_definition() -> DefinitionFile {
         conditions: Vec::new(),
         message_templates: vec![MessageTemplateDefinition {
             message_template_id: 1001,
+            name: "Status".to_string(),
             format: "Status: {1}".to_string(),
             arg_types: vec![TY_STRING],
         }],
-        values: Vec::new(),
+        values: vec![
+            ValueDefinition {
+                value_id: 2001,
+                name: "Temperature".to_string(),
+                data_type: TY_REAL,
+                semantic_role: 0,
+                unit: None,
+                deadband: Some(Deadband {
+                    decimal: Some("0.5".to_string()),
+                    scaled: None,
+                }),
+                sampling_policy: None,
+            },
+            ValueDefinition {
+                value_id: 2002,
+                name: "BatchCount".to_string(),
+                data_type: TY_DINT,
+                semantic_role: 3,
+                unit: None,
+                deadband: None,
+                sampling_policy: Some("on-change".to_string()),
+            },
+        ],
         units: Vec::new(),
         enum_sets: vec![EnumSetDefinition {
             name: "CoreProcedureStates".to_string(),
@@ -469,6 +513,7 @@ mod tests {
             events,
             vec![
                 EVENT_STATE_TRANSITION,
+                EVENT_VALUE_CHANGED,
                 EVENT_MESSAGE,
                 EVENT_RECORDS_DROPPED,
                 EVENT_SOURCE_HIGH_WATER,

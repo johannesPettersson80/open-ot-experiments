@@ -10,7 +10,7 @@ The current experiment uses one checkpoint record per affected source:
 
 ```text
 Envelope SourceId: affected source
-EventTypeId:       EVENT_SOURCE_HIGH_WATER = 0x0108
+EventTypeId:       EVENT_SOURCE_HIGH_WATER = 0x80000108
 Envelope Seq:      producedCount
 ValueKeyId:        KEY_SOURCE_HIGH_WATER = 0x0038
 Payload:           producedCount: u64 little-endian

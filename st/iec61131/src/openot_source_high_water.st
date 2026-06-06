@@ -21,7 +21,7 @@ Pos := OPENOT_WriteHeader(
     RunId := RunId,
     Seq := ProducedCount,
     SourceId := SourceId,
-    EventTypeId := UDINT#16#0108,
+    EventTypeId := UDINT#16#80000108,
     Buffer := Buffer);
 
 Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0038, TypeTag := BYTE#16#07, PayloadLength := BYTE#8, Buffer := Buffer);

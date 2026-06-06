@@ -11,8 +11,9 @@ per-source `SourceHighWater` checkpoints where the envelope sequence and
 `producedCount` payload are the same value by construction. Lifecycle encoders cover
 the system-source `LoggerStarted`, `LoggerStopped`, and `DefinitionChanged` records,
 and the producer orchestrates cold and warm epoch transitions with a system sequence
-counter, source high-water checkpoints, exposed transition state, and a fixed
-per-scan record-list output for multi-record transition bursts.
+counter, source high-water checkpoints, typed `ValueChanged` and `StateTransition`
+records, exposed transition state, and a fixed per-scan record-list output for
+multi-record transition bursts.
 The capture POUs drive fixed multi-record scenarios and expose the final
 256-byte ring plus dynamic control fields for cross-language validation by the
 Rust carriage harness.
@@ -20,6 +21,8 @@ Rust carriage harness.
 The conformance contract is byte-exact comparison against:
 
 - `crates/carriage/vectors/conformant_state_transition.hex`
+- `crates/carriage/vectors/conformant_value_changed_real.hex`
+- `crates/carriage/vectors/conformant_value_changed_dint.hex`
 - `crates/carriage/vectors/conformant_message.hex`
 - `crates/carriage/vectors/conformant_records_dropped.hex`
 - `crates/carriage/vectors/conformant_source_high_water.hex`
@@ -72,13 +75,17 @@ reading a `STRING` representation.
   formation path.
 - `src/openot_message.st` defines the minimal `Message` encoder used by the
   producer sequence slice.
+- `src/openot_value_state.st` defines `ValueChanged` encoders for `REAL` and
+  `DINT`, plus the parameterized `StateTransition` encoder.
 - `src/openot_source_high_water.st` defines the parameterized `SourceHighWater`
   encoder used by producer checkpoints.
 - `src/openot_lifecycle.st` defines byte-exact encoders for system lifecycle
   records.
 - `src/openot_producer.st` composes the 256-byte producer ring with a fixed
-  per-source sequence table, per-scan record-list outputs, and the cold/warm
-  epoch transition state machine.
+  per-source sequence table, typed authoring ops (`Op = 6` for `REAL`
+  `ValueChanged`, `Op = 7` for `DINT` `ValueChanged`, `Op = 8` for
+  `StateTransition`), generalized pre-encoded staging (`Op = 5`), per-scan
+  record-list outputs, and the cold/warm epoch transition state machine.
 - `captures/openot_s4a_capture.st` defines the S4a scenario drivers
   `OPENOT_CaptureRichWrap` and `OPENOT_CaptureLifecycleSurvival`. Call the POU
   once, confirm `Complete = TRUE`, then dump its public `Ring` and control-field
@@ -103,3 +110,25 @@ scan, and reads the exposed outputs. A vector test passes only when:
 
 The CRC test passes only when CRC-32C over explicit ASCII bytes `16#31..16#39`
 equals `16#E3069283`.
+
+## Authoring Lowering Target
+
+Engineers should author OpenOT logging through declaration attributes in the
+truST compiler, for example:
+
+```iecst
+Level : REAL {attribute 'oot' := 'value', 'unit' := 'L', 'deadband' := '0.5'};
+```
+
+The `OPENOT_Producer` typed ops are retained as the compiler/internal lowering
+target. `Op = 6` emits a `ValueChanged` record for a `REAL`, `Op = 7` emits one
+for a `DINT`, `Op = 8` emits a `StateTransition`, and `Op = 9` emits
+`ConditionActive`/`ConditionCleared` on a BOOL alarm edge. These ops track last
+value/state/condition inside the producer and emit only on change/deadband/edge.
+If `SourceId` is omitted or zero, the producer uses source `1`; the generated
+call does not carry an `EventTypeId`.
+
+When multiple records may be emitted in one PLC scan, generated code sets
+`ResetScanRecords := TRUE` once at the top of the logging block, then immediately
+clears it. IEC FB inputs retain their last assigned values, so omitting the clear
+would keep resetting the handoff batch.

@@ -186,13 +186,13 @@ IF NOT Ran THEN
             Records := Producer.ScanRecords,
             Offset := Offset1,
             Length := Length1,
-            EventTypeId := UDINT#16#0108,
+            EventTypeId := UDINT#16#80000108,
             SourceId := UDINT#10) AND
         OPENOT_TestScanRecordHeaderOk(
             Records := Producer.ScanRecords,
             Offset := Offset2,
             Length := Length2,
-            EventTypeId := UDINT#16#0108,
+            EventTypeId := UDINT#16#80000108,
             SourceId := UDINT#30);
     OpsOk := OpsOk AND Producer.Done AND (NOT Producer.Error) AND Producer.TransitionOpen;
     Producer(Execute := FALSE, Op := UINT#1);

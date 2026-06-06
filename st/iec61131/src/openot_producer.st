@@ -11,6 +11,34 @@ TYPE
     OPENOT_SCAN_RECORD_BUFFER : ARRAY[0..1023] OF BYTE;
     OPENOT_SCAN_RECORD_UINT_TABLE : ARRAY[0..16] OF UINT;
 
+    OPENOT_REAL_VALUE_STATE : STRUCT
+        Used : BOOL;
+        ValueId : UDINT;
+        HasLast : BOOL;
+        LastValue : REAL;
+    END_STRUCT;
+
+    OPENOT_INT_VALUE_STATE : STRUCT
+        Used : BOOL;
+        ValueId : UDINT;
+        HasLast : BOOL;
+        LastValue : DINT;
+    END_STRUCT;
+
+    OPENOT_STATE_MACHINE_STATE : STRUCT
+        Used : BOOL;
+        StateMachineId : UDINT;
+        HasLast : BOOL;
+        LastState : UINT;
+    END_STRUCT;
+
+    OPENOT_CONDITION_STATE : STRUCT
+        Used : BOOL;
+        ConditionId : UDINT;
+        HasLast : BOOL;
+        LastActive : BOOL;
+    END_STRUCT;
+
     OPENOT_EMISSION_ENTRY : STRUCT
         EventTypeId : UDINT;
         RunId : ULINT;
@@ -55,6 +83,44 @@ ELSE
 END_IF;
 END_FUNCTION
 
+FUNCTION OPENOT_ResetScanRecordList : BOOL
+VAR_IN_OUT
+    ScanRecordOffsets : OPENOT_SCAN_RECORD_UINT_TABLE;
+    ScanRecordLengths : OPENOT_SCAN_RECORD_UINT_TABLE;
+    ScanWritePos : UINT;
+    ScanRecordCount : UINT;
+END_VAR
+VAR
+    Index : UINT;
+END_VAR
+
+ScanRecordCount := UINT#0;
+ScanWritePos := UINT#0;
+FOR Index := UINT#0 TO UINT#16 DO
+    ScanRecordOffsets[Index] := UINT#0;
+    ScanRecordLengths[Index] := UINT#0;
+END_FOR;
+
+OPENOT_ResetScanRecordList := TRUE;
+END_FUNCTION
+
+FUNCTION OPENOT_NextSourceTime : ULINT
+VAR_INPUT
+    UseSourceTimeInput : BOOL;
+    SourceTimeInput : ULINT;
+END_VAR
+VAR_IN_OUT
+    StateSourceTime : ULINT;
+END_VAR
+
+IF UseSourceTimeInput THEN
+    OPENOT_NextSourceTime := SourceTimeInput;
+ELSE
+    OPENOT_NextSourceTime := StateSourceTime;
+    StateSourceTime := StateSourceTime + ULINT#1;
+END_IF;
+END_FUNCTION
+
 FUNCTION_BLOCK OPENOT_Producer
 VAR_INPUT
     Execute : BOOL;
@@ -64,6 +130,28 @@ VAR_INPUT
     DefHashOld : OPENOT_HASH8;
     DefHashNew : OPENOT_HASH8;
     TransitionEpochId : ULINT;
+    UseSourceTimeInput : BOOL;
+    SourceTimeInput : ULINT;
+    StageRecord : OPENOT_BYTE_BUFFER;
+    StageLength : UINT;
+    StageSeq : ULINT;
+    StageEventTypeId : UDINT;
+    ResetScanRecords : BOOL;
+    AccumulateScanRecords : BOOL;
+    ValueId : UDINT;
+    ValueReal : REAL;
+    ValueInt : DINT;
+    DeadbandReal : REAL;
+    HasQuality : BOOL;
+    Quality : UINT;
+    StateMachineId : UDINT;
+    Category : UINT;
+    PreviousState : UINT;
+    NewState : UINT;
+    ConditionId : UDINT;
+    ConditionClass : UINT;
+    Severity : UINT;
+    ConditionActive : BOOL;
 END_VAR
 VAR_OUTPUT
     AssignedSeq : ULINT;
@@ -105,8 +193,16 @@ VAR_OUTPUT
 END_VAR
 VAR
     Sources : ARRAY[0..15] OF OPENOT_SOURCE_ENTRY;
+    RealValueStates : ARRAY[0..15] OF OPENOT_REAL_VALUE_STATE;
+    IntValueStates : ARRAY[0..15] OF OPENOT_INT_VALUE_STATE;
+    StateMachineStates : ARRAY[0..15] OF OPENOT_STATE_MACHINE_STATE;
+    ConditionStates : ARRAY[0..15] OF OPENOT_CONDITION_STATE;
     RingProducer : OPENOT_Ring256Producer;
     Encoder : OPENOT_EncodeMinimalMessage;
+    ValueRealEncoder : OPENOT_EncodeValueChangedReal;
+    ValueIntEncoder : OPENOT_EncodeValueChangedInt;
+    StateTransitionEncoder : OPENOT_EncodeStateTransition;
+    ConditionEncoder : OPENOT_EncodeCondition;
     HighWaterEncoder : OPENOT_EncodeSourceHighWater;
     StoppedEncoder : OPENOT_EncodeLoggerStopped;
     StartedEncoder : OPENOT_EncodeLoggerStarted;
@@ -140,9 +236,17 @@ VAR
     LastSourceId : UDINT;
     NextSourceId : UDINT;
     SelectedIndex : UINT;
+    StateIndex : UINT;
+    StateFound : BOOL;
+    StateFreeFound : BOOL;
+    ActiveSourceId : UDINT;
+    ShouldEmit : BOOL;
+    DeltaReal : REAL;
     CandidateFound : BOOL;
     ScanWritePos : UINT;
     AppendOk : BOOL;
+    ResetOk : BOOL;
+    ConditionEventTypeId : UDINT;
 END_VAR
 
 IF NOT Initialized THEN
@@ -163,13 +267,22 @@ ProducedCount := ULINT#0;
 CheckpointDone := FALSE;
 ExecuteEdge := Execute AND (NOT PreviousExecute);
 
+IF ResetScanRecords THEN
+    ResetOk := OPENOT_ResetScanRecordList(
+        ScanRecordOffsets := ScanRecordOffsets,
+        ScanRecordLengths := ScanRecordLengths,
+        ScanWritePos := ScanWritePos,
+        ScanRecordCount := ScanRecordCount);
+END_IF;
+
 IF ExecuteEdge THEN
-    ScanRecordCount := UINT#0;
-    ScanWritePos := UINT#0;
-    FOR Index := UINT#0 TO UINT#16 DO
-        ScanRecordOffsets[Index] := UINT#0;
-        ScanRecordLengths[Index] := UINT#0;
-    END_FOR;
+    IF (NOT AccumulateScanRecords) AND (Op <> UINT#6) AND (Op <> UINT#7) AND (Op <> UINT#8) AND (Op <> UINT#9) THEN
+        ResetOk := OPENOT_ResetScanRecordList(
+            ScanRecordOffsets := ScanRecordOffsets,
+            ScanRecordLengths := ScanRecordLengths,
+            ScanWritePos := ScanWritePos,
+            ScanRecordCount := ScanRecordCount);
+    END_IF;
 
     IF Checkpoint THEN
         IF PendingOpen THEN
@@ -193,8 +306,10 @@ IF ExecuteEdge THEN
                 Error := TRUE;
             ELSE
                 ProducedCount := Sources[EntryIndex].NextSeq;
-                EmitSourceTime := StateSourceTime;
-                StateSourceTime := StateSourceTime + ULINT#1;
+                EmitSourceTime := OPENOT_NextSourceTime(
+                    UseSourceTimeInput := UseSourceTimeInput,
+                    SourceTimeInput := SourceTimeInput,
+                    StateSourceTime := StateSourceTime);
                 HighWaterEncoder(
                     SourceId := SourceId,
                     RunId := StateRunId,
@@ -221,7 +336,7 @@ IF ExecuteEdge THEN
                         Sources[EntryIndex].NextSeq := ProducedCount + ULINT#1;
                         StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
                         IF EmissionCount < UINT#32 THEN
-                            Emissions[EmissionCount].EventTypeId := UDINT#16#0108;
+                            Emissions[EmissionCount].EventTypeId := UDINT#16#80000108;
                             Emissions[EmissionCount].RunId := StateRunId;
                             Emissions[EmissionCount].SourceId := SourceId;
                             Emissions[EmissionCount].Seq := ProducedCount;
@@ -277,8 +392,10 @@ IF ExecuteEdge THEN
             IF NOT Error THEN
                 AssignedSeq := Sources[EntryIndex].NextSeq;
                 Sources[EntryIndex].NextSeq := Sources[EntryIndex].NextSeq + ULINT#1;
-                EmitSourceTime := StateSourceTime;
-                StateSourceTime := StateSourceTime + ULINT#1;
+                EmitSourceTime := OPENOT_NextSourceTime(
+                    UseSourceTimeInput := UseSourceTimeInput,
+                    SourceTimeInput := SourceTimeInput,
+                    StateSourceTime := StateSourceTime);
 
                 Encoder(
                     SourceId := SourceId,
@@ -320,14 +437,515 @@ IF ExecuteEdge THEN
                 END_IF;
             END_IF;
         END_IF;
+    ELSIF Op = UINT#5 THEN
+        IF PendingOpen THEN
+            Error := TRUE;
+        ELSIF SourceId = UDINT#0 THEN
+            Error := TRUE;
+        ELSIF (StageLength = UINT#0) OR (StageLength > UINT#256) THEN
+            Error := TRUE;
+        ELSE
+            Found := FALSE;
+            FreeFound := FALSE;
+            EntryIndex := UINT#0;
+
+            FOR Index := UINT#0 TO UINT#15 DO
+                IF Sources[Index].Used AND (Sources[Index].SourceId = SourceId) THEN
+                    IF NOT Found THEN
+                        EntryIndex := Index;
+                        Found := TRUE;
+                    END_IF;
+                END_IF;
+            END_FOR;
+
+            IF NOT Found THEN
+                FOR Index := UINT#0 TO UINT#15 DO
+                    IF (NOT Sources[Index].Used) AND (NOT FreeFound) THEN
+                        EntryIndex := Index;
+                        FreeFound := TRUE;
+                    END_IF;
+                END_FOR;
+
+                IF FreeFound THEN
+                    Sources[EntryIndex].Used := TRUE;
+                    Sources[EntryIndex].SourceId := SourceId;
+                    Sources[EntryIndex].NextSeq := ULINT#0;
+                ELSE
+                    SourceTableFull := TRUE;
+                    Error := TRUE;
+                END_IF;
+            END_IF;
+
+            IF NOT Error THEN
+                IF StageSeq <> Sources[EntryIndex].NextSeq THEN
+                    Error := TRUE;
+                ELSE
+                    RingProducer(
+                        Execute := TRUE,
+                        Record := StageRecord,
+                        Length := StageLength,
+                        RunId := StateRunId,
+                        SourceId := SourceId,
+                        Seq := StageSeq);
+
+                    IF RingProducer.Done AND (NOT RingProducer.Error) THEN
+                        AppendOk := OPENOT_AppendScanRecord(
+                            Record := StageRecord,
+                            Length := StageLength,
+                            ScanRecords := ScanRecords,
+                            ScanRecordOffsets := ScanRecordOffsets,
+                            ScanRecordLengths := ScanRecordLengths,
+                            ScanWritePos := ScanWritePos,
+                            ScanRecordCount := ScanRecordCount);
+                        IF AppendOk THEN
+                            AssignedSeq := StageSeq;
+                            Sources[EntryIndex].NextSeq := StageSeq + ULINT#1;
+                            StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
+                            IF EmissionCount < UINT#32 THEN
+                                Emissions[EmissionCount].EventTypeId := StageEventTypeId;
+                                Emissions[EmissionCount].RunId := StateRunId;
+                                Emissions[EmissionCount].SourceId := SourceId;
+                                Emissions[EmissionCount].Seq := StageSeq;
+                                EmissionCount := EmissionCount + UINT#1;
+                            END_IF;
+                            Done := TRUE;
+                        ELSE
+                            Error := TRUE;
+                        END_IF;
+                    ELSE
+                        Error := TRUE;
+                    END_IF;
+                END_IF;
+            END_IF;
+        END_IF;
+    ELSIF (Op = UINT#6) OR (Op = UINT#7) OR (Op = UINT#8) THEN
+        ActiveSourceId := SourceId;
+        IF ActiveSourceId = UDINT#0 THEN
+            ActiveSourceId := UDINT#1;
+        END_IF;
+
+        StateFound := FALSE;
+        StateFreeFound := FALSE;
+        StateIndex := UINT#0;
+        ShouldEmit := FALSE;
+
+        IF Op = UINT#6 THEN
+            IF ValueId = UDINT#0 THEN
+                Error := TRUE;
+            ELSE
+                FOR Index := UINT#0 TO UINT#15 DO
+                    IF RealValueStates[Index].Used AND (RealValueStates[Index].ValueId = ValueId) THEN
+                        IF NOT StateFound THEN
+                            StateIndex := Index;
+                            StateFound := TRUE;
+                        END_IF;
+                    ELSIF (NOT StateFound) AND (NOT RealValueStates[Index].Used) AND (NOT StateFreeFound) THEN
+                        StateIndex := Index;
+                        StateFreeFound := TRUE;
+                    END_IF;
+                END_FOR;
+
+                IF StateFound THEN
+                    IF RealValueStates[StateIndex].HasLast THEN
+                        DeltaReal := ValueReal - RealValueStates[StateIndex].LastValue;
+                        IF DeltaReal < REAL#0.0 THEN
+                            DeltaReal := REAL#0.0 - DeltaReal;
+                        END_IF;
+                        ShouldEmit := DeltaReal > DeadbandReal;
+                    ELSE
+                        ShouldEmit := TRUE;
+                    END_IF;
+                ELSIF StateFreeFound THEN
+                    RealValueStates[StateIndex].Used := TRUE;
+                    RealValueStates[StateIndex].ValueId := ValueId;
+                    RealValueStates[StateIndex].HasLast := FALSE;
+                    ShouldEmit := TRUE;
+                ELSE
+                    Error := TRUE;
+                END_IF;
+            END_IF;
+        ELSIF Op = UINT#7 THEN
+            IF ValueId = UDINT#0 THEN
+                Error := TRUE;
+            ELSE
+                FOR Index := UINT#0 TO UINT#15 DO
+                    IF IntValueStates[Index].Used AND (IntValueStates[Index].ValueId = ValueId) THEN
+                        IF NOT StateFound THEN
+                            StateIndex := Index;
+                            StateFound := TRUE;
+                        END_IF;
+                    ELSIF (NOT StateFound) AND (NOT IntValueStates[Index].Used) AND (NOT StateFreeFound) THEN
+                        StateIndex := Index;
+                        StateFreeFound := TRUE;
+                    END_IF;
+                END_FOR;
+
+                IF StateFound THEN
+                    IF IntValueStates[StateIndex].HasLast THEN
+                        ShouldEmit := ValueInt <> IntValueStates[StateIndex].LastValue;
+                    ELSE
+                        ShouldEmit := TRUE;
+                    END_IF;
+                ELSIF StateFreeFound THEN
+                    IntValueStates[StateIndex].Used := TRUE;
+                    IntValueStates[StateIndex].ValueId := ValueId;
+                    IntValueStates[StateIndex].HasLast := FALSE;
+                    ShouldEmit := TRUE;
+                ELSE
+                    Error := TRUE;
+                END_IF;
+            END_IF;
+        ELSE
+            IF StateMachineId = UDINT#0 THEN
+                Error := TRUE;
+            ELSE
+                FOR Index := UINT#0 TO UINT#15 DO
+                    IF StateMachineStates[Index].Used AND (StateMachineStates[Index].StateMachineId = StateMachineId) THEN
+                        IF NOT StateFound THEN
+                            StateIndex := Index;
+                            StateFound := TRUE;
+                        END_IF;
+                    ELSIF (NOT StateFound) AND (NOT StateMachineStates[Index].Used) AND (NOT StateFreeFound) THEN
+                        StateIndex := Index;
+                        StateFreeFound := TRUE;
+                    END_IF;
+                END_FOR;
+
+                IF PreviousState <> NewState THEN
+                    IF StateFound THEN
+                        ShouldEmit := (NOT StateMachineStates[StateIndex].HasLast) OR (StateMachineStates[StateIndex].LastState <> NewState);
+                    ELSIF StateFreeFound THEN
+                        StateMachineStates[StateIndex].Used := TRUE;
+                        StateMachineStates[StateIndex].StateMachineId := StateMachineId;
+                        StateMachineStates[StateIndex].HasLast := FALSE;
+                        ShouldEmit := TRUE;
+                    ELSE
+                        Error := TRUE;
+                    END_IF;
+                ELSE
+                    ShouldEmit := FALSE;
+                END_IF;
+            END_IF;
+        END_IF;
+
+        IF (NOT Error) AND (NOT ShouldEmit) THEN
+            Done := TRUE;
+        ELSIF NOT Error THEN
+            Found := FALSE;
+            FreeFound := FALSE;
+            EntryIndex := UINT#0;
+
+            FOR Index := UINT#0 TO UINT#15 DO
+                IF Sources[Index].Used AND (Sources[Index].SourceId = ActiveSourceId) THEN
+                    IF NOT Found THEN
+                        EntryIndex := Index;
+                        Found := TRUE;
+                    END_IF;
+                END_IF;
+            END_FOR;
+
+            IF NOT Found THEN
+                FOR Index := UINT#0 TO UINT#15 DO
+                    IF (NOT Sources[Index].Used) AND (NOT FreeFound) THEN
+                        EntryIndex := Index;
+                        FreeFound := TRUE;
+                    END_IF;
+                END_FOR;
+
+                IF FreeFound THEN
+                    Sources[EntryIndex].Used := TRUE;
+                    Sources[EntryIndex].SourceId := ActiveSourceId;
+                    Sources[EntryIndex].NextSeq := ULINT#0;
+                ELSE
+                    SourceTableFull := TRUE;
+                    Error := TRUE;
+                END_IF;
+            END_IF;
+
+            IF NOT Error THEN
+                AssignedSeq := Sources[EntryIndex].NextSeq;
+                EmitSourceTime := OPENOT_NextSourceTime(
+                    UseSourceTimeInput := UseSourceTimeInput,
+                    SourceTimeInput := SourceTimeInput,
+                    StateSourceTime := StateSourceTime);
+
+                IF Op = UINT#6 THEN
+                    ValueRealEncoder(
+                        SourceId := ActiveSourceId,
+                        RunId := StateRunId,
+                        Seq := AssignedSeq,
+                        SourceTime := EmitSourceTime,
+                        ValueId := ValueId,
+                        NewValue := ValueReal,
+                        HasPrevious := RealValueStates[StateIndex].HasLast,
+                        PreviousValue := RealValueStates[StateIndex].LastValue,
+                        HasQuality := HasQuality,
+                        Quality := Quality);
+                    RingProducer(
+                        Execute := TRUE,
+                        Record := ValueRealEncoder.Buffer,
+                        Length := ValueRealEncoder.Length,
+                        RunId := StateRunId,
+                        SourceId := ActiveSourceId,
+                        Seq := AssignedSeq);
+
+                    IF RingProducer.Done AND (NOT RingProducer.Error) THEN
+                        AppendOk := OPENOT_AppendScanRecord(
+                            Record := ValueRealEncoder.Buffer,
+                            Length := ValueRealEncoder.Length,
+                            ScanRecords := ScanRecords,
+                            ScanRecordOffsets := ScanRecordOffsets,
+                            ScanRecordLengths := ScanRecordLengths,
+                            ScanWritePos := ScanWritePos,
+                            ScanRecordCount := ScanRecordCount);
+                    ELSE
+                        AppendOk := FALSE;
+                    END_IF;
+                ELSIF Op = UINT#7 THEN
+                    ValueIntEncoder(
+                        SourceId := ActiveSourceId,
+                        RunId := StateRunId,
+                        Seq := AssignedSeq,
+                        SourceTime := EmitSourceTime,
+                        ValueId := ValueId,
+                        NewValue := ValueInt,
+                        HasPrevious := IntValueStates[StateIndex].HasLast,
+                        PreviousValue := IntValueStates[StateIndex].LastValue,
+                        HasQuality := HasQuality,
+                        Quality := Quality);
+                    RingProducer(
+                        Execute := TRUE,
+                        Record := ValueIntEncoder.Buffer,
+                        Length := ValueIntEncoder.Length,
+                        RunId := StateRunId,
+                        SourceId := ActiveSourceId,
+                        Seq := AssignedSeq);
+
+                    IF RingProducer.Done AND (NOT RingProducer.Error) THEN
+                        AppendOk := OPENOT_AppendScanRecord(
+                            Record := ValueIntEncoder.Buffer,
+                            Length := ValueIntEncoder.Length,
+                            ScanRecords := ScanRecords,
+                            ScanRecordOffsets := ScanRecordOffsets,
+                            ScanRecordLengths := ScanRecordLengths,
+                            ScanWritePos := ScanWritePos,
+                            ScanRecordCount := ScanRecordCount);
+                    ELSE
+                        AppendOk := FALSE;
+                    END_IF;
+                ELSE
+                    StateTransitionEncoder(
+                        SourceId := ActiveSourceId,
+                        RunId := StateRunId,
+                        Seq := AssignedSeq,
+                        SourceTime := EmitSourceTime,
+                        StateMachineId := StateMachineId,
+                        Category := Category,
+                        PreviousState := PreviousState,
+                        NewState := NewState);
+                    RingProducer(
+                        Execute := TRUE,
+                        Record := StateTransitionEncoder.Buffer,
+                        Length := StateTransitionEncoder.Length,
+                        RunId := StateRunId,
+                        SourceId := ActiveSourceId,
+                        Seq := AssignedSeq);
+
+                    IF RingProducer.Done AND (NOT RingProducer.Error) THEN
+                        AppendOk := OPENOT_AppendScanRecord(
+                            Record := StateTransitionEncoder.Buffer,
+                            Length := StateTransitionEncoder.Length,
+                            ScanRecords := ScanRecords,
+                            ScanRecordOffsets := ScanRecordOffsets,
+                            ScanRecordLengths := ScanRecordLengths,
+                            ScanWritePos := ScanWritePos,
+                            ScanRecordCount := ScanRecordCount);
+                    ELSE
+                        AppendOk := FALSE;
+                    END_IF;
+                END_IF;
+
+                IF AppendOk THEN
+                    Sources[EntryIndex].NextSeq := AssignedSeq + ULINT#1;
+                    StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
+                    IF EmissionCount < UINT#32 THEN
+                        IF Op = UINT#8 THEN
+                            Emissions[EmissionCount].EventTypeId := UDINT#16#0001;
+                        ELSE
+                            Emissions[EmissionCount].EventTypeId := UDINT#16#0002;
+                        END_IF;
+                        Emissions[EmissionCount].RunId := StateRunId;
+                        Emissions[EmissionCount].SourceId := ActiveSourceId;
+                        Emissions[EmissionCount].Seq := AssignedSeq;
+                        EmissionCount := EmissionCount + UINT#1;
+                    END_IF;
+
+                    IF Op = UINT#6 THEN
+                        RealValueStates[StateIndex].HasLast := TRUE;
+                        RealValueStates[StateIndex].LastValue := ValueReal;
+                    ELSIF Op = UINT#7 THEN
+                        IntValueStates[StateIndex].HasLast := TRUE;
+                        IntValueStates[StateIndex].LastValue := ValueInt;
+                    ELSE
+                        StateMachineStates[StateIndex].HasLast := TRUE;
+                        StateMachineStates[StateIndex].LastState := NewState;
+                    END_IF;
+                    Done := TRUE;
+                ELSE
+                    Error := TRUE;
+                END_IF;
+            END_IF;
+        END_IF;
+    ELSIF Op = UINT#9 THEN
+        ActiveSourceId := SourceId;
+        IF ActiveSourceId = UDINT#0 THEN
+            ActiveSourceId := UDINT#1;
+        END_IF;
+
+        StateFound := FALSE;
+        StateFreeFound := FALSE;
+        StateIndex := UINT#0;
+        ShouldEmit := FALSE;
+
+        IF ConditionId = UDINT#0 THEN
+            Error := TRUE;
+        ELSE
+            FOR Index := UINT#0 TO UINT#15 DO
+                IF ConditionStates[Index].Used AND (ConditionStates[Index].ConditionId = ConditionId) THEN
+                    IF NOT StateFound THEN
+                        StateIndex := Index;
+                        StateFound := TRUE;
+                    END_IF;
+                ELSIF (NOT StateFound) AND (NOT ConditionStates[Index].Used) AND (NOT StateFreeFound) THEN
+                    StateIndex := Index;
+                    StateFreeFound := TRUE;
+                END_IF;
+            END_FOR;
+
+            IF StateFound THEN
+                IF ConditionStates[StateIndex].HasLast THEN
+                    ShouldEmit := ConditionStates[StateIndex].LastActive <> ConditionActive;
+                ELSE
+                    ShouldEmit := ConditionActive;
+                END_IF;
+            ELSIF StateFreeFound THEN
+                ConditionStates[StateIndex].Used := TRUE;
+                ConditionStates[StateIndex].ConditionId := ConditionId;
+                ConditionStates[StateIndex].HasLast := FALSE;
+                ShouldEmit := ConditionActive;
+            ELSE
+                Error := TRUE;
+            END_IF;
+        END_IF;
+
+        IF (NOT Error) AND (NOT ShouldEmit) THEN
+            IF StateFound OR StateFreeFound THEN
+                ConditionStates[StateIndex].HasLast := TRUE;
+                ConditionStates[StateIndex].LastActive := ConditionActive;
+            END_IF;
+            Done := TRUE;
+        ELSIF NOT Error THEN
+            Found := FALSE;
+            FreeFound := FALSE;
+            EntryIndex := UINT#0;
+
+            FOR Index := UINT#0 TO UINT#15 DO
+                IF Sources[Index].Used AND (Sources[Index].SourceId = ActiveSourceId) THEN
+                    IF NOT Found THEN
+                        EntryIndex := Index;
+                        Found := TRUE;
+                    END_IF;
+                END_IF;
+            END_FOR;
+
+            IF NOT Found THEN
+                FOR Index := UINT#0 TO UINT#15 DO
+                    IF (NOT Sources[Index].Used) AND (NOT FreeFound) THEN
+                        EntryIndex := Index;
+                        FreeFound := TRUE;
+                    END_IF;
+                END_FOR;
+
+                IF FreeFound THEN
+                    Sources[EntryIndex].Used := TRUE;
+                    Sources[EntryIndex].SourceId := ActiveSourceId;
+                    Sources[EntryIndex].NextSeq := ULINT#0;
+                ELSE
+                    SourceTableFull := TRUE;
+                    Error := TRUE;
+                END_IF;
+            END_IF;
+
+            IF NOT Error THEN
+                AssignedSeq := Sources[EntryIndex].NextSeq;
+                EmitSourceTime := OPENOT_NextSourceTime(
+                    UseSourceTimeInput := UseSourceTimeInput,
+                    SourceTimeInput := SourceTimeInput,
+                    StateSourceTime := StateSourceTime);
+                IF ConditionActive THEN
+                    ConditionEventTypeId := UDINT#16#0200;
+                ELSE
+                    ConditionEventTypeId := UDINT#16#0201;
+                END_IF;
+
+                ConditionEncoder(
+                    SourceId := ActiveSourceId,
+                    RunId := StateRunId,
+                    Seq := AssignedSeq,
+                    SourceTime := EmitSourceTime,
+                    EventTypeId := ConditionEventTypeId,
+                    ConditionId := ConditionId,
+                    ConditionClass := ConditionClass,
+                    Severity := Severity);
+                RingProducer(
+                    Execute := TRUE,
+                    Record := ConditionEncoder.Buffer,
+                    Length := ConditionEncoder.Length,
+                    RunId := StateRunId,
+                    SourceId := ActiveSourceId,
+                    Seq := AssignedSeq);
+
+                IF RingProducer.Done AND (NOT RingProducer.Error) THEN
+                    AppendOk := OPENOT_AppendScanRecord(
+                        Record := ConditionEncoder.Buffer,
+                        Length := ConditionEncoder.Length,
+                        ScanRecords := ScanRecords,
+                        ScanRecordOffsets := ScanRecordOffsets,
+                        ScanRecordLengths := ScanRecordLengths,
+                        ScanWritePos := ScanWritePos,
+                        ScanRecordCount := ScanRecordCount);
+                ELSE
+                    AppendOk := FALSE;
+                END_IF;
+
+                IF AppendOk THEN
+                    Sources[EntryIndex].NextSeq := AssignedSeq + ULINT#1;
+                    StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
+                    IF EmissionCount < UINT#32 THEN
+                        Emissions[EmissionCount].EventTypeId := ConditionEventTypeId;
+                        Emissions[EmissionCount].RunId := StateRunId;
+                        Emissions[EmissionCount].SourceId := ActiveSourceId;
+                        Emissions[EmissionCount].Seq := AssignedSeq;
+                        EmissionCount := EmissionCount + UINT#1;
+                    END_IF;
+                    ConditionStates[StateIndex].HasLast := TRUE;
+                    ConditionStates[StateIndex].LastActive := ConditionActive;
+                    Done := TRUE;
+                ELSE
+                    Error := TRUE;
+                END_IF;
+            END_IF;
+        END_IF;
     ELSIF Op = UINT#1 THEN
         IF PendingOpen THEN
             Error := TRUE;
         ELSE
             EmitSeq := StateSystemSeq;
             StateSystemSeq := StateSystemSeq + ULINT#1;
-            EmitSourceTime := StateSourceTime;
-            StateSourceTime := StateSourceTime + ULINT#1;
+            EmitSourceTime := OPENOT_NextSourceTime(
+                UseSourceTimeInput := UseSourceTimeInput,
+                SourceTimeInput := SourceTimeInput,
+                StateSourceTime := StateSourceTime);
             StoppedEncoder(RunId := StateRunId, Seq := EmitSeq, SourceTime := EmitSourceTime);
             RingProducer(
                 Execute := TRUE,
@@ -383,8 +1001,10 @@ IF ExecuteEdge THEN
 
                 IF CandidateFound THEN
                     ProducedCount := Sources[SelectedIndex].NextSeq;
-                    EmitSourceTime := StateSourceTime;
-                    StateSourceTime := StateSourceTime + ULINT#1;
+                    EmitSourceTime := OPENOT_NextSourceTime(
+                        UseSourceTimeInput := UseSourceTimeInput,
+                        SourceTimeInput := SourceTimeInput,
+                        StateSourceTime := StateSourceTime);
                     HighWaterEncoder(
                         SourceId := Sources[SelectedIndex].SourceId,
                         RunId := StateRunId,
@@ -411,7 +1031,7 @@ IF ExecuteEdge THEN
                             Sources[SelectedIndex].NextSeq := ProducedCount + ULINT#1;
                             StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
                             IF EmissionCount < UINT#32 THEN
-                                Emissions[EmissionCount].EventTypeId := UDINT#16#0108;
+                                Emissions[EmissionCount].EventTypeId := UDINT#16#80000108;
                                 Emissions[EmissionCount].RunId := StateRunId;
                                 Emissions[EmissionCount].SourceId := Sources[SelectedIndex].SourceId;
                                 Emissions[EmissionCount].Seq := ProducedCount;
@@ -451,8 +1071,10 @@ IF ExecuteEdge THEN
         ELSE
             EmitSeq := StateSystemSeq;
             StateSystemSeq := StateSystemSeq + ULINT#1;
-            EmitSourceTime := StateSourceTime;
-            StateSourceTime := StateSourceTime + ULINT#1;
+            EmitSourceTime := OPENOT_NextSourceTime(
+                UseSourceTimeInput := UseSourceTimeInput,
+                SourceTimeInput := SourceTimeInput,
+                StateSourceTime := StateSourceTime);
             DefinitionEncoder(
                 RunId := StateRunId,
                 Seq := EmitSeq,
@@ -504,8 +1126,10 @@ IF ExecuteEdge THEN
             StateEpochId := PendingEpochId;
             EmitSeq := StateSystemSeq;
             StateSystemSeq := StateSystemSeq + ULINT#1;
-            EmitSourceTime := StateSourceTime;
-            StateSourceTime := StateSourceTime + ULINT#1;
+            EmitSourceTime := OPENOT_NextSourceTime(
+                UseSourceTimeInput := UseSourceTimeInput,
+                SourceTimeInput := SourceTimeInput,
+                StateSourceTime := StateSourceTime);
             StartedEncoder(
                 RunId := StateRunId,
                 Seq := EmitSeq,
@@ -570,8 +1194,10 @@ IF ExecuteEdge THEN
 
             EmitSeq := StateSystemSeq;
             StateSystemSeq := StateSystemSeq + ULINT#1;
-            EmitSourceTime := StateSourceTime;
-            StateSourceTime := StateSourceTime + ULINT#1;
+            EmitSourceTime := OPENOT_NextSourceTime(
+                UseSourceTimeInput := UseSourceTimeInput,
+                SourceTimeInput := SourceTimeInput,
+                StateSourceTime := StateSourceTime);
             StartedEncoder(
                 RunId := StateRunId,
                 Seq := EmitSeq,
@@ -636,7 +1262,11 @@ FOR Index := UINT#0 TO UINT#15 DO
 END_FOR;
 
 RunId := StateRunId;
-SourceTime := StateSourceTime;
+IF UseSourceTimeInput THEN
+    SourceTime := SourceTimeInput;
+ELSE
+    SourceTime := StateSourceTime;
+END_IF;
 SystemSeq := StateSystemSeq;
 PublishedRecordCount := StatePublishedRecordCount;
 EpochId := StateEpochId;

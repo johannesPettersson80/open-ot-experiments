@@ -801,7 +801,7 @@ mod tests {
     use open_ot_definition::schema::SchemaViolation;
     use open_ot_definition::{DefinitionSet, resolve_record};
 
-    const HASH: [u8; 8] = [0xC1, 0x75, 0xFB, 0x1A, 0xEE, 0x05, 0x49, 0xE1];
+    const HASH: [u8; 8] = [0x70, 0xDF, 0x73, 0x94, 0xB8, 0x75, 0xE4, 0x92];
 
     #[test]
     fn resolved_event_serializes_to_exact_json() {

@@ -14,11 +14,12 @@ use crate::control::{CONTROL_BLOCK_LEN, ControlBlockSnapshot};
 use crate::loss::{EVENT_RECORDS_DROPPED, records_dropped_record};
 use crate::registry::{
     EVENT_DEFINITION_CHANGED, EVENT_LOGGER_STARTED, EVENT_LOGGER_STOPPED, EVENT_MESSAGE,
-    EVENT_SOURCE_HIGH_WATER, EVENT_STATE_TRANSITION, KEY_ARG, KEY_CATEGORY, KEY_COLD_START,
-    KEY_DEF_HASH_NEW, KEY_DEF_HASH_OLD, KEY_DROPPED_COUNT, KEY_EPOCH_ID, KEY_FIRST_LOST_SEQ,
-    KEY_LAST_LOST_SEQ, KEY_MESSAGE_TEMPLATE_ID, KEY_NEW_STATE, KEY_PREVIOUS_STATE, KEY_SEVERITY,
-    KEY_SOURCE_HIGH_WATER, KEY_STATE_MACHINE_ID, KEY_WINDOW_END, KEY_WINDOW_START,
-    SYSTEM_SOURCE_ID, TY_BOOL, TY_BYTES, TY_DATE_TIME, TY_STRING, TY_UDINT, TY_UINT, TY_ULINT,
+    EVENT_SOURCE_HIGH_WATER, EVENT_STATE_TRANSITION, EVENT_VALUE_CHANGED, KEY_ARG, KEY_CATEGORY,
+    KEY_COLD_START, KEY_DEF_HASH_NEW, KEY_DEF_HASH_OLD, KEY_DROPPED_COUNT, KEY_EPOCH_ID,
+    KEY_FIRST_LOST_SEQ, KEY_LAST_LOST_SEQ, KEY_MESSAGE_TEMPLATE_ID, KEY_NEW_STATE, KEY_NEW_VALUE,
+    KEY_PREVIOUS_STATE, KEY_PREVIOUS_VALUE, KEY_QUALITY, KEY_SEVERITY, KEY_SOURCE_HIGH_WATER,
+    KEY_STATE_MACHINE_ID, KEY_VALUE_ID, KEY_WINDOW_END, KEY_WINDOW_START, SYSTEM_SOURCE_ID,
+    TY_BOOL, TY_BYTES, TY_DATE_TIME, TY_DINT, TY_REAL, TY_STRING, TY_UDINT, TY_UINT, TY_ULINT,
 };
 use crate::ring::{LossRange, RingBuffer};
 use crate::wire::{FLAG_HAS_CRC, HEADER_LEN, Record, SYNC, Slot, WireError, decode};
@@ -108,6 +109,52 @@ pub fn generate_files() -> Vec<VectorFile> {
 
     push_record_vector(
         &mut files,
+        "conformant_value_changed_real",
+        "definition-layer positive ValueChanged record carrying a REAL newValue",
+        &conformant_value_changed_real_record(),
+        r#"{
+  "eventName": "ValueChanged",
+  "schemaExpected": "accept",
+  "fields": {
+    "sourceTime": 1000000020,
+    "runId": 1,
+    "seq": 3,
+    "sourceId": 66,
+    "eventTypeId": "0x0002"
+  },
+  "slots": [
+    { "key": "0x000D", "type": "UDInt", "name": "valueId", "value": 2001 },
+    { "key": "0x0010", "type": "Real", "name": "newValue", "value": 12.5 }
+  ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
+        "conformant_value_changed_dint",
+        "definition-layer positive ValueChanged record carrying DINT previousValue/newValue plus quality",
+        &conformant_value_changed_dint_record(),
+        r#"{
+  "eventName": "ValueChanged",
+  "schemaExpected": "accept",
+  "fields": {
+    "sourceTime": 1000000030,
+    "runId": 1,
+    "seq": 4,
+    "sourceId": 66,
+    "eventTypeId": "0x0002"
+  },
+  "slots": [
+    { "key": "0x000D", "type": "UDInt", "name": "valueId", "value": 2002 },
+    { "key": "0x000F", "type": "DInt", "name": "previousValue", "value": 40 },
+    { "key": "0x0010", "type": "DInt", "name": "newValue", "value": 42 },
+    { "key": "0x0011", "type": "UInt", "name": "quality", "value": 0 }
+  ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
         "conformant_message",
         "definition-layer positive Message record",
         &conformant_message_record(),
@@ -167,7 +214,7 @@ pub fn generate_files() -> Vec<VectorFile> {
     "runId": 1,
     "seq": 5,
     "sourceId": 88,
-    "eventTypeId": "0x0108"
+    "eventTypeId": "0x80000108"
   },
   "slots": [
     { "key": "0x0038", "type": "ULInt", "name": "producedCount", "value": 5 }
@@ -209,7 +256,7 @@ pub fn generate_files() -> Vec<VectorFile> {
     "runId": 1,
     "seq": 5,
     "sourceId": 88,
-    "eventTypeId": "0x0108"
+    "eventTypeId": "0x80000108"
   },
   "slots": [
     { "key": "0x0038", "type": "ULInt", "name": "producedCount", "value": 5 }
@@ -751,6 +798,34 @@ fn conformant_state_transition_record() -> Record {
     record
 }
 
+fn conformant_value_changed_real_record() -> Record {
+    let mut record = Record::new(1_000_000_020, 1, 3, 66, EVENT_VALUE_CHANGED);
+    record
+        .slots
+        .push(Slot::new(KEY_VALUE_ID, TY_UDINT, 2001u32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_NEW_VALUE, TY_REAL, 12.5f32.to_le_bytes()));
+    record
+}
+
+fn conformant_value_changed_dint_record() -> Record {
+    let mut record = Record::new(1_000_000_030, 1, 4, 66, EVENT_VALUE_CHANGED);
+    record
+        .slots
+        .push(Slot::new(KEY_VALUE_ID, TY_UDINT, 2002u32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_PREVIOUS_VALUE, TY_DINT, 40i32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_NEW_VALUE, TY_DINT, 42i32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_QUALITY, TY_UINT, 0u16.to_le_bytes()));
+    record
+}
+
 fn conformant_message_record() -> Record {
     let mut record = Record::new(1_000_000_010, 1, 2, 66, EVENT_MESSAGE);
     record.slots.push(Slot::new(
@@ -883,6 +958,8 @@ fn hex_path(stem: &'static str) -> &'static str {
     match stem {
         "state_transition" => "state_transition.hex",
         "conformant_state_transition" => "conformant_state_transition.hex",
+        "conformant_value_changed_real" => "conformant_value_changed_real.hex",
+        "conformant_value_changed_dint" => "conformant_value_changed_dint.hex",
         "conformant_message" => "conformant_message.hex",
         "conformant_records_dropped" => "conformant_records_dropped.hex",
         "conformant_source_high_water" => "conformant_source_high_water.hex",
@@ -901,6 +978,8 @@ fn json_path(stem: &'static str) -> &'static str {
     match stem {
         "state_transition" => "state_transition.json",
         "conformant_state_transition" => "conformant_state_transition.json",
+        "conformant_value_changed_real" => "conformant_value_changed_real.json",
+        "conformant_value_changed_dint" => "conformant_value_changed_dint.json",
         "conformant_message" => "conformant_message.json",
         "conformant_records_dropped" => "conformant_records_dropped.json",
         "conformant_source_high_water" => "conformant_source_high_water.json",
@@ -967,6 +1046,19 @@ mod tests {
                 (KEY_CATEGORY, TY_UINT, 2),
                 (KEY_PREVIOUS_STATE, TY_UINT, 2),
                 (KEY_NEW_STATE, TY_UINT, 2),
+            ],
+        );
+        assert_slots(
+            &conformant_value_changed_real_record(),
+            &[(KEY_VALUE_ID, TY_UDINT, 4), (KEY_NEW_VALUE, TY_REAL, 4)],
+        );
+        assert_slots(
+            &conformant_value_changed_dint_record(),
+            &[
+                (KEY_VALUE_ID, TY_UDINT, 4),
+                (KEY_PREVIOUS_VALUE, TY_DINT, 4),
+                (KEY_NEW_VALUE, TY_DINT, 4),
+                (KEY_QUALITY, TY_UINT, 2),
             ],
         );
         assert_slots(

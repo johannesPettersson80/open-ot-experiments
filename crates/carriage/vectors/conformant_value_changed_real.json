@@ -1,0 +1,28 @@
+{
+  "name": "conformant_value_changed_real",
+  "description": "definition-layer positive ValueChanged record carrying a REAL newValue",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "conformant_value_changed_real.hex",
+  "byteCount": 60,
+  "headerLength": 40,
+  "totalRecordLength": 60,
+  "flags": "0x0008",
+  "crc32c": "0x705B652A",
+  "detail": {
+    "eventName": "ValueChanged",
+    "schemaExpected": "accept",
+    "fields": {
+      "sourceTime": 1000000020,
+      "runId": 1,
+      "seq": 3,
+      "sourceId": 66,
+      "eventTypeId": "0x0002"
+    },
+    "slots": [
+      { "key": "0x000D", "type": "UDInt", "name": "valueId", "value": 2001 },
+      { "key": "0x0010", "type": "Real", "name": "newValue", "value": 12.5 }
+    ]
+  }
+}

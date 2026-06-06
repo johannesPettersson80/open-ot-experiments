@@ -1,0 +1,852 @@
+[
+  {
+    "eventName": "Message",
+    "eventTypeId": 3,
+    "fields": [],
+    "kind": "event",
+    "provenance": {
+      "bufferId": 1,
+      "epoch": {
+        "definitionHash": "9cc70b3fa26af5a3",
+        "id": 1,
+        "relation": "current",
+        "semanticVersion": "1.0.0"
+      },
+      "flags": {
+        "partialPayload": false,
+        "syntheticRecord": false,
+        "timeUnsynced": false
+      },
+      "receiveTimeNs": 1780779980012334009,
+      "runId": 1,
+      "source": {
+        "dynamic": false,
+        "id": 1,
+        "name": "source1",
+        "path": [
+          "source1"
+        ]
+      },
+      "sourceTimeNs": 1780779980012334009
+    },
+    "seq": 0
+  },
+  {
+    "eventName": "StateTransition",
+    "eventTypeId": 1,
+    "fields": [
+      {
+        "enumLabel": null,
+        "key": 1,
+        "name": "stateMachine",
+        "type": "StateMachineRef",
+        "value": "Step"
+      },
+      {
+        "enumLabel": "Procedural",
+        "key": 2,
+        "name": "category",
+        "type": "UInt",
+        "value": 2
+      },
+      {
+        "enumLabel": "Idle",
+        "key": 3,
+        "name": "previousState",
+        "type": "StateRef",
+        "value": "Idle"
+      },
+      {
+        "enumLabel": "Filling",
+        "key": 4,
+        "name": "newState",
+        "type": "StateRef",
+        "value": "Filling"
+      }
+    ],
+    "kind": "event",
+    "provenance": {
+      "bufferId": 1,
+      "epoch": {
+        "definitionHash": "9cc70b3fa26af5a3",
+        "id": 1,
+        "relation": "current",
+        "semanticVersion": "1.0.0"
+      },
+      "flags": {
+        "partialPayload": false,
+        "syntheticRecord": false,
+        "timeUnsynced": false
+      },
+      "receiveTimeNs": 1780779980012334009,
+      "runId": 1,
+      "source": {
+        "dynamic": false,
+        "id": 1,
+        "name": "source1",
+        "path": [
+          "source1"
+        ]
+      },
+      "sourceTimeNs": 1780779980012334009
+    },
+    "seq": 1
+  },
+  {
+    "eventName": "ValueChanged",
+    "eventTypeId": 2,
+    "fields": [
+      {
+        "enumLabel": null,
+        "key": 13,
+        "name": "value",
+        "type": "ValueRef",
+        "value": "Level"
+      },
+      {
+        "enumLabel": null,
+        "key": 16,
+        "name": "newValue",
+        "type": "Real",
+        "unit": "L",
+        "value": 0.0
+      }
+    ],
+    "kind": "event",
+    "provenance": {
+      "bufferId": 1,
+      "epoch": {
+        "definitionHash": "9cc70b3fa26af5a3",
+        "id": 1,
+        "relation": "current",
+        "semanticVersion": "1.0.0"
+      },
+      "flags": {
+        "partialPayload": false,
+        "syntheticRecord": false,
+        "timeUnsynced": false
+      },
+      "receiveTimeNs": 1780779980012334009,
+      "runId": 1,
+      "source": {
+        "dynamic": false,
+        "id": 1,
+        "name": "source1",
+        "path": [
+          "source1"
+        ]
+      },
+      "sourceTimeNs": 1780779980012334009
+    },
+    "seq": 2
+  },
+  {
+    "eventName": "ValueChanged",
+    "eventTypeId": 2,
+    "fields": [
+      {
+        "enumLabel": null,
+        "key": 13,
+        "name": "value",
+        "type": "ValueRef",
+        "value": "BatchCount"
+      },
+      {
+        "enumLabel": null,
+        "key": 16,
+        "name": "newValue",
+        "type": "DInt",
+        "value": 1
+      }
+    ],
+    "kind": "event",
+    "provenance": {
+      "bufferId": 1,
+      "epoch": {
+        "definitionHash": "9cc70b3fa26af5a3",
+        "id": 1,
+        "relation": "current",
+        "semanticVersion": "1.0.0"
+      },
+      "flags": {
+        "partialPayload": false,
+        "syntheticRecord": false,
+        "timeUnsynced": false
+      },
+      "receiveTimeNs": 1780779980012334009,
+      "runId": 1,
+      "source": {
+        "dynamic": false,
+        "id": 1,
+        "name": "source1",
+        "path": [
+          "source1"
+        ]
+      },
+      "sourceTimeNs": 1780779980012334009
+    },
+    "seq": 3
+  },
+  {
+    "eventName": "ValueChanged",
+    "eventTypeId": 2,
+    "fields": [
+      {
+        "enumLabel": null,
+        "key": 13,
+        "name": "value",
+        "type": "ValueRef",
+        "value": "Level"
+      },
+      {
+        "enumLabel": null,
+        "key": 15,
+        "name": "previousValue",
+        "type": "Real",
+        "unit": "L",
+        "value": 0.0
+      },
+      {
+        "enumLabel": null,
+        "key": 16,
+        "name": "newValue",
+        "type": "Real",
+        "unit": "L",
+        "value": 6.0
+      }
+    ],
+    "kind": "event",
+    "provenance": {
+      "bufferId": 1,
+      "epoch": {
+        "definitionHash": "9cc70b3fa26af5a3",
+        "id": 1,
+        "relation": "current",
+        "semanticVersion": "1.0.0"
+      },
+      "flags": {
+        "partialPayload": false,
+        "syntheticRecord": false,
+        "timeUnsynced": false
+      },
+      "receiveTimeNs": 1780779984818441294,
+      "runId": 1,
+      "source": {
+        "dynamic": false,
+        "id": 1,
+        "name": "source1",
+        "path": [
+          "source1"
+        ]
+      },
+      "sourceTimeNs": 1780779984818441294
+    },
+    "seq": 4
+  },
+  {
+    "eventName": "StateTransition",
+    "eventTypeId": 1,
+    "fields": [
+      {
+        "enumLabel": null,
+        "key": 1,
+        "name": "stateMachine",
+        "type": "StateMachineRef",
+        "value": "Step"
+      },
+      {
+        "enumLabel": "Procedural",
+        "key": 2,
+        "name": "category",
+        "type": "UInt",
+        "value": 2
+      },
+      {
+        "enumLabel": "Filling",
+        "key": 3,
+        "name": "previousState",
+        "type": "StateRef",
+        "value": "Filling"
+      },
+      {
+        "enumLabel": "Mixing",
+        "key": 4,
+        "name": "newState",
+        "type": "StateRef",
+        "value": "Mixing"
+      }
+    ],
+    "kind": "event",
+    "provenance": {
+      "bufferId": 1,
+      "epoch": {
+        "definitionHash": "9cc70b3fa26af5a3",
+        "id": 1,
+        "relation": "current",
+        "semanticVersion": "1.0.0"
+      },
+      "flags": {
+        "partialPayload": false,
+        "syntheticRecord": false,
+        "timeUnsynced": false
+      },
+      "receiveTimeNs": 1780779987051730286,
+      "runId": 1,
+      "source": {
+        "dynamic": false,
+        "id": 1,
+        "name": "source1",
+        "path": [
+          "source1"
+        ]
+      },
+      "sourceTimeNs": 1780779987051730286
+    },
+    "seq": 5
+  },
+  {
+    "eventName": "ValueChanged",
+    "eventTypeId": 2,
+    "fields": [
+      {
+        "enumLabel": null,
+        "key": 13,
+        "name": "value",
+        "type": "ValueRef",
+        "value": "Level"
+      },
+      {
+        "enumLabel": null,
+        "key": 15,
+        "name": "previousValue",
+        "type": "Real",
+        "unit": "L",
+        "value": 6.0
+      },
+      {
+        "enumLabel": null,
+        "key": 16,
+        "name": "newValue",
+        "type": "Real",
+        "unit": "L",
+        "value": 12.0
+      }
+    ],
+    "kind": "event",
+    "provenance": {
+      "bufferId": 1,
+      "epoch": {
+        "definitionHash": "9cc70b3fa26af5a3",
+        "id": 1,
+        "relation": "current",
+        "semanticVersion": "1.0.0"
+      },
+      "flags": {
+        "partialPayload": false,
+        "syntheticRecord": false,
+        "timeUnsynced": false
+      },
+      "receiveTimeNs": 1780779987051730286,
+      "runId": 1,
+      "source": {
+        "dynamic": false,
+        "id": 1,
+        "name": "source1",
+        "path": [
+          "source1"
+        ]
+      },
+      "sourceTimeNs": 1780779987051730286
+    },
+    "seq": 6
+  },
+  {
+    "eventName": "ValueChanged",
+    "eventTypeId": 2,
+    "fields": [
+      {
+        "enumLabel": null,
+        "key": 13,
+        "name": "value",
+        "type": "ValueRef",
+        "value": "Level"
+      },
+      {
+        "enumLabel": null,
+        "key": 15,
+        "name": "previousValue",
+        "type": "Real",
+        "unit": "L",
+        "value": 12.0
+      },
+      {
+        "enumLabel": null,
+        "key": 16,
+        "name": "newValue",
+        "type": "Real",
+        "unit": "L",
+        "value": 13.5
+      }
+    ],
+    "kind": "event",
+    "provenance": {
+      "bufferId": 1,
+      "epoch": {
+        "definitionHash": "9cc70b3fa26af5a3",
+        "id": 1,
+        "relation": "current",
+        "semanticVersion": "1.0.0"
+      },
+      "flags": {
+        "partialPayload": false,
+        "syntheticRecord": false,
+        "timeUnsynced": false
+      },
+      "receiveTimeNs": 1780779990679239345,
+      "runId": 1,
+      "source": {
+        "dynamic": false,
+        "id": 1,
+        "name": "source1",
+        "path": [
+          "source1"
+        ]
+      },
+      "sourceTimeNs": 1780779990679239345
+    },
+    "seq": 7
+  },
+  {
+    "eventName": "StateTransition",
+    "eventTypeId": 1,
+    "fields": [
+      {
+        "enumLabel": null,
+        "key": 1,
+        "name": "stateMachine",
+        "type": "StateMachineRef",
+        "value": "Step"
+      },
+      {
+        "enumLabel": "Procedural",
+        "key": 2,
+        "name": "category",
+        "type": "UInt",
+        "value": 2
+      },
+      {
+        "enumLabel": "Mixing",
+        "key": 3,
+        "name": "previousState",
+        "type": "StateRef",
+        "value": "Mixing"
+      },
+      {
+        "enumLabel": "Draining",
+        "key": 4,
+        "name": "newState",
+        "type": "StateRef",
+        "value": "Draining"
+      }
+    ],
+    "kind": "event",
+    "provenance": {
+      "bufferId": 1,
+      "epoch": {
+        "definitionHash": "9cc70b3fa26af5a3",
+        "id": 1,
+        "relation": "current",
+        "semanticVersion": "1.0.0"
+      },
+      "flags": {
+        "partialPayload": false,
+        "syntheticRecord": false,
+        "timeUnsynced": false
+      },
+      "receiveTimeNs": 1780779993196361472,
+      "runId": 1,
+      "source": {
+        "dynamic": false,
+        "id": 1,
+        "name": "source1",
+        "path": [
+          "source1"
+        ]
+      },
+      "sourceTimeNs": 1780779993196361472
+    },
+    "seq": 8
+  },
+  {
+    "eventName": "ValueChanged",
+    "eventTypeId": 2,
+    "fields": [
+      {
+        "enumLabel": null,
+        "key": 13,
+        "name": "value",
+        "type": "ValueRef",
+        "value": "Level"
+      },
+      {
+        "enumLabel": null,
+        "key": 15,
+        "name": "previousValue",
+        "type": "Real",
+        "unit": "L",
+        "value": 13.5
+      },
+      {
+        "enumLabel": null,
+        "key": 16,
+        "name": "newValue",
+        "type": "Real",
+        "unit": "L",
+        "value": 15.0
+      }
+    ],
+    "kind": "event",
+    "provenance": {
+      "bufferId": 1,
+      "epoch": {
+        "definitionHash": "9cc70b3fa26af5a3",
+        "id": 1,
+        "relation": "current",
+        "semanticVersion": "1.0.0"
+      },
+      "flags": {
+        "partialPayload": false,
+        "syntheticRecord": false,
+        "timeUnsynced": false
+      },
+      "receiveTimeNs": 1780779993196361472,
+      "runId": 1,
+      "source": {
+        "dynamic": false,
+        "id": 1,
+        "name": "source1",
+        "path": [
+          "source1"
+        ]
+      },
+      "sourceTimeNs": 1780779993196361472
+    },
+    "seq": 9
+  },
+  {
+    "eventName": "ConditionActive",
+    "eventTypeId": 512,
+    "fields": [
+      {
+        "enumLabel": null,
+        "key": 5,
+        "name": "condition",
+        "type": "ConditionRef",
+        "value": "HighPhAlarm"
+      },
+      {
+        "enumLabel": null,
+        "key": 6,
+        "name": "conditionClass",
+        "type": "UInt",
+        "value": 0
+      },
+      {
+        "enumLabel": "High",
+        "key": 8,
+        "name": "severity",
+        "type": "UInt",
+        "value": 900
+      }
+    ],
+    "kind": "event",
+    "provenance": {
+      "bufferId": 1,
+      "epoch": {
+        "definitionHash": "9cc70b3fa26af5a3",
+        "id": 1,
+        "relation": "current",
+        "semanticVersion": "1.0.0"
+      },
+      "flags": {
+        "partialPayload": false,
+        "syntheticRecord": false,
+        "timeUnsynced": false
+      },
+      "receiveTimeNs": 1780779993196361472,
+      "runId": 1,
+      "source": {
+        "dynamic": false,
+        "id": 1,
+        "name": "source1",
+        "path": [
+          "source1"
+        ]
+      },
+      "sourceTimeNs": 1780779993196361472
+    },
+    "seq": 10
+  },
+  {
+    "eventName": "ValueChanged",
+    "eventTypeId": 2,
+    "fields": [
+      {
+        "enumLabel": null,
+        "key": 13,
+        "name": "value",
+        "type": "ValueRef",
+        "value": "Level"
+      },
+      {
+        "enumLabel": null,
+        "key": 15,
+        "name": "previousValue",
+        "type": "Real",
+        "unit": "L",
+        "value": 15.0
+      },
+      {
+        "enumLabel": null,
+        "key": 16,
+        "name": "newValue",
+        "type": "Real",
+        "unit": "L",
+        "value": 7.5
+      }
+    ],
+    "kind": "event",
+    "provenance": {
+      "bufferId": 1,
+      "epoch": {
+        "definitionHash": "9cc70b3fa26af5a3",
+        "id": 1,
+        "relation": "current",
+        "semanticVersion": "1.0.0"
+      },
+      "flags": {
+        "partialPayload": false,
+        "syntheticRecord": false,
+        "timeUnsynced": false
+      },
+      "receiveTimeNs": 1780779997285736038,
+      "runId": 1,
+      "source": {
+        "dynamic": false,
+        "id": 1,
+        "name": "source1",
+        "path": [
+          "source1"
+        ]
+      },
+      "sourceTimeNs": 1780779997285736038
+    },
+    "seq": 11
+  },
+  {
+    "eventName": "StateTransition",
+    "eventTypeId": 1,
+    "fields": [
+      {
+        "enumLabel": null,
+        "key": 1,
+        "name": "stateMachine",
+        "type": "StateMachineRef",
+        "value": "Step"
+      },
+      {
+        "enumLabel": "Procedural",
+        "key": 2,
+        "name": "category",
+        "type": "UInt",
+        "value": 2
+      },
+      {
+        "enumLabel": "Draining",
+        "key": 3,
+        "name": "previousState",
+        "type": "StateRef",
+        "value": "Draining"
+      },
+      {
+        "enumLabel": "Done",
+        "key": 4,
+        "name": "newState",
+        "type": "StateRef",
+        "value": "Done"
+      }
+    ],
+    "kind": "event",
+    "provenance": {
+      "bufferId": 1,
+      "epoch": {
+        "definitionHash": "9cc70b3fa26af5a3",
+        "id": 1,
+        "relation": "current",
+        "semanticVersion": "1.0.0"
+      },
+      "flags": {
+        "partialPayload": false,
+        "syntheticRecord": false,
+        "timeUnsynced": false
+      },
+      "receiveTimeNs": 1780779999484538077,
+      "runId": 1,
+      "source": {
+        "dynamic": false,
+        "id": 1,
+        "name": "source1",
+        "path": [
+          "source1"
+        ]
+      },
+      "sourceTimeNs": 1780779999484538077
+    },
+    "seq": 12
+  },
+  {
+    "eventName": "ValueChanged",
+    "eventTypeId": 2,
+    "fields": [
+      {
+        "enumLabel": null,
+        "key": 13,
+        "name": "value",
+        "type": "ValueRef",
+        "value": "Level"
+      },
+      {
+        "enumLabel": null,
+        "key": 15,
+        "name": "previousValue",
+        "type": "Real",
+        "unit": "L",
+        "value": 7.5
+      },
+      {
+        "enumLabel": null,
+        "key": 16,
+        "name": "newValue",
+        "type": "Real",
+        "unit": "L",
+        "value": 0.0
+      }
+    ],
+    "kind": "event",
+    "provenance": {
+      "bufferId": 1,
+      "epoch": {
+        "definitionHash": "9cc70b3fa26af5a3",
+        "id": 1,
+        "relation": "current",
+        "semanticVersion": "1.0.0"
+      },
+      "flags": {
+        "partialPayload": false,
+        "syntheticRecord": false,
+        "timeUnsynced": false
+      },
+      "receiveTimeNs": 1780779999484538077,
+      "runId": 1,
+      "source": {
+        "dynamic": false,
+        "id": 1,
+        "name": "source1",
+        "path": [
+          "source1"
+        ]
+      },
+      "sourceTimeNs": 1780779999484538077
+    },
+    "seq": 13
+  },
+  {
+    "eventName": "ConditionCleared",
+    "eventTypeId": 513,
+    "fields": [
+      {
+        "enumLabel": null,
+        "key": 5,
+        "name": "condition",
+        "type": "ConditionRef",
+        "value": "HighPhAlarm"
+      },
+      {
+        "enumLabel": null,
+        "key": 6,
+        "name": "conditionClass",
+        "type": "UInt",
+        "value": 0
+      },
+      {
+        "enumLabel": "High",
+        "key": 8,
+        "name": "severity",
+        "type": "UInt",
+        "value": 900
+      }
+    ],
+    "kind": "event",
+    "provenance": {
+      "bufferId": 1,
+      "epoch": {
+        "definitionHash": "9cc70b3fa26af5a3",
+        "id": 1,
+        "relation": "current",
+        "semanticVersion": "1.0.0"
+      },
+      "flags": {
+        "partialPayload": false,
+        "syntheticRecord": false,
+        "timeUnsynced": false
+      },
+      "receiveTimeNs": 1780779999484538077,
+      "runId": 1,
+      "source": {
+        "dynamic": false,
+        "id": 1,
+        "name": "source1",
+        "path": [
+          "source1"
+        ]
+      },
+      "sourceTimeNs": 1780779999484538077
+    },
+    "seq": 14
+  },
+  {
+    "basis": "inferred",
+    "count": 13,
+    "firstSeq": 0,
+    "kind": "loss",
+    "lastSeq": 12,
+    "provenance": {
+      "bufferId": 1,
+      "epoch": {
+        "definitionHash": "9cc70b3fa26af5a3",
+        "id": 1,
+        "relation": "current",
+        "semanticVersion": "1.0.0"
+      },
+      "flags": {
+        "partialPayload": false,
+        "syntheticRecord": false,
+        "timeUnsynced": false
+      },
+      "receiveTimeNs": 1780780033596869434,
+      "runId": 1,
+      "source": {
+        "id": 1
+      }
+    }
+  },
+  {
+    "kind": "lossReconciliation",
+    "lappedBatches": 1,
+    "retainedRecords": 2,
+    "shmLostCount": 13,
+    "source1Delivered": 2,
+    "source1Lost": 13,
+    "source1Reconciled": 15
+  }
+]
