@@ -56,7 +56,7 @@ block + byte ring with a single-writer publish protocol, a version-counter seqlo
 release/acquire fences proven correct under concurrency on ARM. The consumer reads it live, in a
 separate process/thread, while the producer writes. → decisions [D5–D6](decisions.md).
 
-**4 — Resolution (meaning).** The Rust reference consumer validates each record (CRC + seq-space
+**4 — Resolution (meaning).** The Rust reference consumer validates each record (CRC + absolute-offset
 overwrite check), reconciles loss three ways (seq gaps + authoritative `RecordsDropped` +
 source high-water), then **joins the id-only records against the definition file** to recover
 names/units/states. `ValueChanged valueId=2001 new=15.25` becomes `Level = 15.25 L`. →
@@ -71,7 +71,7 @@ the open reconciliation items.
 
 ## Try it
 
-`examples/reactor/` is the worked example: [`Reactor.st`](../examples/reactor) (attributes only) →
+`examples/reactor/` is the worked example: [`Reactor.st`](../examples/reactor/Reactor.st) (attributes only) →
 `batch-log.txt` / `batch-log.json` (the produced log) + `openot-definition.json` (the generated
 id→meaning file). The Rust carriage walk-through (`cargo run -p open-ot-carriage --example
 end_to_end`) shows produce → overflow → read back → reconcile without the truST runtime.

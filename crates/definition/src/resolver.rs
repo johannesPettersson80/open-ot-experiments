@@ -589,11 +589,11 @@ fn semantic_value(
         }
         KEY_MESSAGE_TEMPLATE_ID => {
             if let Some(id) = value.as_u32()
-                && let Some(template_name) = message_template_name(id, definition)
+                && let Some(template_format) = message_template_format(id, definition)
             {
                 *name = "messageTemplate".to_string();
                 *type_name = "MessageTemplateRef".to_string();
-                return ResolvedValue::String(template_name);
+                return ResolvedValue::String(template_format);
             }
         }
         KEY_PREVIOUS_STATE | KEY_NEW_STATE => {
@@ -691,12 +691,12 @@ fn condition_name(id: u32, definition: &DefinitionFile) -> Option<String> {
         .map(|condition| condition.name.clone())
 }
 
-fn message_template_name(id: u32, definition: &DefinitionFile) -> Option<String> {
+fn message_template_format(id: u32, definition: &DefinitionFile) -> Option<String> {
     definition
         .message_templates
         .iter()
         .find(|template| template.message_template_id == id)
-        .map(|template| template.name.clone())
+        .map(|template| template.format.clone())
 }
 
 fn resolve_source(source_id: u32, definition: &DefinitionFile) -> Option<ResolvedSource> {
@@ -916,7 +916,7 @@ mod tests {
         assert_eq!(record.event_name, "Message");
         assert_eq!(
             field(&record, KEY_MESSAGE_TEMPLATE_ID).value,
-            ResolvedValue::String("Status".to_string())
+            ResolvedValue::String("Status: {1}".to_string())
         );
         assert_eq!(
             field(&record, KEY_ARG).value,

@@ -32,13 +32,14 @@ The pragma attaches to the `VAR` declaration so it survives rename/refactor.
 
 ## `'value'` — a value changed
 
-Logs the new value of a tag. The data type travels as-is (a `REAL` logs as a real,
-a `DINT` as an integer); the consumer reads it back typed.
+Logs the new value of a tag. The current ST producer has byte-exact encoders for
+`REAL` and `DINT`; other value types are rejected until a matching encoder exists.
+The consumer reads the emitted value back typed.
 
 | Key | Meaning |
 |---|---|
-| `unit` | The **engineering unit** of the value — `'L'`, `'degC'`, `'bar'`, `'rpm'`. It does not change the logging logic; it tells the consumer how to label and convert the number. Stored once in the definition file; the wire carries a small unit *id*, not the text. |
-| `deadband` | **Noise filter.** The smallest change worth logging. `'0.5'` on a temperature means "only emit a `ValueChanged` once it has moved ≥ 0.5 °C since the last logged value." Without it, every scan's tiny fluctuation would flood the log. `REAL`/`LREAL` only. This is the value's *sampling policy*. |
+| `unit` | The **engineering unit** of the value — `'L'`, `'degC'`, `'bar'`, `'rpm'`. It does not change the logging logic; it tells the consumer how to label and convert the number. Lives **only in the definition file**, resolved by `valueId` — the wire carries **no unit**, just the `valueId` and the typed value bytes. |
+| `deadband` | **Noise filter.** The smallest change worth logging. `'0.5'` on a temperature means "only emit a `ValueChanged` once it has moved more than 0.5 °C since the last logged value." Without it, every scan's tiny fluctuation would flood the log. `REAL` only. This is the value's *sampling policy*. |
 
 ```iecst
 Level : REAL {attribute 'oot' := 'value', 'unit' := 'L', 'deadband' := '0.5'};
@@ -81,8 +82,9 @@ Step : E_ReactorStep {attribute 'oot' := 'state', 'category' := 'process'} := Id
 ## `'alarm'` — a condition began or ended
 
 Logs the **ISA-18.2-style condition lifecycle**: rising edge → `ConditionActive`
-(the condition started, with a fresh correlation id), falling edge →
-`ConditionCleared` (it ended).
+(the condition started), falling edge → `ConditionCleared` (it ended). The current
+slice emits only the begin/end pair; no correlation id ties the two records together
+yet (see [current limitations](#current-limitations-honest-status)).
 
 ### `class` — *alarm vs. interlock*
 
@@ -113,11 +115,11 @@ HighPhAlarm : BOOL {attribute 'oot' := 'alarm', 'class' := 'alarm', 'severity' :
 
 Logs a `Message` keyed by a template id. The template **text stays in the
 definition file** (id-only on the wire — the controller never ships strings);
-only the template id and any typed args travel.
+only the template id travels.
 
 | Key | Meaning |
 |---|---|
-| `template` | The message text. May contain `{1}`, `{2}` placeholders that typed values fill in (e.g. `'Tank {1} level: {2} L'`). Registered once in the definition file; resolved by the consumer. |
+| `template` | The message text, registered once in the definition file and resolved by the consumer. **Currently a static string:** the record carries only the template id, and the definition file's `argTypes[]` is empty. Typed `{1}`/`{2}` placeholder arguments are **not yet implemented** (see [current limitations](#current-limitations-honest-status)). |
 
 ```iecst
 BatchStarted : BOOL {attribute 'oot' := 'message', 'template' := 'batch started'};
@@ -125,16 +127,39 @@ BatchStarted : BOOL {attribute 'oot' := 'message', 'template' := 'batch started'
 
 ---
 
+## Defaults when a key is omitted
+
+The lowering fills these in when you leave a key off. A **semantic** key with a
+default still changes the generated definition (and therefore the content hash), so
+prefer to state them explicitly rather than rely on the default.
+
+| Kind | Omitted key | Default | Note |
+|---|---|---|---|
+| `value` | `unit` | none | no unit on the wire or in the def file |
+| `value` | `deadband` | none | every change emits (`REAL`: any move; `DINT`: on-change) |
+| `state` | `category` | `process` | the machine-local default, matching the VS Code action |
+| `state` | `model` | none | **required** when `category := 'procedural'` (compile error otherwise) |
+| `alarm` | `class` | `alarm` | the alternative is `interlock` |
+| `alarm` | `severity` | `800` (high) | OPC-UA 1–1000 scale |
+| `message` | `template` | the **variable name** | an untemplated message still resolves to *something* |
+
+> **`procedural` and `model` are paired.** `category := 'procedural'` **requires** a
+> `model`, and `model` is only valid with `procedural` — both are compile errors
+> otherwise. The default `process` (machine-local) needs neither, and matches what the
+> VS Code "Add OpenOT logging" action inserts.
+
 ## Identifiers
 
-Numeric ids are **auto-assigned by declaration order**: `value` from 2000, `state`
-from 7000, `alarm` from 9000, `message` from 10000.
+Numeric ids are **auto-assigned by declaration order**. The counter increments before
+assignment, so the **first** generated id is `value` 2001, `state` 7001, `alarm` 9001,
+`message` 10001.
 
-> ⚠️ **Stability caveat.** Because ids follow declaration order, inserting or
-> reordering tagged variables shifts ids and changes the definition hash — which
-> spec §6.3 warns against (archived records must resolve under a stable id). Pin
-> ids explicitly for deployments where retained records must stay resolvable.
-> *(Explicit-id key name — verify in `openot_authoring.rs`.)*
+> ⚠️ **Stability caveat.** Because ids follow declaration order, inserting or reordering
+> tagged variables shifts ids and changes the definition hash — which spec §6.3 warns
+> against (archived records must resolve under a stable id). **Pin an id explicitly** with
+> `'id'` (or the typed forms `'valueid'`, `'statemachineid'`, `'conditionid'`, `'sourceid'`,
+> `'machineid'`) for deployments where retained records must stay resolvable. These pinning
+> keys are provisional.
 
 ## What a consumer does with all this
 
@@ -148,13 +173,22 @@ batch states. That's how `ValueChanged valueId=2001 new=15.25` becomes
 
 - **Strict validation.** Unknown `oot` kinds, keys, enumerated values
   (`category`, `class`, `model`), invalid severity ranges, invalid
-  `model`/`category` combinations, and non-REAL deadbands are compile errors.
+  `model`/`category` combinations, unsupported value types, and non-REAL
+  deadbands are compile errors.
 - **No model/state conformance check.** Declaring `model := 'ISA-88'` does not yet
   verify your enum variants are actually the ISA-88 canonical states; the variants
   are recorded as-is and the model is stored as a label.
 - **Kinds covered:** `value`, `state`, `alarm`, `message` only. Batch/recipe,
   operator/regulated, and the full condition lifecycle (ack/shelve/suppress) are
   not yet exposed as attributes.
+- **Value types:** only `REAL` and `DINT` have byte-exact ST encoders; other
+  numeric/typed values (`LREAL`, `INT`/`UINT`/`LINT`, strings) are rejected at
+  compile time until a matching encoder exists.
+- **Message arguments:** templates are static text. Typed `{n}` placeholder
+  arguments are not yet emitted or resolved — the definition file's `argTypes[]`
+  slot is reserved but always empty.
+- **Alarm correlation:** `ConditionActive`/`ConditionCleared` are emitted as an
+  uncorrelated begin/end pair; no `correlationId` links them yet.
 - **Not author-controllable yet:** `quality`, `semanticRole`, `previousValue`
   (values); the `correlationId`/ack lifecycle (alarms).
 - **Ids are order-assigned** — see the stability caveat.

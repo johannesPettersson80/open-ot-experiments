@@ -267,12 +267,10 @@ pub fn generate_files() -> Vec<VectorFile> {
     push_record_vector(
         &mut files,
         "minimal_message",
-        "minimal Message record for producer sequence fixtures",
+        "minimal valid Message record carrying a messageTemplateId",
         &minimal_message_record(),
         r#"{
   "eventName": "Message",
-  "schemaExpected": "reject",
-  "schemaViolation": "minimal producer fixture has no definition-layer message fields",
   "fields": {
     "sourceTime": 1780000000000000003,
     "runId": 1,
@@ -280,7 +278,9 @@ pub fn generate_files() -> Vec<VectorFile> {
     "sourceId": 7,
     "eventTypeId": "0x0003"
   },
-  "slots": []
+  "slots": [
+    { "key": "0x0014", "type": "UDInt", "name": "messageTemplateId", "value": 1001 }
+  ]
 }"#,
     );
 
@@ -897,7 +897,13 @@ fn source_high_water_record() -> Record {
 }
 
 fn minimal_message_record() -> Record {
-    minimal_record(7, 3)
+    let mut record = minimal_record(7, 3);
+    record.slots.push(Slot::new(
+        KEY_MESSAGE_TEMPLATE_ID,
+        TY_UDINT,
+        1001u32.to_le_bytes(),
+    ));
+    record
 }
 
 fn logger_stopped_record() -> Record {

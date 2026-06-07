@@ -74,7 +74,7 @@ cargo run -p open-ot-carriage --bin dump_vectors    # regenerate conformance vec
 ```
 
 The live attribute-driven path (truST executes `examples/reactor/Reactor.st`, writes its log and
-definition file) runs from the sibling truST runtime; see [`examples/reactor/README.md`](examples/reactor).
+definition file) runs from the sibling truST runtime; see [`examples/reactor/README.md`](examples/reactor/README.md).
 
 ## Status
 

@@ -20,7 +20,7 @@ Canonical JSON model lives in `crates/definition`.
   "sources":         [ … sourceId → path / name … ],
   "stateMachines":   [ … stateMachineId → category, model, enumSet … ],
   "conditions":      [ … conditionId → class, default severity … ],
-  "enumSets":        [ … named state-value tables … ],
+  "enumSets":        [ … { name, members[] of { value, label } } … ],
   "units":           [ … unitId → symbol … ],
   "messageTemplates":[ … templateId → format text + arg types … ],
   "severityScale":   { … band thresholds … }
@@ -35,16 +35,20 @@ declaration, e.g. `Producer-Full`), `caps` (`crc`, `sourceHighWater`), `constrai
 (`maxRecordSize`, `maxSlots`, `overflowPolicy`), `epochStrategy` (`retain`|`clear`), and
 **`contentHash`** (see below).
 
-**`eventTypes[]`** — `id → { name, profile, slots[] }`. Each slot is `{ key, type, minOccurs,
-maxOccurs, orderClass }` — the schema a consumer validates each record against (canonical order by
-`orderClass`). E.g. `2 → "ValueChanged"` with slots `valueId` / `previousValue?` / `newValue` / `quality?`.
+**`eventTypes[]`** — `id → { name, profile, slots[] }`. Each slot is `{ key, minOccurs, maxOccurs,
+orderClass }` plus **either** a fixed `type` **or** `valuePayload: true` for a value-bearing slot
+(whose runtime type is carried in the record itself, not fixed by the schema) — the schema a consumer
+validates each record against (canonical order by `orderClass`). E.g. `2 → "ValueChanged"` with slots
+`valueId` (fixed type) / `previousValue?` (`valuePayload`) / `newValue` (`valuePayload`) / `quality?`.
 
 **`values[]`** — `valueId → { name, dataType, unit, deadband, samplingPolicy, semanticRole }`.
 This is what turns `valueId 2001` into `"Level" (REAL, unit "L", deadband 0.5)`. `unit` is a *unit id*
 into `units[]`.
 
-**`sources[]`** — `sourceId → { name, path[], hierarchy[], dynamic }`. Resolves the emitting entity
-(`sourceId 1 → "Reactor/R201"`). System source 0 is reserved.
+**`sources[]`** — `sourceId → { name, path[], hierarchy[], dynamic }`. Resolves the emitting entity.
+The current authoring layer auto-names sources `source1`, `source2`, … (`sourceId 1 → "source1"`); a
+richer hierarchy/path is reserved in the schema but not yet derived from the program. System source 0
+is reserved.
 
 **`stateMachines[]`** — `stateMachineId → { name, category, proceduralModel, enumSet }`. Names the
 machine and points at the `enumSets[]` entry that holds its states.
@@ -52,8 +56,9 @@ machine and points at the `enumSets[]` entry that holds its states.
 **`conditions[]`** — `conditionId → { name, conditionClass, defaultSeverity, causeOperands[] }`.
 Resolves an alarm/interlock (`9001 → "HighPhAlarm", Alarm, sev 900`).
 
-**`enumSets[]`** — named `{ name, value }` tables (e.g. `E_ReactorStep → {Idle:0, Fill:1, Mix:2}`),
-so a `StateTransition` resolves `new=1` to `"Fill"`.
+**`enumSets[]`** — `{ name, members[] }`, each member `{ value, label }` (e.g.
+`E_ReactorStep → [{0, "Idle"}, {1, "Filling"}, {2, "Mixing"}, …]`), so a `StateTransition` resolves
+`new=1` to `"Filling"`.
 
 **`units[]`** — `unitId → symbol` (`1 → "L"`). **`messageTemplates[]`** — `templateId → { name,
 format, argTypes[] }`; the template **text lives here**, never on the wire. **`severityScale`** —
@@ -73,7 +78,8 @@ the band thresholds (baseline OPC-UA: low 1–332, medium 333–666, high 667–
 
 The compiler derives entries from the attributes: value/state/condition **names from the variable
 names**, `unit`/`deadband`/`category`/`model`/`severity` from the attribute keys, enum members from
-the ST enum type. **Ids are auto-assigned by declaration order** (value 2000+, state 7000+, alarm
-9000+, message 10000+) — see the stability caveat in [`authoring-attributes.md`](authoring-attributes.md):
+the ST enum type. **Ids are auto-assigned by declaration order** — the counter increments before
+assignment, so the **first** generated id is value `2001`, state `7001`, alarm `9001`, message
+`10001` — see the stability caveat in [`authoring-attributes.md`](authoring-attributes.md):
 reordering tagged variables shifts ids and changes the hash, so pin ids for deployments that retain
 records.

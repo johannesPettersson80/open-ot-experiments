@@ -46,6 +46,10 @@ Fixture bytes are generated from `crates/carriage/src/vectors.rs`. The checked-i
 
 ## Limits Of The Evidence
 
-The implementation validates ring-buffer carriage behavior, the definition-file canonical hash preimage, definition schema validation, record resolution, the proposed document-format mapping, the IEC 61131-3 ST reference producer (byte-exact vs the Rust reference), and the **live truST path** — attribute-driven authoring → producer → shared-memory ring → concurrent consumer, proven on ARM. The live-integration and capstone gates run from the sibling truST repo (`cargo test -p trust-runtime --test openot_telemetry`).
+The implementation validates ring-buffer carriage behavior, the definition-file canonical hash preimage, definition schema validation, record resolution, the proposed document-format mapping, the IEC 61131-3 ST reference producer (byte-exact vs the Rust reference), and the **live truST path** — attribute-driven authoring → producer → shared-memory ring → concurrent consumer, proven on ARM. These run from the sibling truST repo as **separate** targets:
+
+- **Live integration / ST-FB authoring path** — `cargo test -p trust-runtime --test openot_telemetry` (heartbeats, real ST-producer records, the transition burst, the typed authoring-showcase render).
+- **Fenced ARM capstone** — `cargo test -p trust-runtime --test openot_capstone` (`openot_capstone_fenced_cross_process`: cross-process producer → mmap → concurrent consumer, full reconciliation).
+- **Unfenced contrast** — a diagnostic, `#[ignore]`-gated experiment: `OPENOT_CAPSTONE_RUN_UNFENCED=1 cargo test -p trust-runtime --test openot_capstone openot_capstone_unfenced_contrast -- --ignored`. On the Cortex-A76 it is a documented non-reproduction (see the matrix row above).
 
 Still out of scope as separate conformance surfaces: a network transport *above* the ring buffer (OPC UA / MQTT / REST), a productized runtime, and reconciling the few impl↔proposal divergences (BCB/header sizes — see [`decisions.md`](decisions.md)).

@@ -22,21 +22,21 @@ Rendered batch log:
 ```text
 OpenOT Reactor Batch Log
 
-2026-06-07T05:44:09.812Z  Message source=1 seq=0
-2026-06-07T05:44:09.812Z  StateTransition source=1 seq=1 machine=7001 category=0 previous=0 new=1
-2026-06-07T05:44:09.812Z  ValueChanged source=1 seq=2 valueId=2001 new=REAL(0)
-2026-06-07T05:44:09.812Z  ValueChanged source=1 seq=3 valueId=2002 new=DINT(1)
-2026-06-07T05:44:15.755Z  ValueChanged source=1 seq=4 valueId=2001 previous=REAL(0) new=REAL(6)
-2026-06-07T05:44:18.630Z  StateTransition source=1 seq=5 machine=7001 category=0 previous=1 new=2
-2026-06-07T05:44:18.630Z  ValueChanged source=1 seq=6 valueId=2001 previous=REAL(6) new=REAL(12)
-2026-06-07T05:44:22.588Z  ValueChanged source=1 seq=7 valueId=2001 previous=REAL(12) new=REAL(13.5)
-2026-06-07T05:44:25.142Z  StateTransition source=1 seq=8 machine=7001 category=0 previous=2 new=3
-2026-06-07T05:44:25.142Z  ValueChanged source=1 seq=9 valueId=2001 previous=REAL(13.5) new=REAL(15)
-2026-06-07T05:44:25.142Z  ConditionActive source=1 seq=10 conditionId=9001 class=0 severity=900
-2026-06-07T05:44:29.468Z  ValueChanged source=1 seq=11 valueId=2001 previous=REAL(15) new=REAL(7.5)
-2026-06-07T05:44:31.528Z  StateTransition source=1 seq=12 machine=7001 category=0 previous=3 new=4
-2026-06-07T05:44:31.528Z  ValueChanged source=1 seq=13 valueId=2001 previous=REAL(7.5) new=REAL(0)
-2026-06-07T05:44:31.528Z  ConditionCleared source=1 seq=14 conditionId=9001 class=0 severity=900
+2026-06-07T08:35:07.535Z  Message source=1 seq=0 templateId=10001
+2026-06-07T08:35:07.535Z  StateTransition source=1 seq=1 machine=7001 category=0 previous=0 new=1
+2026-06-07T08:35:07.535Z  ValueChanged source=1 seq=2 valueId=2001 new=REAL(0)
+2026-06-07T08:35:07.535Z  ValueChanged source=1 seq=3 valueId=2002 new=DINT(1)
+2026-06-07T08:35:13.159Z  ValueChanged source=1 seq=4 valueId=2001 previous=REAL(0) new=REAL(6)
+2026-06-07T08:35:15.652Z  StateTransition source=1 seq=5 machine=7001 category=0 previous=1 new=2
+2026-06-07T08:35:15.652Z  ValueChanged source=1 seq=6 valueId=2001 previous=REAL(6) new=REAL(12)
+2026-06-07T08:35:19.871Z  ValueChanged source=1 seq=7 valueId=2001 previous=REAL(12) new=REAL(13.5)
+2026-06-07T08:35:21.956Z  StateTransition source=1 seq=8 machine=7001 category=0 previous=2 new=3
+2026-06-07T08:35:21.956Z  ValueChanged source=1 seq=9 valueId=2001 previous=REAL(13.5) new=REAL(15)
+2026-06-07T08:35:21.956Z  ConditionActive source=1 seq=10 conditionId=9001 class=0 severity=900
+2026-06-07T08:35:26.186Z  ValueChanged source=1 seq=11 valueId=2001 previous=REAL(15) new=REAL(7.5)
+2026-06-07T08:35:28.266Z  StateTransition source=1 seq=12 machine=7001 category=0 previous=3 new=4
+2026-06-07T08:35:28.266Z  ValueChanged source=1 seq=13 valueId=2001 previous=REAL(7.5) new=REAL(0)
+2026-06-07T08:35:28.266Z  ConditionCleared source=1 seq=14 conditionId=9001 class=0 severity=900
 
 Forced overflow
 retained_records: 2

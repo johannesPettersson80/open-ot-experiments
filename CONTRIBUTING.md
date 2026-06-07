@@ -15,7 +15,8 @@ cargo clippy --all-targets -- -D warnings
 
 All four must pass. CI runs the same set.
 
-The minimum supported Rust version is **1.88** (edition 2024 plus stabilized let-chains).
+The minimum supported Rust version is **1.88** (edition 2024 plus stabilized let-chains); a dedicated
+CI `msrv` job builds the workspace on 1.88 so the floor stays honest.
 
 ## Conformance vectors
 
@@ -30,16 +31,19 @@ test failure. If you change the wire encoding, regenerate the vectors in the sam
 
 ## Scope
 
-This workspace currently models three layers:
+This workspace implements the three standards-facing contracts plus the supporting layers:
 
 - `open-ot-carriage`: wire records, ring buffer, loss accounting, epochs, and the concurrent
   publish/read protocol.
 - `open-ot-definition`: hash-bound ID-to-meaning files, schema validation, and record resolution.
-- `open-ot-document`: proposed resolved/loss/placeholder JSON documents.
+- `open-ot-document`: resolved/loss/placeholder JSON documents.
+- `open-ot-shm`: isolated-unsafe shared-memory transport behind a safe API (ARM-proven).
+- `open-ot-conformance` + `live-harness`: reconciliation/stale-oracle helpers and the concurrency A/B.
+- `st/iec61131`: the vendor-neutral IEC 61131-3 ST reference producer.
 
-It deliberately does **not** include PLC code generation, transport bindings, MES integration, or a
-finished product runtime. Those are separate surfaces and should not be folded into the carriage
-crate.
+The engineer-facing authoring layer (`{attribute 'oot'}` → records + definition file) and the live
+producer→shm→consumer integration live in the sibling **truST** runtime. Still out of scope: a network
+transport *above* the buffer (OPC UA / MQTT / REST), MES integration, and a productized runtime.
 
 ## Style
 

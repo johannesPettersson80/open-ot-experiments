@@ -1,19 +1,17 @@
 {
   "name": "minimal_message",
-  "description": "minimal Message record for producer sequence fixtures",
+  "description": "minimal valid Message record carrying a messageTemplateId",
   "kind": "record",
   "encoding": "wire-v2",
   "expected": "accept",
   "hexFile": "minimal_message.hex",
-  "byteCount": 44,
+  "byteCount": 52,
   "headerLength": 40,
-  "totalRecordLength": 44,
+  "totalRecordLength": 52,
   "flags": "0x0008",
-  "crc32c": "0x97EF5221",
+  "crc32c": "0x249E87F5",
   "detail": {
     "eventName": "Message",
-    "schemaExpected": "reject",
-    "schemaViolation": "minimal producer fixture has no definition-layer message fields",
     "fields": {
       "sourceTime": 1780000000000000003,
       "runId": 1,
@@ -21,6 +19,8 @@
       "sourceId": 7,
       "eventTypeId": "0x0003"
     },
-    "slots": []
+    "slots": [
+      { "key": "0x0014", "type": "UDInt", "name": "messageTemplateId", "value": 1001 }
+    ]
   }
 }

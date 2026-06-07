@@ -10,7 +10,7 @@ Every record uses a 40-byte little-endian header followed by TLV slots, padding,
 | --- | ---: | --- | --- |
 | 0 | 4 | Sync | `OOT2` |
 | 4 | 2 | TotalRecordLength | Header + slots + padding + CRC trailer. |
-| 6 | 2 | Flags | Reserved by the current prototype. |
+| 6 | 2 | Flags | bit0 `TimeUnsynced`, bit1 `Synthetic`, bit2 `PartialPayload`, bit3 `HasCrc`; remaining bits reserved 0. A memory-buffer record sets `HasCrc`; `append_encoded` rejects a record without it. |
 | 8 | 8 | SourceTime | Producer timestamp. |
 | 16 | 8 | RunId | Cold-start identity. |
 | 24 | 8 | Seq | Source-local sequence number. |

@@ -134,9 +134,12 @@ pub struct EventTypeDefinition {
 pub struct SlotDefinition {
     /// Value-key id of the slot.
     pub key: u16,
-    /// Required TLV type tag for the slot payload.
-    #[serde(rename = "type")]
-    pub tlv_type: u8,
+    /// Required TLV type tag for fixed-type slot payloads.
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub tlv_type: Option<u8>,
+    /// Whether the slot carries the referenced datum's own TLV type.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub value_payload: bool,
     /// Minimum number of occurrences (0 means optional).
     pub min_occurs: u16,
     /// Maximum number of occurrences.
@@ -360,8 +363,8 @@ pub fn sample_definition() -> DefinitionFile {
                 profile: "Core".to_string(),
                 slots: vec![
                     slot(KEY_VALUE_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
-                    slot(KEY_PREVIOUS_VALUE, TY_REAL, 0, MaxOccurs::Count(1), 2),
-                    slot(KEY_NEW_VALUE, TY_REAL, 1, MaxOccurs::Count(1), 3),
+                    value_slot(KEY_PREVIOUS_VALUE, 0, MaxOccurs::Count(1), 2),
+                    value_slot(KEY_NEW_VALUE, 1, MaxOccurs::Count(1), 3),
                     slot(KEY_QUALITY, TY_UINT, 0, MaxOccurs::Count(1), 4),
                 ],
             },
@@ -371,13 +374,7 @@ pub fn sample_definition() -> DefinitionFile {
                 profile: "Core".to_string(),
                 slots: vec![
                     slot(KEY_MESSAGE_TEMPLATE_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
-                    slot(
-                        KEY_ARG,
-                        TY_STRING,
-                        0,
-                        MaxOccurs::Unbounded("unbounded".to_string()),
-                        2,
-                    ),
+                    value_slot(KEY_ARG, 0, MaxOccurs::Unbounded("unbounded".to_string()), 2),
                     slot(KEY_SEVERITY, TY_UINT, 0, MaxOccurs::Count(1), 3),
                 ],
             },
@@ -489,11 +486,32 @@ fn slot(
 ) -> SlotDefinition {
     SlotDefinition {
         key,
-        tlv_type,
+        tlv_type: Some(tlv_type),
+        value_payload: false,
         min_occurs,
         max_occurs,
         order_class,
     }
+}
+
+fn value_slot(
+    key: u16,
+    min_occurs: u16,
+    max_occurs: MaxOccurs,
+    order_class: u16,
+) -> SlotDefinition {
+    SlotDefinition {
+        key,
+        tlv_type: None,
+        value_payload: true,
+        min_occurs,
+        max_occurs,
+        order_class,
+    }
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 #[cfg(test)]
@@ -520,7 +538,8 @@ mod tests {
             ]
         );
         assert_eq!(definition.event_types[0].slots[0].key, KEY_STATE_MACHINE_ID);
-        assert_eq!(definition.event_types[0].slots[0].tlv_type, TY_UDINT);
+        assert_eq!(definition.event_types[0].slots[0].tlv_type, Some(TY_UDINT));
+        assert!(definition.event_types[1].slots[2].value_payload);
     }
 
     #[test]

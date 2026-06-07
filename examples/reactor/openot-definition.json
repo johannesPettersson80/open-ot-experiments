@@ -12,12 +12,12 @@
       "sourceHighWater": true
     },
     "constraints": {
-      "maxRecordSize": 512,
+      "maxRecordSize": 256,
       "maxSlots": 16,
       "overflowPolicy": "overwrite-oldest"
     },
     "epochStrategy": "retain",
-    "contentHash": "08d055be56b6c07c57fdd543794d1c2e160dbcb9fe6abb00ab93e20a836c6d77"
+    "contentHash": "22defc7cc0998f93a0dabf64e06efed20a0f613c556a389790061692f7e72a57"
   },
   "eventTypes": [
     {
@@ -69,14 +69,14 @@
         },
         {
           "key": 15,
-          "type": 9,
+          "valuePayload": true,
           "minOccurs": 0,
           "maxOccurs": 1,
           "orderClass": 2
         },
         {
           "key": 16,
-          "type": 9,
+          "valuePayload": true,
           "minOccurs": 1,
           "maxOccurs": 1,
           "orderClass": 3
@@ -94,7 +94,15 @@
       "id": 3,
       "name": "Message",
       "profile": "Core",
-      "slots": []
+      "slots": [
+        {
+          "key": 20,
+          "type": 5,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 1
+        }
+      ]
     },
     {
       "id": 512,

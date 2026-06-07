@@ -41,12 +41,16 @@ that goes quiet after dropping records would otherwise be invisible. See
 
 ## Concurrency
 
-### D5 — Atomic publish = `Head` commit + a real seqlock + overwrite-check in seq-space
-A single 32-bit `Head` store is the visibility commit; a version-counter seqlock
-brackets the multi-word control snapshot; an overwritten record is detected by
-`Seq < OldestSeq`. *Why:* a consumer must never accept a torn or overwritten record;
-doing the overwrite check in **seq-space** (not byte-offset) removes wrap ambiguity.
-*Rejected:* a hi/lo/hi pseudo-seqlock (could accept a torn counter).
+### D5 — Atomic publish = `HeadAbs` commit + a real seqlock + absolute-position overwrite check
+The visibility commit is a single atomic `HeadAbs` store; a version-counter seqlock
+brackets the multi-word control snapshot; an overwritten record is detected by comparing
+**64-bit absolute byte offsets** — `OldestAbs > record_start_abs` (`carriage/src/control.rs`,
+`overwrote_record_at`). *Why:* a consumer must never accept a torn or overwritten record;
+monotonic 64-bit absolute offsets make the compare wrap-unambiguous. *Note:* the rev-6
+proposal draft specifies the equivalent check in **seq-space** (via `OldestSeq`); the impl
+realizes it with absolute offsets — one of the impl↔proposal divergences (open items below,
+and [`spec-feedback.md`](spec-feedback.md)). *Rejected:* a hi/lo/hi pseudo-seqlock (could
+accept a torn counter).
 
 ### D6 — The release/acquire fences are load-bearing and belong in the contract
 *Why:* the unfenced publish/overwrite path can accept overwritten data on weakly
@@ -121,23 +125,30 @@ a constant and the example fills from the clock.
 ## Conformance
 
 ### D15 — Conformance = byte-exact ST↔Rust vectors **and** the live ARM capstone
-Byte-exact cross-language vectors prove per-record encoding; the capstone (truST
-producer → mmap → concurrent Rust consumer on ARM, fenced/unfenced A/B) proves the
-composition under real concurrency. *Why:* prose can't guarantee every interleaving;
-the reference impl is the ratification evidence the proposal itself calls for.
+Three evidence surfaces with distinct strengths: **(1)** byte-exact cross-language
+vectors prove per-record **encoding**; **(2)** the **fenced** capstone
+(`openot_capstone_fenced_cross_process` — a cross-process truST producer → mmap →
+concurrent Rust consumer on ARM) proves the **composition** under real concurrency
+(full reconciliation, `rejected=0`); **(3)** the **unfenced** runs (the capstone
+contrast and the `live-harness` litmus) are **diagnostic** — on the Cortex-A76 the
+weak-memory hazard is a documented **non-reproduction**, not a proof of safety. The
+fences are established as load-bearing by the **fenced loom model + fence-hook tests**
+(D6), *not* by an ARM leak; a non-reproduction is the model-expected outcome and does
+not weaken that proof. *Why:* prose can't guarantee every interleaving, and the proof
+boundary must be stated honestly — the reference impl is the ratification evidence the
+proposal itself calls for.
 
 ---
 
 ## Open items / known divergences
 
-- **BCB and record-header sizes differ between impl and the rev-6 proposal draft**
-  (BCB 88 vs 80; header layout). The impl is the ARM-proven one, so the intent is to
-  update the *proposal* to match it — not yet reconciled. (D1, D5)
-- **`SourceHighWater`** is our reconciliation aid, **moved to the vendor id range**
-  (off core `0x0108`); propose it to the WG as a core addition or keep it vendor. (D4)
-- **Attribute validation is lenient** — unknown `category`/`class`/`model`/`unit` are
-  silently defaulted or passed through; should become a compile error. (D10)
-- **Order-assigned ids** (value 2000+, state 7000+, …) shift if declarations are
-  reordered → def-hash drift; pin ids for stable deployments. (D11)
-- **Reactor example mislabels** its equipment steps as `procedural`/`ISA-88`; they
-  should be `category := 'process'` (or genuine ISA-88 states). (D10)
+- **BCB / record-header sizes and the overwrite-check space differ between impl and the
+  rev-6 proposal draft** (BCB 88 vs 80; header layout; absolute-offset vs seq-space — D5).
+  The impl is the ARM-proven one, so the intent is to update the *proposal* to match it —
+  not yet reconciled. (D1, D5)
+- **`SourceHighWater`** is our reconciliation aid, **in the vendor id range** (off core
+  `0x0108`); propose it to the WG as a core addition or keep it vendor. (D4)
+- **No model/state conformance check** — `model := 'ISA-88'` is not verified to match the
+  canonical state set, and `unit` strings are not checked against a registry. (D10)
+- **Ids default to declaration order** (first id 2001/7001/9001/10001) → def-hash drift on
+  reorder; an explicit id can be pinned (provisional). (D11)

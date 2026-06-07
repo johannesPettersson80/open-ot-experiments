@@ -13,8 +13,10 @@ The serializer produces deterministic JSON with stable field order. The checked-
 > **This doc describes the formal `document`-crate contract** (resolved fields with names/units,
 > epoch context, loss ranges). The reactor showcase's `examples/reactor/batch-log.json` is generated
 > **through this resolver**: it carries `provenance` (buffer / epoch+hash / source / source+receive
-> time / flags) and **resolved** fields — `value: "Level"`, `unit: "L"`, enum labels such as
-> `newState: "Filling"`. The companion `batch-log.txt` is a readable, id-light rendering for humans.
+> time / flags) and a **`fields[]` array** of resolved `{ key, name, type, value, unit?, enumLabel? }`
+> entries — e.g. a `ValueChanged` carries `{ name: "newValue", value: 0.0, unit: "L" }`; a
+> `StateTransition` carries `{ name: "newState", value: "Filling", enumLabel: "Filling" }`. The
+> companion `batch-log.txt` is a readable, id-light rendering for humans.
 
 ## Document Kinds
 

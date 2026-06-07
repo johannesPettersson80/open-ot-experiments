@@ -152,6 +152,7 @@ VAR_INPUT
     ConditionClass : UINT;
     Severity : UINT;
     ConditionActive : BOOL;
+    MessageTemplateId : UDINT;
 END_VAR
 VAR_OUTPUT
     AssignedSeq : ULINT;
@@ -401,7 +402,8 @@ IF ExecuteEdge THEN
                     SourceId := SourceId,
                     RunId := StateRunId,
                     Seq := AssignedSeq,
-                    SourceTime := EmitSourceTime);
+                    SourceTime := EmitSourceTime,
+                    MessageTemplateId := MessageTemplateId);
                 RingProducer(
                     Execute := TRUE,
                     Record := Encoder.Buffer,

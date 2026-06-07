@@ -24,22 +24,21 @@ The earlier roadmap listed authoring and controller-language work as "planned / 
 
 Engineering follow-ups (none blocking the capstone), roughly in priority order:
 
-1. **Authoring DX in the LSP** — a type-aware "Add OpenOT logging" code action + completions + inlay
-   hints (proposal Part II §18); driven by the attribute reference.
-2. **Harden attribute validation** — reject unknown `category`/`class`/`model`/`unit` at compile time
-   instead of silently defaulting ([`authoring-attributes.md`](authoring-attributes.md) limitations).
-3. **Reconcile impl ↔ proposal divergences** — BCB 88 vs 80 bytes and the record-header layout. The
-   impl is the ARM-validated one, so the intent is to update the proposal to match it (see
-   [`decisions.md`](decisions.md) open items).
-4. **Stable id pinning** — replace order-assigned ids (which drift the def hash on reorder) with
-   pinned ids for deployments that retain records.
-5. **Remaining event vocabulary** — batch/recipe, operator/regulated, and the full condition
+1. **Reconcile impl ↔ proposal divergences** — BCB 88 vs 80, the record-header layout, and the
+   overwrite check (absolute-offset impl vs seq-space proposal). The impl is the ARM-validated one,
+   so the intent is to update the proposal to match it.
+2. **Remaining event vocabulary** — batch/recipe, operator/regulated, and the full condition
    lifecycle (ack / shelve / suppress) as attributes.
-6. **Upstream the proposal + reference** — the WG repo's `spec/core.md`, `definition-file.md`, and
+3. **Upstream the proposal + reference** — the WG repo's `spec/core.md`, `definition-file.md`, and
    `doc-format.md` are still empty; land the proposal and point at this reference implementation.
 
-*Done since the last revision:* doc-format **name resolution** — the reactor's `batch-log.json` now
-renders through the `document` resolver (resolved names/units/enum labels + provenance).
+*Done since the last revision:* doc-format **name resolution** (the reactor's `batch-log.json` now
+renders through the `document` resolver — resolved names/units/enum labels + provenance); the **LSP
+authoring DX** (type-aware code actions, completions, inlay hints); and **strict attribute
+validation** (`InvalidOpenOtAttribute` rejects unknown kind/key/category/model/class/severity); the
+**Message `messageTemplateId`** slot (messages now resolve to their template); and the **value-typed
+ValueChanged schema** (`valuePayload` slots — non-REAL values validate). Id pinning keys
+(`id`/`valueid`/…) exist but are provisional.
 
 ## Principle
 

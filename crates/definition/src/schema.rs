@@ -12,6 +12,8 @@ use open_ot_carriage::registry::{
 use open_ot_carriage::wire::{FLAG_HAS_CRC, Record, Slot, WireError};
 use std::collections::{BTreeMap, BTreeSet};
 
+const VALUE_PAYLOAD_SCHEMA_TYPE: u8 = 0xFF;
+
 /// Result of validating a record against a definition-file event schema.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SchemaValidation {
@@ -326,23 +328,26 @@ fn validate_slot_definition_type(
 ) -> Result<(), DefinitionSchemaViolation> {
     if let Some(field) = field_spec(slot.key) {
         match field.kind {
-            FieldKind::Fixed(expected) if slot.tlv_type != expected => {
-                return Err(DefinitionSchemaViolation::CoreTypeMismatch {
-                    event_id,
-                    key: slot.key,
-                    actual: slot.tlv_type,
-                    expected,
-                });
-            }
-            FieldKind::Fixed(_) => {}
-            FieldKind::ValuePayload => {
-                if tlv_type_spec(slot.tlv_type).is_none() {
-                    return Err(DefinitionSchemaViolation::UnknownTlvType {
+            FieldKind::Fixed(expected) => {
+                if slot.tlv_type != Some(expected) || slot.value_payload {
+                    return Err(DefinitionSchemaViolation::CoreTypeMismatch {
                         event_id,
                         key: slot.key,
-                        ty: slot.tlv_type,
+                        actual: slot.tlv_type.unwrap_or(VALUE_PAYLOAD_SCHEMA_TYPE),
+                        expected,
                     });
                 }
+            }
+            FieldKind::ValuePayload => {
+                if !slot.value_payload || slot.tlv_type.is_some() {
+                    return Err(DefinitionSchemaViolation::CoreTypeMismatch {
+                        event_id,
+                        key: slot.key,
+                        actual: slot.tlv_type.unwrap_or(VALUE_PAYLOAD_SCHEMA_TYPE),
+                        expected: VALUE_PAYLOAD_SCHEMA_TYPE,
+                    });
+                }
+                return Ok(());
             }
             FieldKind::Reserved => {
                 return Err(DefinitionSchemaViolation::ReservedCoreKey {
@@ -358,11 +363,28 @@ fn validate_slot_definition_type(
         });
     }
 
-    if tlv_type_spec(slot.tlv_type).is_none() {
+    if slot.value_payload {
+        return Err(DefinitionSchemaViolation::CoreTypeMismatch {
+            event_id,
+            key: slot.key,
+            actual: VALUE_PAYLOAD_SCHEMA_TYPE,
+            expected: slot.tlv_type.unwrap_or(VALUE_PAYLOAD_SCHEMA_TYPE),
+        });
+    }
+
+    let Some(tlv_type) = slot.tlv_type else {
         return Err(DefinitionSchemaViolation::UnknownTlvType {
             event_id,
             key: slot.key,
-            ty: slot.tlv_type,
+            ty: VALUE_PAYLOAD_SCHEMA_TYPE,
+        });
+    };
+
+    if tlv_type_spec(tlv_type).is_none() {
+        return Err(DefinitionSchemaViolation::UnknownTlvType {
+            event_id,
+            key: slot.key,
+            ty: tlv_type,
         });
     }
 
@@ -484,11 +506,11 @@ fn validate_record_slot_type(slot: &Slot, schema: &SlotDefinition) -> Result<(),
         }
     } else if is_core_key(slot.key) {
         Err(SchemaViolation::ReservedCoreKey { key: slot.key })
-    } else if slot.ty != schema.tlv_type {
+    } else if Some(slot.ty) != schema.tlv_type {
         Err(SchemaViolation::TypeMismatch {
             key: slot.key,
             actual: slot.ty,
-            expected: schema.tlv_type,
+            expected: schema.tlv_type.unwrap_or(VALUE_PAYLOAD_SCHEMA_TYPE),
         })
     } else {
         Ok(())
@@ -549,7 +571,7 @@ mod tests {
     use crate::model::sample_definition;
     use open_ot_carriage::registry::{
         KEY_ARG, KEY_CATEGORY, KEY_CONDITION_ID, KEY_NEW_STATE, KEY_NEW_VALUE, KEY_SEVERITY,
-        KEY_STATE_MACHINE_ID, TY_DINT, TY_STRING, TY_UDINT, TY_UINT,
+        KEY_STATE_MACHINE_ID, TY_DINT, TY_REAL, TY_STRING, TY_UDINT, TY_UINT,
     };
     use open_ot_carriage::wire::{Record, Slot, decode};
 
@@ -771,7 +793,7 @@ mod tests {
     fn definition_core_type_mismatch_placeholders() {
         let record = conformant_state_transition_record();
         let mut definition = sample_definition();
-        definition.event_types[0].slots[0].tlv_type = TY_UINT;
+        definition.event_types[0].slots[0].tlv_type = Some(TY_UINT);
 
         assert_placeholder_reason(
             validate_record(&record, encoded_record_len(&record).unwrap(), &definition),
@@ -800,6 +822,29 @@ mod tests {
             SchemaValidation::Valid {
                 extension_keys: Vec::new()
             }
+        );
+    }
+
+    #[test]
+    fn value_payload_schema_must_not_pin_a_tlv_type() {
+        let record = conformant_value_changed_real_record();
+        let mut definition = sample_definition();
+        let new_value_schema = definition.event_types[1]
+            .slots
+            .iter_mut()
+            .find(|slot| slot.key == KEY_NEW_VALUE)
+            .unwrap();
+        new_value_schema.tlv_type = Some(TY_REAL);
+        new_value_schema.value_payload = false;
+
+        assert_placeholder_reason(
+            validate_record(&record, encoded_record_len(&record).unwrap(), &definition),
+            SchemaViolation::Definition(DefinitionSchemaViolation::CoreTypeMismatch {
+                event_id: record.event_type_id,
+                key: KEY_NEW_VALUE,
+                actual: TY_REAL,
+                expected: VALUE_PAYLOAD_SCHEMA_TYPE,
+            }),
         );
     }
 
