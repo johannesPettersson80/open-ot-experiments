@@ -2,6 +2,19 @@
 
 The crate is split by protocol responsibility. The implementation keeps encoding, storage, loss reconciliation, epoch handling, concurrency, and fixture generation separate so each rule can be tested directly.
 
+> **Scope of this document.** The diagram and module table below are the **`carriage` crate's**
+> internal architecture. For the full system — authoring, the ST producer, the shared-memory
+> transport, the live truST integration, and resolution — see [`overview.md`](overview.md). The
+> cross-crate layers that sit around `carriage`:
+>
+> | Crate / tree | Role |
+> | --- | --- |
+> | `st/iec61131` | Vendor-neutral IEC 61131-3 ST reference producer (encoders, producer FB, conformance POUs); emits the same bytes `carriage` defines. |
+> | `open-ot-shm` | Isolated-unsafe shared-memory store — carriage `ConcurrentStore` semantics over mmap behind a safe API (the publish/read protocol below, ARM-proven). |
+> | `conformance` | Reusable consumer-side reconciliation + a pluggable stale oracle, shared by `live-harness` and the truST capstone. |
+> | `live-harness` | Cross-process fenced/unfenced concurrency A/B (the ARM litmus that validates the protocol below). |
+> | truST runtime (sibling) | Reads `{attribute 'oot'}`, lowers to the ST producer, publishes via `open-ot-shm` at the per-scan point; `forbid(unsafe)` intact. |
+
 ```mermaid
 flowchart TD
     Producer["carriage::EpochProducer<br/>run/epoch/source seq"] --> Wire["carriage::wire::Record<br/>40-byte header + TLV + CRC"]

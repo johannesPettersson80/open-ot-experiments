@@ -18,6 +18,13 @@ Payload:           producedCount: u64 little-endian
 
 The payload is a scalar `ULInt`. There is no packed `{source_id, produced_count}` slot; the source comes from the record envelope.
 
+> **Vendor-range extension.** `EVENT_SOURCE_HIGH_WATER = 0x80000108` has bit 31 set, so it lives in
+> the **vendor id range**, not the core system range (`0x0100–0x01FF`). High-water is this
+> reference's reconciliation aid — proposed to the working group as a possible core addition, but
+> not part of the core allocation today. A consumer that doesn't recognize it skips it like any
+> unknown id; loss accounting still works from seq gaps + `RecordsDropped`, just without the
+> silent-tail proof.
+
 ## Consumer Rule
 
 When the consumer reads a high-water record with `producedCount = P`, it compares `P` to the next expected sequence for that `(runId, sourceId)` stream.

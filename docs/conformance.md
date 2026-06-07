@@ -18,6 +18,12 @@ This repository is not a conformance test suite for a ratified standard. It is a
 | Epoch handling | Warm definition change keeps `RunId` stable and source `Seq` continuous; cold start increments `RunId` and resets source `Seq`. |
 | Concurrency | Real-thread stress plus loom runs for accepted-record safety and documented model-checker limits. |
 | Fault injection | Forced wrap boundary, reconnect after overwrite, torn record rejection, and clock rollback with sequence-preserved ordering. |
+| Typed event encoders | Byte-exact `ValueChanged` (REAL / DINT) and `StateTransition` vectors. |
+| Cross-language conformance | ST-emitted record bytes equal the Rust reference vectors, byte for byte (per-record + the S4a multi-record ring composition). |
+| ST reference producer | IEC 61131-3 producer FB + encoder POUs run under the truST runtime (`TestHarness`); per-source seq, checkpoints, cold/warm transitions, and the `ScanRecords` burst. |
+| Attribute authoring | The reactor program (`{attribute 'oot'}` only) lowers to records and a generated definition file; the authoring POU passes. |
+| Live truST integration | truST executes the ST producer → shared-memory ring → concurrent Rust consumer: data records, the transition burst, multi-record fail-closed, and the typed authoring-showcase render. Green on ARM and x86. |
+| Live concurrency capstone | truST producer → mmap → concurrent consumer on ARM: **fenced** = full reconciliation + `rejected=0` + stale oracle silent; **unfenced** = documented non-reproduction (the weak-memory hole is not reliably forced; correctness rests on the fences, per `spec-feedback.md`). |
 | Fixtures | Generated `.hex` and `.json` vectors under `crates/carriage/vectors/`, checked by the test suite. The `conformant_*` record vectors are the positive definition-layer spine; codec-only vectors marked `schemaExpected: reject` are reserved as schema-violation negatives. |
 
 ## Commands
@@ -40,4 +46,6 @@ Fixture bytes are generated from `crates/carriage/src/vectors.rs`. The checked-i
 
 ## Limits Of The Evidence
 
-The implementation validates ring-buffer carriage behavior, the definition-file canonical hash preimage, definition schema validation, record resolution, and the proposed document-format mapping. It does not yet prove generated controller code or a transport above the ring buffer. Those should be separate conformance surfaces.
+The implementation validates ring-buffer carriage behavior, the definition-file canonical hash preimage, definition schema validation, record resolution, the proposed document-format mapping, the IEC 61131-3 ST reference producer (byte-exact vs the Rust reference), and the **live truST path** — attribute-driven authoring → producer → shared-memory ring → concurrent consumer, proven on ARM. The live-integration and capstone gates run from the sibling truST repo (`cargo test -p trust-runtime --test openot_telemetry`).
+
+Still out of scope as separate conformance surfaces: a network transport *above* the ring buffer (OPC UA / MQTT / REST), a productized runtime, and reconciling the few impl↔proposal divergences (BCB/header sizes — see [`decisions.md`](decisions.md)).

@@ -14,7 +14,7 @@ calls in the program; the engineer never writes an id.**
 ## Syntax
 
 ```iecst
-Name : TYPE := <init> {attribute 'oot' := '<kind>', '<key>' := '<value>', ...};
+Name : TYPE {attribute 'oot' := '<kind>', '<key>' := '<value>', ...} := <init>;
 ```
 
 The pragma attaches to the `VAR` declaration so it survives rename/refactor.
@@ -75,7 +75,7 @@ steps like `Fill`/`Mix`), use `category := 'process'` instead — that's the hon
 choice for machine-local states.
 
 ```iecst
-Step : E_ReactorStep := Idle {attribute 'oot' := 'state', 'category' := 'procedural', 'model' := 'ISA-88'};
+Step : E_ReactorStep {attribute 'oot' := 'state', 'category' := 'process'} := Idle;
 ```
 
 ## `'alarm'` — a condition began or ended
@@ -146,9 +146,9 @@ batch states. That's how `ValueChanged valueId=2001 new=15.25` becomes
 
 ## Current limitations (honest status)
 
-- **Lenient validation.** An unknown `category`/`class` silently falls back to the
-  default (`procedural`/`alarm`); unknown `model`/`unit` strings pass through
-  unvalidated. Strict rejection should be a compile error (TODO).
+- **Strict validation.** Unknown `oot` kinds, keys, enumerated values
+  (`category`, `class`, `model`), invalid severity ranges, invalid
+  `model`/`category` combinations, and non-REAL deadbands are compile errors.
 - **No model/state conformance check.** Declaring `model := 'ISA-88'` does not yet
   verify your enum variants are actually the ISA-88 canonical states; the variants
   are recorded as-is and the model is stored as a label.

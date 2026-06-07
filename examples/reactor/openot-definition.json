@@ -17,7 +17,7 @@
       "overflowPolicy": "overwrite-oldest"
     },
     "epochStrategy": "retain",
-    "contentHash": "9cc70b3fa26af5a39d94452944daf75d4b4a090170fe00d7cf40632e9c113e8b"
+    "contentHash": "08d055be56b6c07c57fdd543794d1c2e160dbcb9fe6abb00ab93e20a836c6d77"
   },
   "eventTypes": [
     {
@@ -182,8 +182,8 @@
     {
       "stateMachineId": 7001,
       "name": "Step",
-      "category": 2,
-      "proceduralModel": "ISA-88",
+      "category": 0,
+      "proceduralModel": null,
       "enumSet": "E_ReactorStep"
     }
   ],

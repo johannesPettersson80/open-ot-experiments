@@ -4,7 +4,7 @@ PROGRAM Main
 VAR
     StartCmd : BOOL := TRUE;
     BatchStarted : BOOL {attribute 'oot' := 'message', 'template' := 'batch started'};
-    Step : E_ReactorStep {attribute 'oot' := 'state', 'category' := 'procedural', 'model' := 'ISA-88'} := Idle;
+    Step : E_ReactorStep {attribute 'oot' := 'state', 'category' := 'process'} := Idle;
     Level : REAL {attribute 'oot' := 'value', 'unit' := 'L', 'deadband' := '0.5'};
     BatchCount : DINT {attribute 'oot' := 'value'};
     HighPhAlarm : BOOL {attribute 'oot' := 'alarm', 'class' := 'alarm', 'severity' := '900'};

@@ -4,53 +4,63 @@ Experimental, exploratory implementations to help shape the proposed
 [OpenOT](https://github.com/SASE-Space/open-ot) standard for OT (operational-technology)
 event logging. This is **not** a normative standard and **not** a finished product — it is a
 workbench: executable implementations and byte-exact evidence the working group can test ideas
-against. Once the standard stabilizes, a clean implementation follows from what these
-experiments establish.
+against, plus a working **truST reference** that runs OpenOT logging *live*.
 
-OpenOT has three standards-facing contracts, plus supporting registry and authoring work. This
-workspace implements the carriage, definition-file, and document-format contracts as experimental
-prototypes; authoring work remains planned (see [`docs/roadmap.md`](docs/roadmap.md)).
+OpenOT has three standards-facing contracts — carriage (wire), definition-file, document. This
+workspace implements all three, a vendor-neutral **IEC 61131-3 Structured Text** reference
+producer, the shared-memory transport, and an **attribute-driven authoring layer** that runs
+inside the truST runtime.
 
-| Contract / support layer | Crate | Status |
+| Layer | Where | Status |
 | --- | --- | --- |
-| Wire + carriage — records, ring buffer, loss accounting, epochs, concurrency | [`carriage`](crates/carriage) | Implemented + tested (experimental prototype) |
-| Definition file — hash-bound map from ids to meaning | [`definition`](crates/definition) | Content model, canonical hash, schema validation, and resolver implemented |
-| Document format — resolved consumer-facing output | [`document`](crates/document) | Proposed JSON shape + exact fixtures implemented |
-| Canonical registry — event / key / enum / type ids | `carriage::registry` | Implemented as provisional tables |
-| Engineer-facing authoring workflow | `authoring` | Planned |
+| Wire + carriage — records, ring buffer, loss accounting, epochs, concurrency | [`carriage`](crates/carriage) | Implemented + tested |
+| Definition file — hash-bound id→meaning | [`definition`](crates/definition) | Content model, canonical hash, schema, resolver |
+| Document format — resolved consumer output | [`document`](crates/document) | Proposed JSON shape + fixtures |
+| Shared-memory transport — isolated-unsafe mmap store, safe API | [`open-ot-shm`](crates/open-ot-shm) | Implemented + ARM A/B |
+| Conformance helpers — reconciliation + pluggable stale oracle | [`conformance`](crates/conformance) | Implemented |
+| Concurrency A/B harness — fenced/unfenced, ARM litmus | [`live-harness`](crates/live-harness) | Implemented |
+| IEC 61131-3 ST reference producer — encoders, producer FB, vectors | [`st/iec61131`](st/iec61131) | Implemented, cross-language conformant |
+| Engineer-facing authoring — `{attribute 'oot'}` → records + def file | truST runtime (sibling repo) | Implemented — see [`examples/reactor`](examples/reactor) |
+| Canonical registry — event / key / enum / type ids | `carriage::registry` | Provisional tables |
 
-Planned work is not stubbed until real implementation begins — see the roadmap for the plan.
-Other-language experiments (for example an IEC 61131-3 Structured Text logger) would join as
-sibling trees rather than Rust crates.
+## What this proves
 
-## What's interesting here
-
-The carriage prototype surfaced two results worth the read on their own:
-
-- **Completeness needs three signals, not one.** A per-source sequence counter only reveals loss
-  once a *later* record from that source arrives, so loss accounting combines three complementary
-  mechanisms — seq gaps (mid-stream loss), authoritative `RecordsDropped` (known producer
-  evictions), and source high-water checkpoints (the silent-source tail the other two cannot
-  see). See [`docs/source-high-water.md`](docs/source-high-water.md).
-- **The concurrency ordering cannot be left to testing.** The unfenced publish/overwrite protocol
-  can accept overwritten data on weakly-ordered hardware — yet the included loom model does not
-  surface it, and x86 testing is too strongly ordered to expose it. The deliberately broken model
-  is checked in as a control test. The conclusion: the release/acquire ordering must be written
-  into the spec, not left for an implementer to discover by testing. See
+- **You log by tagging variables, not by writing log calls.** A control program annotates a
+  variable — `{attribute 'oot' := 'value', 'unit' := 'L', 'deadband' := '0.5'} Level : REAL;` —
+  and the compiler emits id-only OpenOT records plus the hash-bound definition file. The engineer
+  never writes an id. See [`examples/reactor/`](examples/reactor) (`Reactor.st` → `batch-log.json`)
+  and [`docs/authoring-attributes.md`](docs/authoring-attributes.md).
+- **The whole path runs live.** truST executes the ST program → records into a shared-memory ring
+  → a concurrent Rust consumer reads them back on ARM, with provable loss accounting (the capstone).
+- **Completeness needs three signals, not one.** A per-source `Seq` only reveals loss once a
+  *later* record arrives, so loss accounting combines seq gaps, authoritative `RecordsDropped`, and
+  source high-water checkpoints. See [`docs/source-high-water.md`](docs/source-high-water.md).
+- **Concurrency ordering cannot be left to testing.** The unfenced publish/overwrite protocol can
+  accept overwritten data on weakly-ordered hardware — yet loom does not surface it and x86 is too
+  strongly ordered to expose it. The release/acquire ordering must be in the spec. See
   [`docs/spec-feedback.md`](docs/spec-feedback.md).
 
 ## Layout
 
 ```
-crates/carriage/     wire + carriage prototype (wire, ring, loss, consumer, epoch, concurrent) + its vectors
-crates/definition/   definition-file model + canonical serialization/hash prototype
-crates/document/     proposed resolved/loss/placeholder document JSON + fixtures
-docs/                architecture, conformance, design notes, roadmap
+crates/carriage/      wire + carriage (records, ring, loss, consumer, epoch, concurrent) + vectors
+crates/definition/    definition-file model + canonical serialization/hash + resolver
+crates/document/      resolved consumer JSON + fixtures
+crates/open-ot-shm/   isolated-unsafe shared-memory store (safe API; ARM-proven)
+crates/conformance/   reconciliation + pluggable stale oracle (shared by the harnesses)
+crates/live-harness/  fenced/unfenced concurrency A/B (ARM litmus)
+st/iec61131/          vendor-neutral ST reference: encoders, producer FB, conformance tests
+examples/reactor/     attribute-driven logging showcase: Reactor.st + its generated log + def file
+docs/                 contracts, architecture, decisions, conformance, design notes
 ```
 
-Start with [`docs/carriage-contract.md`](docs/carriage-contract.md) for the implemented byte-level
-contract, [`docs/document-format.md`](docs/document-format.md) for the proposed document shape, and
-[`docs/architecture.md`](docs/architecture.md) for the module/data-flow view.
+## Start here
+
+- [`docs/overview.md`](docs/overview.md) — how the whole logging system fits together, end to end.
+- [`docs/authoring-attributes.md`](docs/authoring-attributes.md) — how an engineer tags variables to log.
+- [`docs/decisions.md`](docs/decisions.md) — why the system is built this way.
+- [`docs/carriage-contract.md`](docs/carriage-contract.md) — the byte-level wire contract.
+- [`examples/reactor/`](examples/reactor) — a worked program and the log it produces.
 
 ## Quick Start
 
@@ -63,15 +73,15 @@ cargo run -p open-ot-carriage --example end_to_end  # produce, overflow, read ba
 cargo run -p open-ot-carriage --bin dump_vectors    # regenerate conformance vectors
 ```
 
-The vector generator is checked by the test suite, so checked-in fixtures cannot drift.
+The live attribute-driven path (truST executes `examples/reactor/Reactor.st`, writes its log and
+definition file) runs from the sibling truST runtime; see [`examples/reactor/README.md`](examples/reactor).
 
 ## Status
 
 Exploratory work for a draft design, meant to feed the working group. Integer ids, event
-vocabulary, and final conformance language remain working-group decisions. The carriage crate
-intentionally stays small and dependency-light so the behavior can be reviewed without a
-framework obscuring the rules. A clean, productized implementation is a job for after the
-standard is ratified.
+vocabulary, and final conformance language remain working-group decisions. The crates stay small
+and dependency-light so the behavior can be reviewed without a framework obscuring the rules. A
+clean, productized implementation is a job for after the standard is ratified.
 
 ## Contributing
 
