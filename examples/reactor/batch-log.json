@@ -29,7 +29,7 @@
     "provenance": {
       "bufferId": 1,
       "epoch": {
-        "definitionHash": "165ffb3c4795905c",
+        "definitionHash": "3d58d7499ed6dccd",
         "id": 1,
         "relation": "current",
         "semanticVersion": "1.0.0"
@@ -39,7 +39,7 @@
         "syntheticRecord": false,
         "timeUnsynced": false
       },
-      "receiveTimeNs": 1780878284110928699,
+      "receiveTimeNs": 1780896057464604922,
       "runId": 1,
       "source": {
         "dynamic": false,
@@ -54,7 +54,7 @@
           "Main"
         ]
       },
-      "sourceTimeNs": 1780878284110928699
+      "sourceTimeNs": 1780896057464604922
     },
     "seq": 0
   },
@@ -95,7 +95,7 @@
     "provenance": {
       "bufferId": 1,
       "epoch": {
-        "definitionHash": "165ffb3c4795905c",
+        "definitionHash": "3d58d7499ed6dccd",
         "id": 1,
         "relation": "current",
         "semanticVersion": "1.0.0"
@@ -105,7 +105,7 @@
         "syntheticRecord": false,
         "timeUnsynced": false
       },
-      "receiveTimeNs": 1780878284110928699,
+      "receiveTimeNs": 1780896057464604922,
       "runId": 1,
       "source": {
         "dynamic": false,
@@ -120,7 +120,7 @@
           "Main"
         ]
       },
-      "sourceTimeNs": 1780878284110928699
+      "sourceTimeNs": 1780896057464604922
     },
     "seq": 1
   },
@@ -148,7 +148,7 @@
     "provenance": {
       "bufferId": 1,
       "epoch": {
-        "definitionHash": "165ffb3c4795905c",
+        "definitionHash": "3d58d7499ed6dccd",
         "id": 1,
         "relation": "current",
         "semanticVersion": "1.0.0"
@@ -158,7 +158,7 @@
         "syntheticRecord": false,
         "timeUnsynced": false
       },
-      "receiveTimeNs": 1780878284110928699,
+      "receiveTimeNs": 1780896057464604922,
       "runId": 1,
       "source": {
         "dynamic": false,
@@ -173,7 +173,7 @@
           "Main"
         ]
       },
-      "sourceTimeNs": 1780878284110928699
+      "sourceTimeNs": 1780896057464604922
     },
     "seq": 2
   },
@@ -200,7 +200,7 @@
     "provenance": {
       "bufferId": 1,
       "epoch": {
-        "definitionHash": "165ffb3c4795905c",
+        "definitionHash": "3d58d7499ed6dccd",
         "id": 1,
         "relation": "current",
         "semanticVersion": "1.0.0"
@@ -210,7 +210,7 @@
         "syntheticRecord": false,
         "timeUnsynced": false
       },
-      "receiveTimeNs": 1780878284110928699,
+      "receiveTimeNs": 1780896057464604922,
       "runId": 1,
       "source": {
         "dynamic": false,
@@ -225,7 +225,7 @@
           "Main"
         ]
       },
-      "sourceTimeNs": 1780878284110928699
+      "sourceTimeNs": 1780896057464604922
     },
     "seq": 3
   },
@@ -242,26 +242,26 @@
       },
       {
         "enumLabel": null,
-        "key": 15,
-        "name": "previousValue",
-        "type": "Real",
-        "unit": "L",
-        "value": 0.0
-      },
-      {
-        "enumLabel": null,
         "key": 16,
         "name": "newValue",
         "type": "Real",
         "unit": "L",
         "value": 6.0
+      },
+      {
+        "enumLabel": null,
+        "key": 15,
+        "name": "previousValue",
+        "type": "Real",
+        "unit": "L",
+        "value": 0.0
       }
     ],
     "kind": "event",
     "provenance": {
       "bufferId": 1,
       "epoch": {
-        "definitionHash": "165ffb3c4795905c",
+        "definitionHash": "3d58d7499ed6dccd",
         "id": 1,
         "relation": "current",
         "semanticVersion": "1.0.0"
@@ -271,7 +271,7 @@
         "syntheticRecord": false,
         "timeUnsynced": false
       },
-      "receiveTimeNs": 1780878286252431203,
+      "receiveTimeNs": 1780896059613163319,
       "runId": 1,
       "source": {
         "dynamic": false,
@@ -286,7 +286,7 @@
           "Main"
         ]
       },
-      "sourceTimeNs": 1780878286252431203
+      "sourceTimeNs": 1780896059613163319
     },
     "seq": 4
   },
@@ -327,7 +327,7 @@
     "provenance": {
       "bufferId": 1,
       "epoch": {
-        "definitionHash": "165ffb3c4795905c",
+        "definitionHash": "3d58d7499ed6dccd",
         "id": 1,
         "relation": "current",
         "semanticVersion": "1.0.0"
@@ -337,7 +337,7 @@
         "syntheticRecord": false,
         "timeUnsynced": false
       },
-      "receiveTimeNs": 1780878287226615454,
+      "receiveTimeNs": 1780896060603268124,
       "runId": 1,
       "source": {
         "dynamic": false,
@@ -352,7 +352,7 @@
           "Main"
         ]
       },
-      "sourceTimeNs": 1780878287226615454
+      "sourceTimeNs": 1780896060603268124
     },
     "seq": 5
   },
@@ -369,26 +369,26 @@
       },
       {
         "enumLabel": null,
-        "key": 15,
-        "name": "previousValue",
-        "type": "Real",
-        "unit": "L",
-        "value": 6.0
-      },
-      {
-        "enumLabel": null,
         "key": 16,
         "name": "newValue",
         "type": "Real",
         "unit": "L",
         "value": 12.0
+      },
+      {
+        "enumLabel": null,
+        "key": 15,
+        "name": "previousValue",
+        "type": "Real",
+        "unit": "L",
+        "value": 6.0
       }
     ],
     "kind": "event",
     "provenance": {
       "bufferId": 1,
       "epoch": {
-        "definitionHash": "165ffb3c4795905c",
+        "definitionHash": "3d58d7499ed6dccd",
         "id": 1,
         "relation": "current",
         "semanticVersion": "1.0.0"
@@ -398,7 +398,7 @@
         "syntheticRecord": false,
         "timeUnsynced": false
       },
-      "receiveTimeNs": 1780878287226615454,
+      "receiveTimeNs": 1780896060603268124,
       "runId": 1,
       "source": {
         "dynamic": false,
@@ -413,7 +413,7 @@
           "Main"
         ]
       },
-      "sourceTimeNs": 1780878287226615454
+      "sourceTimeNs": 1780896060603268124
     },
     "seq": 6
   },
@@ -430,26 +430,26 @@
       },
       {
         "enumLabel": null,
-        "key": 15,
-        "name": "previousValue",
-        "type": "Real",
-        "unit": "L",
-        "value": 12.0
-      },
-      {
-        "enumLabel": null,
         "key": 16,
         "name": "newValue",
         "type": "Real",
         "unit": "L",
         "value": 13.5
+      },
+      {
+        "enumLabel": null,
+        "key": 15,
+        "name": "previousValue",
+        "type": "Real",
+        "unit": "L",
+        "value": 12.0
       }
     ],
     "kind": "event",
     "provenance": {
       "bufferId": 1,
       "epoch": {
-        "definitionHash": "165ffb3c4795905c",
+        "definitionHash": "3d58d7499ed6dccd",
         "id": 1,
         "relation": "current",
         "semanticVersion": "1.0.0"
@@ -459,7 +459,7 @@
         "syntheticRecord": false,
         "timeUnsynced": false
       },
-      "receiveTimeNs": 1780878288712562299,
+      "receiveTimeNs": 1780896062092897423,
       "runId": 1,
       "source": {
         "dynamic": false,
@@ -474,7 +474,7 @@
           "Main"
         ]
       },
-      "sourceTimeNs": 1780878288712562299
+      "sourceTimeNs": 1780896062092897423
     },
     "seq": 7
   },
@@ -515,7 +515,7 @@
     "provenance": {
       "bufferId": 1,
       "epoch": {
-        "definitionHash": "165ffb3c4795905c",
+        "definitionHash": "3d58d7499ed6dccd",
         "id": 1,
         "relation": "current",
         "semanticVersion": "1.0.0"
@@ -525,7 +525,7 @@
         "syntheticRecord": false,
         "timeUnsynced": false
       },
-      "receiveTimeNs": 1780878289703242413,
+      "receiveTimeNs": 1780896063088451805,
       "runId": 1,
       "source": {
         "dynamic": false,
@@ -540,7 +540,7 @@
           "Main"
         ]
       },
-      "sourceTimeNs": 1780878289703242413
+      "sourceTimeNs": 1780896063088451805
     },
     "seq": 8
   },
@@ -557,26 +557,26 @@
       },
       {
         "enumLabel": null,
-        "key": 15,
-        "name": "previousValue",
-        "type": "Real",
-        "unit": "L",
-        "value": 13.5
-      },
-      {
-        "enumLabel": null,
         "key": 16,
         "name": "newValue",
         "type": "Real",
         "unit": "L",
         "value": 15.0
+      },
+      {
+        "enumLabel": null,
+        "key": 15,
+        "name": "previousValue",
+        "type": "Real",
+        "unit": "L",
+        "value": 13.5
       }
     ],
     "kind": "event",
     "provenance": {
       "bufferId": 1,
       "epoch": {
-        "definitionHash": "165ffb3c4795905c",
+        "definitionHash": "3d58d7499ed6dccd",
         "id": 1,
         "relation": "current",
         "semanticVersion": "1.0.0"
@@ -586,7 +586,7 @@
         "syntheticRecord": false,
         "timeUnsynced": false
       },
-      "receiveTimeNs": 1780878289703242413,
+      "receiveTimeNs": 1780896063088451805,
       "runId": 1,
       "source": {
         "dynamic": false,
@@ -601,7 +601,7 @@
           "Main"
         ]
       },
-      "sourceTimeNs": 1780878289703242413
+      "sourceTimeNs": 1780896063088451805
     },
     "seq": 9
   },
@@ -624,18 +624,18 @@
         "value": 0
       },
       {
-        "enumLabel": "High",
-        "key": 8,
-        "name": "severity",
-        "type": "UInt",
-        "value": 900
-      },
-      {
         "enumLabel": null,
         "key": 7,
         "name": "correlationId",
         "type": "UDInt",
         "value": 1
+      },
+      {
+        "enumLabel": "High",
+        "key": 8,
+        "name": "severity",
+        "type": "UInt",
+        "value": 900
       },
       {
         "enumLabel": null,
@@ -649,7 +649,7 @@
     "provenance": {
       "bufferId": 1,
       "epoch": {
-        "definitionHash": "165ffb3c4795905c",
+        "definitionHash": "3d58d7499ed6dccd",
         "id": 1,
         "relation": "current",
         "semanticVersion": "1.0.0"
@@ -659,7 +659,7 @@
         "syntheticRecord": false,
         "timeUnsynced": false
       },
-      "receiveTimeNs": 1780878289703242413,
+      "receiveTimeNs": 1780896063088451805,
       "runId": 1,
       "source": {
         "dynamic": false,
@@ -674,7 +674,7 @@
           "Main"
         ]
       },
-      "sourceTimeNs": 1780878289703242413
+      "sourceTimeNs": 1780896063088451805
     },
     "seq": 10
   },
@@ -691,26 +691,26 @@
       },
       {
         "enumLabel": null,
-        "key": 15,
-        "name": "previousValue",
-        "type": "Real",
-        "unit": "L",
-        "value": 15.0
-      },
-      {
-        "enumLabel": null,
         "key": 16,
         "name": "newValue",
         "type": "Real",
         "unit": "L",
         "value": 7.5
+      },
+      {
+        "enumLabel": null,
+        "key": 15,
+        "name": "previousValue",
+        "type": "Real",
+        "unit": "L",
+        "value": 15.0
       }
     ],
     "kind": "event",
     "provenance": {
       "bufferId": 1,
       "epoch": {
-        "definitionHash": "165ffb3c4795905c",
+        "definitionHash": "3d58d7499ed6dccd",
         "id": 1,
         "relation": "current",
         "semanticVersion": "1.0.0"
@@ -720,7 +720,7 @@
         "syntheticRecord": false,
         "timeUnsynced": false
       },
-      "receiveTimeNs": 1780878291721026817,
+      "receiveTimeNs": 1780896065137525895,
       "runId": 1,
       "source": {
         "dynamic": false,
@@ -735,7 +735,7 @@
           "Main"
         ]
       },
-      "sourceTimeNs": 1780878291721026817
+      "sourceTimeNs": 1780896065137525895
     },
     "seq": 11
   },
@@ -776,7 +776,7 @@
     "provenance": {
       "bufferId": 1,
       "epoch": {
-        "definitionHash": "165ffb3c4795905c",
+        "definitionHash": "3d58d7499ed6dccd",
         "id": 1,
         "relation": "current",
         "semanticVersion": "1.0.0"
@@ -786,7 +786,7 @@
         "syntheticRecord": false,
         "timeUnsynced": false
       },
-      "receiveTimeNs": 1780878292711168541,
+      "receiveTimeNs": 1780896066103388637,
       "runId": 1,
       "source": {
         "dynamic": false,
@@ -801,7 +801,7 @@
           "Main"
         ]
       },
-      "sourceTimeNs": 1780878292711168541
+      "sourceTimeNs": 1780896066103388637
     },
     "seq": 12
   },
@@ -818,26 +818,26 @@
       },
       {
         "enumLabel": null,
-        "key": 15,
-        "name": "previousValue",
-        "type": "Real",
-        "unit": "L",
-        "value": 7.5
-      },
-      {
-        "enumLabel": null,
         "key": 16,
         "name": "newValue",
         "type": "Real",
         "unit": "L",
         "value": 0.0
+      },
+      {
+        "enumLabel": null,
+        "key": 15,
+        "name": "previousValue",
+        "type": "Real",
+        "unit": "L",
+        "value": 7.5
       }
     ],
     "kind": "event",
     "provenance": {
       "bufferId": 1,
       "epoch": {
-        "definitionHash": "165ffb3c4795905c",
+        "definitionHash": "3d58d7499ed6dccd",
         "id": 1,
         "relation": "current",
         "semanticVersion": "1.0.0"
@@ -847,7 +847,7 @@
         "syntheticRecord": false,
         "timeUnsynced": false
       },
-      "receiveTimeNs": 1780878292711168541,
+      "receiveTimeNs": 1780896066103388637,
       "runId": 1,
       "source": {
         "dynamic": false,
@@ -862,7 +862,7 @@
           "Main"
         ]
       },
-      "sourceTimeNs": 1780878292711168541
+      "sourceTimeNs": 1780896066103388637
     },
     "seq": 13
   },
@@ -885,32 +885,18 @@
         "value": 0
       },
       {
-        "enumLabel": "High",
-        "key": 8,
-        "name": "severity",
-        "type": "UInt",
-        "value": 900
-      },
-      {
         "enumLabel": null,
         "key": 7,
         "name": "correlationId",
         "type": "UDInt",
         "value": 1
-      },
-      {
-        "enumLabel": null,
-        "key": 9,
-        "name": "causeOperand",
-        "type": "CauseOperandRef",
-        "value": "Level"
       }
     ],
     "kind": "event",
     "provenance": {
       "bufferId": 1,
       "epoch": {
-        "definitionHash": "165ffb3c4795905c",
+        "definitionHash": "3d58d7499ed6dccd",
         "id": 1,
         "relation": "current",
         "semanticVersion": "1.0.0"
@@ -920,7 +906,7 @@
         "syntheticRecord": false,
         "timeUnsynced": false
       },
-      "receiveTimeNs": 1780878292711168541,
+      "receiveTimeNs": 1780896066103388637,
       "runId": 1,
       "source": {
         "dynamic": false,
@@ -935,20 +921,20 @@
           "Main"
         ]
       },
-      "sourceTimeNs": 1780878292711168541
+      "sourceTimeNs": 1780896066103388637
     },
     "seq": 14
   },
   {
     "basis": "inferred",
-    "count": 14,
+    "count": 13,
     "firstSeq": 0,
     "kind": "loss",
-    "lastSeq": 13,
+    "lastSeq": 12,
     "provenance": {
       "bufferId": 1,
       "epoch": {
-        "definitionHash": "165ffb3c4795905c",
+        "definitionHash": "3d58d7499ed6dccd",
         "id": 1,
         "relation": "current",
         "semanticVersion": "1.0.0"
@@ -958,7 +944,7 @@
         "syntheticRecord": false,
         "timeUnsynced": false
       },
-      "receiveTimeNs": 1780878310360348352,
+      "receiveTimeNs": 1780896083988909060,
       "runId": 1,
       "source": {
         "id": 1
@@ -968,11 +954,11 @@
   {
     "kind": "lossReconciliation",
     "lappedBatches": 1,
-    "retainedRecords": 1,
-    "shmLostCount": 14,
-    "sourceDelivered": 1,
+    "retainedRecords": 2,
+    "shmLostCount": 13,
+    "sourceDelivered": 2,
     "sourceId": 1,
-    "sourceLost": 14,
+    "sourceLost": 13,
     "sourceReconciled": 15
   }
 ]

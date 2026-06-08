@@ -825,8 +825,8 @@ mod tests {
     use crate::model::{CauseOperandDefinition, ConditionDefinition, sample_definition};
     use open_ot_carriage::registry::{
         EVENT_CONDITION_ACTIVE, KEY_ARG, KEY_CATEGORY, KEY_CAUSE_OPERAND, KEY_CONDITION_CLASS,
-        KEY_CONDITION_ID, KEY_MESSAGE_TEMPLATE_ID, KEY_NEW_STATE, KEY_PREVIOUS_STATE, KEY_SEVERITY,
-        KEY_STATE_MACHINE_ID, TY_STRING, TY_UDINT, TY_UINT,
+        KEY_CONDITION_ID, KEY_CORRELATION_ID, KEY_MESSAGE_TEMPLATE_ID, KEY_NEW_STATE,
+        KEY_PREVIOUS_STATE, KEY_SEVERITY, KEY_STATE_MACHINE_ID, TY_STRING, TY_UDINT, TY_UINT,
     };
     use open_ot_carriage::wire::{Record, Slot, decode};
 
@@ -974,6 +974,9 @@ mod tests {
         record
             .slots
             .push(Slot::new(KEY_CONDITION_CLASS, TY_UINT, 0u16.to_le_bytes()));
+        record
+            .slots
+            .push(Slot::new(KEY_CORRELATION_ID, TY_UDINT, 77u32.to_le_bytes()));
         record
             .slots
             .push(Slot::new(KEY_SEVERITY, TY_UINT, 900u16.to_le_bytes()));

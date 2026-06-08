@@ -148,8 +148,8 @@ pub fn generate_files() -> Vec<VectorFile> {
   },
   "slots": [
     { "key": "0x000D", "type": "UDInt", "name": "valueId", "value": 2002 },
-    { "key": "0x000F", "type": "DInt", "name": "previousValue", "value": 40 },
     { "key": "0x0010", "type": "DInt", "name": "newValue", "value": 42 },
+    { "key": "0x000F", "type": "DInt", "name": "previousValue", "value": 40 },
     { "key": "0x0011", "type": "UInt", "name": "quality", "value": 0 }
   ]
 }"#,
@@ -416,8 +416,8 @@ pub fn generate_files() -> Vec<VectorFile> {
   "slots": [
     { "key": "0x0005", "type": "UDInt", "name": "conditionId", "value": 9001 },
     { "key": "0x0006", "type": "UInt", "name": "conditionClass", "value": 0 },
-    { "key": "0x0008", "type": "UInt", "name": "severity", "value": 900 },
     { "key": "0x0007", "type": "UDInt", "name": "correlationId", "value": 77 },
+    { "key": "0x0008", "type": "UInt", "name": "severity", "value": 900 },
     { "key": "0x0009", "type": "UDInt", "name": "causeOperand", "value": 1 }
   ]
 }"#,
@@ -426,7 +426,7 @@ pub fn generate_files() -> Vec<VectorFile> {
     push_record_vector(
         &mut files,
         "conformant_condition_cleared",
-        "definition-layer positive ConditionCleared record echoing correlation and cause operand",
+        "definition-layer positive ConditionCleared record echoing activation correlation",
         &conformant_condition_cleared_record(),
         r#"{
   "eventName": "ConditionCleared",
@@ -441,9 +441,7 @@ pub fn generate_files() -> Vec<VectorFile> {
   "slots": [
     { "key": "0x0005", "type": "UDInt", "name": "conditionId", "value": 9001 },
     { "key": "0x0006", "type": "UInt", "name": "conditionClass", "value": 0 },
-    { "key": "0x0008", "type": "UInt", "name": "severity", "value": 900 },
-    { "key": "0x0007", "type": "UDInt", "name": "correlationId", "value": 77 },
-    { "key": "0x0009", "type": "UDInt", "name": "causeOperand", "value": 1 }
+    { "key": "0x0007", "type": "UDInt", "name": "correlationId", "value": 77 }
   ]
 }"#,
     );
@@ -1088,10 +1086,10 @@ fn conformant_value_changed_dint_record() -> Record {
         .push(Slot::new(KEY_VALUE_ID, TY_UDINT, 2002u32.to_le_bytes()));
     record
         .slots
-        .push(Slot::new(KEY_PREVIOUS_VALUE, TY_DINT, 40i32.to_le_bytes()));
+        .push(Slot::new(KEY_NEW_VALUE, TY_DINT, 42i32.to_le_bytes()));
     record
         .slots
-        .push(Slot::new(KEY_NEW_VALUE, TY_DINT, 42i32.to_le_bytes()));
+        .push(Slot::new(KEY_PREVIOUS_VALUE, TY_DINT, 40i32.to_le_bytes()));
     record
         .slots
         .push(Slot::new(KEY_QUALITY, TY_UINT, 0u16.to_le_bytes()));
@@ -1234,10 +1232,10 @@ fn conformant_condition_active_record() -> Record {
         .push(Slot::new(KEY_CONDITION_CLASS, TY_UINT, 0u16.to_le_bytes()));
     record
         .slots
-        .push(Slot::new(KEY_SEVERITY, TY_UINT, 900u16.to_le_bytes()));
+        .push(Slot::new(KEY_CORRELATION_ID, TY_UDINT, 77u32.to_le_bytes()));
     record
         .slots
-        .push(Slot::new(KEY_CORRELATION_ID, TY_UDINT, 77u32.to_le_bytes()));
+        .push(Slot::new(KEY_SEVERITY, TY_UINT, 900u16.to_le_bytes()));
     record
         .slots
         .push(Slot::new(KEY_CAUSE_OPERAND, TY_UDINT, 1u32.to_le_bytes()));
@@ -1254,13 +1252,7 @@ fn conformant_condition_cleared_record() -> Record {
         .push(Slot::new(KEY_CONDITION_CLASS, TY_UINT, 0u16.to_le_bytes()));
     record
         .slots
-        .push(Slot::new(KEY_SEVERITY, TY_UINT, 900u16.to_le_bytes()));
-    record
-        .slots
         .push(Slot::new(KEY_CORRELATION_ID, TY_UDINT, 77u32.to_le_bytes()));
-    record
-        .slots
-        .push(Slot::new(KEY_CAUSE_OPERAND, TY_UDINT, 1u32.to_le_bytes()));
     record
 }
 
@@ -1508,8 +1500,8 @@ mod tests {
             &conformant_value_changed_dint_record(),
             &[
                 (KEY_VALUE_ID, TY_UDINT, 4),
-                (KEY_PREVIOUS_VALUE, TY_DINT, 4),
                 (KEY_NEW_VALUE, TY_DINT, 4),
+                (KEY_PREVIOUS_VALUE, TY_DINT, 4),
                 (KEY_QUALITY, TY_UINT, 2),
             ],
         );
@@ -1569,8 +1561,8 @@ mod tests {
             &[
                 (KEY_CONDITION_ID, TY_UDINT, 4),
                 (KEY_CONDITION_CLASS, TY_UINT, 2),
-                (KEY_SEVERITY, TY_UINT, 2),
                 (KEY_CORRELATION_ID, TY_UDINT, 4),
+                (KEY_SEVERITY, TY_UINT, 2),
                 (KEY_CAUSE_OPERAND, TY_UDINT, 4),
             ],
         );
@@ -1579,9 +1571,7 @@ mod tests {
             &[
                 (KEY_CONDITION_ID, TY_UDINT, 4),
                 (KEY_CONDITION_CLASS, TY_UINT, 2),
-                (KEY_SEVERITY, TY_UINT, 2),
                 (KEY_CORRELATION_ID, TY_UDINT, 4),
-                (KEY_CAUSE_OPERAND, TY_UDINT, 4),
             ],
         );
         assert_slots(

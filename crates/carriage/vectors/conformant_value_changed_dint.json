@@ -9,7 +9,7 @@
   "headerLength": 40,
   "totalRecordLength": 76,
   "flags": "0x0008",
-  "crc32c": "0x2EE9BBA1",
+  "crc32c": "0x04E15CBC",
   "detail": {
     "eventName": "ValueChanged",
     "schemaExpected": "accept",
@@ -22,8 +22,8 @@
     },
     "slots": [
       { "key": "0x000D", "type": "UDInt", "name": "valueId", "value": 2002 },
-      { "key": "0x000F", "type": "DInt", "name": "previousValue", "value": 40 },
       { "key": "0x0010", "type": "DInt", "name": "newValue", "value": 42 },
+      { "key": "0x000F", "type": "DInt", "name": "previousValue", "value": 40 },
       { "key": "0x0011", "type": "UInt", "name": "quality", "value": 0 }
     ]
   }

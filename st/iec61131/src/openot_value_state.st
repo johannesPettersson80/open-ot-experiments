@@ -43,15 +43,15 @@ Pos := OPENOT_WriteHeader(
 Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#000D, TypeTag := BYTE#16#05, PayloadLength := BYTE#4, Buffer := Buffer);
 Pos := OPENOT_WriteU32LE(Offset := Pos, Value := ValueId, Buffer := Buffer);
 
+ValueBits := REAL_TO_DWORD(NewValue);
+Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0010, TypeTag := BYTE#16#09, PayloadLength := BYTE#4, Buffer := Buffer);
+Pos := OPENOT_WriteDWordLE(Offset := Pos, Value := ValueBits, Buffer := Buffer);
+
 IF HasPrevious THEN
     ValueBits := REAL_TO_DWORD(PreviousValue);
     Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#000F, TypeTag := BYTE#16#09, PayloadLength := BYTE#4, Buffer := Buffer);
     Pos := OPENOT_WriteDWordLE(Offset := Pos, Value := ValueBits, Buffer := Buffer);
 END_IF;
-
-ValueBits := REAL_TO_DWORD(NewValue);
-Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0010, TypeTag := BYTE#16#09, PayloadLength := BYTE#4, Buffer := Buffer);
-Pos := OPENOT_WriteDWordLE(Offset := Pos, Value := ValueBits, Buffer := Buffer);
 
 IF HasQuality THEN
     Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0011, TypeTag := BYTE#16#03, PayloadLength := BYTE#2, Buffer := Buffer);
@@ -110,15 +110,15 @@ Pos := OPENOT_WriteHeader(
 Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#000D, TypeTag := BYTE#16#05, PayloadLength := BYTE#4, Buffer := Buffer);
 Pos := OPENOT_WriteU32LE(Offset := Pos, Value := ValueId, Buffer := Buffer);
 
+ValueBits := DINT_TO_DWORD(NewValue);
+Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0010, TypeTag := BYTE#16#06, PayloadLength := BYTE#4, Buffer := Buffer);
+Pos := OPENOT_WriteDWordLE(Offset := Pos, Value := ValueBits, Buffer := Buffer);
+
 IF HasPrevious THEN
     ValueBits := DINT_TO_DWORD(PreviousValue);
     Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#000F, TypeTag := BYTE#16#06, PayloadLength := BYTE#4, Buffer := Buffer);
     Pos := OPENOT_WriteDWordLE(Offset := Pos, Value := ValueBits, Buffer := Buffer);
 END_IF;
-
-ValueBits := DINT_TO_DWORD(NewValue);
-Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0010, TypeTag := BYTE#16#06, PayloadLength := BYTE#4, Buffer := Buffer);
-Pos := OPENOT_WriteDWordLE(Offset := Pos, Value := ValueBits, Buffer := Buffer);
 
 IF HasQuality THEN
     Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0011, TypeTag := BYTE#16#03, PayloadLength := BYTE#2, Buffer := Buffer);
@@ -221,13 +221,13 @@ Pos := OPENOT_WriteHeader(
 Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#000D, TypeTag := BYTE#16#05, PayloadLength := BYTE#4, Buffer := Buffer);
 Pos := OPENOT_WriteU32LE(Offset := Pos, Value := ValueId, Buffer := Buffer);
 
+Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0010, TypeTag := TypeTag, PayloadLength := UINT_TO_BYTE(PayloadLength), Buffer := Buffer);
+Pos := OPENOT_WriteValueBitsLE(Offset := Pos, Value := NewBits, PayloadLength := PayloadLength, Buffer := Buffer);
+
 IF HasPrevious THEN
     Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#000F, TypeTag := TypeTag, PayloadLength := UINT_TO_BYTE(PayloadLength), Buffer := Buffer);
     Pos := OPENOT_WriteValueBitsLE(Offset := Pos, Value := PreviousBits, PayloadLength := PayloadLength, Buffer := Buffer);
 END_IF;
-
-Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0010, TypeTag := TypeTag, PayloadLength := UINT_TO_BYTE(PayloadLength), Buffer := Buffer);
-Pos := OPENOT_WriteValueBitsLE(Offset := Pos, Value := NewBits, PayloadLength := PayloadLength, Buffer := Buffer);
 
 IF HasQuality THEN
     Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0011, TypeTag := BYTE#16#03, PayloadLength := BYTE#2, Buffer := Buffer);
@@ -324,13 +324,13 @@ Pos := OPENOT_WriteHeader(
 Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#000D, TypeTag := BYTE#16#05, PayloadLength := BYTE#4, Buffer := Buffer);
 Pos := OPENOT_WriteU32LE(Offset := Pos, Value := ValueId, Buffer := Buffer);
 
+Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0010, TypeTag := BYTE#16#0C, PayloadLength := UINT_TO_BYTE(NewLength), Buffer := Buffer);
+Pos := OPENOT_WriteStringPayload(Offset := Pos, Value := NewValue, PayloadLength := NewLength, Buffer := Buffer);
+
 IF HasPrevious THEN
     Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#000F, TypeTag := BYTE#16#0C, PayloadLength := UINT_TO_BYTE(PreviousLength), Buffer := Buffer);
     Pos := OPENOT_WriteStringPayload(Offset := Pos, Value := PreviousValue, PayloadLength := PreviousLength, Buffer := Buffer);
 END_IF;
-
-Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0010, TypeTag := BYTE#16#0C, PayloadLength := UINT_TO_BYTE(NewLength), Buffer := Buffer);
-Pos := OPENOT_WriteStringPayload(Offset := Pos, Value := NewValue, PayloadLength := NewLength, Buffer := Buffer);
 
 IF HasQuality THEN
     Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0011, TypeTag := BYTE#16#03, PayloadLength := BYTE#2, Buffer := Buffer);
@@ -418,11 +418,14 @@ VAR
     TotalLength : UINT;
 END_VAR
 
-TotalLength := UINT#68;
+TotalLength := UINT#60;
 IF HasCorrelationId THEN
     TotalLength := TotalLength + UINT#8;
 END_IF;
-IF HasCauseOperand THEN
+IF EventTypeId = UDINT#16#0200 THEN
+    TotalLength := TotalLength + UINT#8;
+END_IF;
+IF (EventTypeId = UDINT#16#0200) AND HasCauseOperand THEN
     TotalLength := TotalLength + UINT#8;
 END_IF;
 
@@ -442,15 +445,17 @@ Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0006, TypeTag := BYT
 Pos := OPENOT_WriteU16LE(Offset := Pos, Value := ConditionClass, Buffer := Buffer);
 Pos := OPENOT_WriteByte(Offset := Pos, Value := BYTE#16#00, Buffer := Buffer);
 Pos := OPENOT_WriteByte(Offset := Pos, Value := BYTE#16#00, Buffer := Buffer);
-Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0008, TypeTag := BYTE#16#03, PayloadLength := BYTE#2, Buffer := Buffer);
-Pos := OPENOT_WriteU16LE(Offset := Pos, Value := Severity, Buffer := Buffer);
-Pos := OPENOT_WriteByte(Offset := Pos, Value := BYTE#16#00, Buffer := Buffer);
-Pos := OPENOT_WriteByte(Offset := Pos, Value := BYTE#16#00, Buffer := Buffer);
 IF HasCorrelationId THEN
     Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0007, TypeTag := BYTE#16#05, PayloadLength := BYTE#4, Buffer := Buffer);
     Pos := OPENOT_WriteU32LE(Offset := Pos, Value := CorrelationId, Buffer := Buffer);
 END_IF;
-IF HasCauseOperand THEN
+IF EventTypeId = UDINT#16#0200 THEN
+    Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0008, TypeTag := BYTE#16#03, PayloadLength := BYTE#2, Buffer := Buffer);
+    Pos := OPENOT_WriteU16LE(Offset := Pos, Value := Severity, Buffer := Buffer);
+    Pos := OPENOT_WriteByte(Offset := Pos, Value := BYTE#16#00, Buffer := Buffer);
+    Pos := OPENOT_WriteByte(Offset := Pos, Value := BYTE#16#00, Buffer := Buffer);
+END_IF;
+IF (EventTypeId = UDINT#16#0200) AND HasCauseOperand THEN
     Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0009, TypeTag := BYTE#16#05, PayloadLength := BYTE#4, Buffer := Buffer);
     Pos := OPENOT_WriteU32LE(Offset := Pos, Value := CauseOperand, Buffer := Buffer);
 END_IF;

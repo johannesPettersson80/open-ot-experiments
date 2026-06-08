@@ -260,11 +260,11 @@ mod tests {
         assert!(hash.content_hash.chars().all(|ch| !ch.is_ascii_uppercase()));
         assert_eq!(
             hash.carriage_hash,
-            [0x37, 0xd8, 0x51, 0x42, 0x00, 0x0b, 0x82, 0x6b]
+            [0xa7, 0x14, 0xf0, 0xff, 0xbc, 0xd2, 0xaa, 0xb5]
         );
         assert_eq!(
             hash.content_hash,
-            "37d85142000b826b1914d403ace7fd9dc0dd7155e78c68261a745534bdb04592"
+            "a714f0ffbcd2aab55b06fe23ea2800071e1b1ea79a589e6507ae062e1f36e117"
         );
     }
 

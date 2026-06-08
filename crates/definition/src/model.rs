@@ -414,9 +414,11 @@ pub fn canonical_event_type(id: u32) -> Option<EventTypeDefinition> {
         ],
         EVENT_VALUE_CHANGED => vec![
             slot(KEY_VALUE_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
-            value_slot(KEY_PREVIOUS_VALUE, 0, MaxOccurs::Count(1), 2),
-            value_slot(KEY_NEW_VALUE, 1, MaxOccurs::Count(1), 3),
+            value_slot(KEY_NEW_VALUE, 1, MaxOccurs::Count(1), 2),
+            value_slot(KEY_PREVIOUS_VALUE, 0, MaxOccurs::Count(1), 3),
             slot(KEY_QUALITY, TY_UINT, 0, MaxOccurs::Count(1), 4),
+            slot(KEY_SEMANTIC_ROLE, TY_UINT, 0, MaxOccurs::Count(1), 5),
+            slot(KEY_UNIT, TY_UINT, 0, MaxOccurs::Count(1), 6),
         ],
         EVENT_MESSAGE => vec![
             slot(KEY_MESSAGE_TEMPLATE_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
@@ -467,95 +469,155 @@ pub fn canonical_event_type(id: u32) -> Option<EventTypeDefinition> {
                 1,
             )]
         }
-        EVENT_CONDITION_ACTIVE | EVENT_CONDITION_CLEARED => condition_slots(true),
+        EVENT_CONDITION_ACTIVE => vec![
+            slot(KEY_CONDITION_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
+            slot(KEY_CONDITION_CLASS, TY_UINT, 1, MaxOccurs::Count(1), 2),
+            slot(KEY_CORRELATION_ID, TY_UDINT, 1, MaxOccurs::Count(1), 3),
+            slot(KEY_SEVERITY, TY_UINT, 0, MaxOccurs::Count(1), 4),
+            slot(
+                KEY_CAUSE_OPERAND,
+                TY_UDINT,
+                0,
+                MaxOccurs::Unbounded("unbounded".to_string()),
+                5,
+            ),
+            slot(KEY_GROUP_ID, TY_UDINT, 0, MaxOccurs::Count(1), 6),
+            slot(KEY_FIRST_IN_GROUP, TY_BOOL, 0, MaxOccurs::Count(1), 7),
+            slot(KEY_REFRESH_ID, TY_UDINT, 0, MaxOccurs::Count(1), 8),
+        ],
+        EVENT_CONDITION_CLEARED => vec![
+            slot(KEY_CONDITION_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
+            slot(KEY_CONDITION_CLASS, TY_UINT, 1, MaxOccurs::Count(1), 2),
+            slot(KEY_CORRELATION_ID, TY_UDINT, 1, MaxOccurs::Count(1), 3),
+            slot(KEY_REFRESH_ID, TY_UDINT, 0, MaxOccurs::Count(1), 4),
+        ],
         EVENT_CONDITION_ACKNOWLEDGED | EVENT_CONDITION_CONFIRMED => vec![
             slot(KEY_CONDITION_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
-            slot(KEY_CORRELATION_ID, TY_UDINT, 0, MaxOccurs::Count(1), 2),
+            slot(KEY_CORRELATION_ID, TY_UDINT, 1, MaxOccurs::Count(1), 2),
             slot(KEY_ACK_BY, TY_STRING, 0, MaxOccurs::Count(1), 3),
-            slot(KEY_REASON, TY_STRING, 0, MaxOccurs::Count(1), 4),
+            slot(KEY_REFRESH_ID, TY_UDINT, 0, MaxOccurs::Count(1), 4),
         ],
-        EVENT_CONDITION_SHELVED | EVENT_CONDITION_UNSHELVED => vec![
+        EVENT_CONDITION_SHELVED => vec![
             slot(KEY_CONDITION_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
-            slot(KEY_CORRELATION_ID, TY_UDINT, 0, MaxOccurs::Count(1), 2),
-            slot(KEY_SHELVE_SECS, TY_UDINT, 0, MaxOccurs::Count(1), 3),
-            slot(KEY_REASON, TY_STRING, 0, MaxOccurs::Count(1), 4),
+            slot(KEY_CORRELATION_ID, TY_UDINT, 1, MaxOccurs::Count(1), 2),
+            slot(KEY_ACK_BY, TY_STRING, 0, MaxOccurs::Count(1), 3),
+            slot(KEY_SHELVE_SECS, TY_UDINT, 0, MaxOccurs::Count(1), 4),
+            slot(KEY_REFRESH_ID, TY_UDINT, 0, MaxOccurs::Count(1), 5),
         ],
-        EVENT_CONDITION_SUPPRESSED
-        | EVENT_CONDITION_UNSUPPRESSED
-        | EVENT_CONDITION_OUT_OF_SERVICE
-        | EVENT_CONDITION_IN_SERVICE
-        | EVENT_CONDITION_RESET => vec![
+        EVENT_CONDITION_UNSHELVED => vec![
             slot(KEY_CONDITION_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
-            slot(KEY_CORRELATION_ID, TY_UDINT, 0, MaxOccurs::Count(1), 2),
-            slot(KEY_REASON, TY_STRING, 0, MaxOccurs::Count(1), 3),
+            slot(KEY_CORRELATION_ID, TY_UDINT, 1, MaxOccurs::Count(1), 2),
+            slot(KEY_REFRESH_ID, TY_UDINT, 0, MaxOccurs::Count(1), 3),
+        ],
+        EVENT_CONDITION_SUPPRESSED => vec![
+            slot(KEY_CONDITION_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
+            slot(KEY_REASON, TY_STRING, 0, MaxOccurs::Count(1), 2),
+            slot(KEY_REFRESH_ID, TY_UDINT, 0, MaxOccurs::Count(1), 3),
+        ],
+        EVENT_CONDITION_UNSUPPRESSED | EVENT_CONDITION_IN_SERVICE => vec![
+            slot(KEY_CONDITION_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
+            slot(KEY_REFRESH_ID, TY_UDINT, 0, MaxOccurs::Count(1), 2),
+        ],
+        EVENT_CONDITION_OUT_OF_SERVICE => vec![
+            slot(KEY_CONDITION_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
+            slot(KEY_ACK_BY, TY_STRING, 0, MaxOccurs::Count(1), 2),
+            slot(KEY_REFRESH_ID, TY_UDINT, 0, MaxOccurs::Count(1), 3),
         ],
         EVENT_CONDITION_COMMENTED => vec![
             slot(KEY_CONDITION_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
-            slot(KEY_CORRELATION_ID, TY_UDINT, 0, MaxOccurs::Count(1), 2),
+            slot(KEY_CORRELATION_ID, TY_UDINT, 1, MaxOccurs::Count(1), 2),
             slot(KEY_COMMENT, TY_STRING, 1, MaxOccurs::Count(1), 3),
+            slot(KEY_ACK_BY, TY_STRING, 0, MaxOccurs::Count(1), 4),
+            slot(KEY_REFRESH_ID, TY_UDINT, 0, MaxOccurs::Count(1), 5),
+        ],
+        EVENT_CONDITION_RESET => vec![
+            slot(KEY_CONDITION_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
+            slot(KEY_CORRELATION_ID, TY_UDINT, 1, MaxOccurs::Count(1), 2),
+            slot(KEY_ACK_BY, TY_STRING, 0, MaxOccurs::Count(1), 3),
+            slot(KEY_REFRESH_ID, TY_UDINT, 0, MaxOccurs::Count(1), 4),
         ],
         EVENT_CONDITION_PRIORITY_CHANGED => vec![
             slot(KEY_CONDITION_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
-            slot(KEY_CORRELATION_ID, TY_UDINT, 0, MaxOccurs::Count(1), 2),
-            slot(KEY_PREVIOUS_PRIORITY, TY_UINT, 0, MaxOccurs::Count(1), 3),
-            slot(KEY_NEW_PRIORITY, TY_UINT, 1, MaxOccurs::Count(1), 4),
+            slot(KEY_PREVIOUS_PRIORITY, TY_UINT, 1, MaxOccurs::Count(1), 2),
+            slot(KEY_NEW_PRIORITY, TY_UINT, 1, MaxOccurs::Count(1), 3),
+            slot(KEY_ACK_BY, TY_STRING, 0, MaxOccurs::Count(1), 4),
+            slot(KEY_REFRESH_ID, TY_UDINT, 0, MaxOccurs::Count(1), 5),
         ],
-        EVENT_REFRESH_START | EVENT_REFRESH_END => vec![
-            slot(KEY_REFRESH_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
-            slot(KEY_GROUP_ID, TY_UDINT, 0, MaxOccurs::Count(1), 2),
-        ],
-        EVENT_RECIPE_LOADED | EVENT_RECIPE_APPROVED => vec![
+        EVENT_REFRESH_START | EVENT_REFRESH_END => {
+            vec![slot(KEY_REFRESH_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1)]
+        }
+        EVENT_RECIPE_LOADED => vec![
             slot(KEY_RECIPE_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
-            slot(KEY_RECIPE_VERSION, TY_STRING, 0, MaxOccurs::Count(1), 2),
-            slot(KEY_ACTOR, TY_STRING, 0, MaxOccurs::Count(1), 3),
+            slot(KEY_RECIPE_VERSION, TY_STRING, 1, MaxOccurs::Count(1), 2),
+            slot(KEY_BATCH_ID, TY_UDINT, 0, MaxOccurs::Count(1), 3),
+            slot(KEY_EFFECTIVE_TIME, TY_DATE_TIME, 0, MaxOccurs::Count(1), 4),
+        ],
+        EVENT_RECIPE_APPROVED => vec![
+            slot(KEY_RECIPE_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
+            slot(KEY_RECIPE_VERSION, TY_STRING, 1, MaxOccurs::Count(1), 2),
+            slot(KEY_AUTH_RESULT, TY_UINT, 0, MaxOccurs::Count(1), 3),
+            slot(KEY_ACK_BY, TY_STRING, 0, MaxOccurs::Count(1), 4),
         ],
         EVENT_BATCH_EVENT => vec![
             slot(KEY_BATCH_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
-            slot(KEY_ACTION_ID, TY_UDINT, 0, MaxOccurs::Count(1), 2),
-            slot(KEY_REASON, TY_STRING, 0, MaxOccurs::Count(1), 3),
+            slot(KEY_NEW_STATE, TY_UINT, 1, MaxOccurs::Count(1), 2),
+            slot(KEY_RECIPE_ID, TY_UDINT, 0, MaxOccurs::Count(1), 3),
         ],
         EVENT_MATERIAL_ADDITION => vec![
             slot(KEY_BATCH_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
             slot(KEY_MATERIAL_ID, TY_UDINT, 1, MaxOccurs::Count(1), 2),
             slot(KEY_QUANTITY, TY_LREAL, 1, MaxOccurs::Count(1), 3),
             slot(KEY_UNIT, TY_UINT, 0, MaxOccurs::Count(1), 4),
+            slot(KEY_CORRECTION_OF, TY_ULINT, 0, MaxOccurs::Count(1), 5),
         ],
         EVENT_OPERATOR_ACTION => vec![
             slot(KEY_ACTION_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
             slot(KEY_ACTOR, TY_STRING, 1, MaxOccurs::Count(1), 2),
-            slot(KEY_CONTEXT_REF, TY_UDINT, 0, MaxOccurs::Count(1), 3),
-            slot(KEY_WORKSTATION, TY_STRING, 0, MaxOccurs::Count(1), 4),
+            slot(
+                KEY_CONTEXT_REF,
+                TY_UDINT,
+                0,
+                MaxOccurs::Unbounded("unbounded".to_string()),
+                3,
+            ),
+            slot(KEY_AUTH_RESULT, TY_UINT, 0, MaxOccurs::Count(1), 4),
+            slot(KEY_WORKSTATION, TY_STRING, 0, MaxOccurs::Count(1), 5),
         ],
-        EVENT_OPERATOR_LOGIN | EVENT_OPERATOR_LOGOUT => vec![
+        EVENT_OPERATOR_LOGIN => vec![
+            slot(KEY_ACTOR, TY_STRING, 1, MaxOccurs::Count(1), 1),
+            slot(KEY_AUTH_RESULT, TY_UINT, 1, MaxOccurs::Count(1), 2),
+            slot(KEY_WORKSTATION, TY_STRING, 0, MaxOccurs::Count(1), 3),
+            slot(KEY_ROLE, TY_UINT, 0, MaxOccurs::Count(1), 4),
+        ],
+        EVENT_OPERATOR_LOGOUT => vec![
             slot(KEY_ACTOR, TY_STRING, 1, MaxOccurs::Count(1), 1),
             slot(KEY_WORKSTATION, TY_STRING, 0, MaxOccurs::Count(1), 2),
         ],
         EVENT_PARAMETER_CHANGE => vec![
-            slot(KEY_ACTOR, TY_STRING, 1, MaxOccurs::Count(1), 1),
-            slot(KEY_CONTEXT_REF, TY_UDINT, 0, MaxOccurs::Count(1), 2),
-            slot(KEY_VALUE_ID, TY_UDINT, 1, MaxOccurs::Count(1), 3),
-            value_slot(KEY_PREVIOUS_VALUE, 0, MaxOccurs::Count(1), 4),
-            value_slot(KEY_NEW_VALUE, 1, MaxOccurs::Count(1), 5),
-            slot(KEY_REASON, TY_STRING, 0, MaxOccurs::Count(1), 6),
+            slot(KEY_VALUE_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
+            value_slot(KEY_PREVIOUS_VALUE, 1, MaxOccurs::Count(1), 2),
+            value_slot(KEY_NEW_VALUE, 1, MaxOccurs::Count(1), 3),
+            slot(KEY_ACTOR, TY_STRING, 1, MaxOccurs::Count(1), 4),
+            slot(KEY_REASON, TY_STRING, 1, MaxOccurs::Count(1), 5),
+            slot(KEY_AUTH_RESULT, TY_UINT, 0, MaxOccurs::Count(1), 6),
         ],
         EVENT_ESIGNATURE => vec![
-            slot(KEY_ACTOR, TY_STRING, 1, MaxOccurs::Count(1), 1),
-            slot(KEY_SIGNATURE_MEANING, TY_UINT, 1, MaxOccurs::Count(1), 2),
-            slot(KEY_SIGNED_EVENT_SEQ, TY_ULINT, 1, MaxOccurs::Count(1), 3),
-            slot(KEY_EFFECTIVE_TIME, TY_DATE_TIME, 0, MaxOccurs::Count(1), 4),
-            slot(KEY_CORRECTION_OF, TY_ULINT, 0, MaxOccurs::Count(1), 5),
-            slot(KEY_WORKSTATION, TY_STRING, 0, MaxOccurs::Count(1), 6),
+            slot(KEY_ACTION_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
+            slot(KEY_ACTOR, TY_STRING, 1, MaxOccurs::Count(1), 2),
+            slot(KEY_SIGNATURE_MEANING, TY_UINT, 1, MaxOccurs::Count(1), 3),
+            slot(KEY_SIGNED_EVENT_SEQ, TY_ULINT, 1, MaxOccurs::Count(1), 4),
+            slot(KEY_AUTH_RESULT, TY_UINT, 0, MaxOccurs::Count(1), 5),
         ],
         EVENT_SECURITY_ACCESS_FAILURE => vec![
-            slot(KEY_ACTOR, TY_STRING, 0, MaxOccurs::Count(1), 1),
-            slot(KEY_AUTH_RESULT, TY_UINT, 1, MaxOccurs::Count(1), 2),
-            slot(KEY_WORKSTATION, TY_STRING, 0, MaxOccurs::Count(1), 3),
-            slot(KEY_REASON, TY_STRING, 0, MaxOccurs::Count(1), 4),
+            slot(KEY_ACTOR, TY_STRING, 1, MaxOccurs::Count(1), 1),
+            slot(KEY_WORKSTATION, TY_STRING, 0, MaxOccurs::Count(1), 2),
+            slot(KEY_REASON, TY_STRING, 0, MaxOccurs::Count(1), 3),
         ],
         EVENT_PROGRAM_DOWNLOAD => vec![
-            slot(KEY_PROGRAM_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
-            slot(KEY_ACTOR, TY_STRING, 0, MaxOccurs::Count(1), 2),
-            slot(KEY_DEF_HASH_NEW, TY_BYTES, 0, MaxOccurs::Count(1), 3),
+            slot(KEY_DEF_HASH_NEW, TY_BYTES, 1, MaxOccurs::Count(1), 1),
+            slot(KEY_PROGRAM_ID, TY_UDINT, 1, MaxOccurs::Count(1), 2),
+            slot(KEY_ACTOR, TY_STRING, 1, MaxOccurs::Count(1), 3),
+            slot(KEY_AUTH_RESULT, TY_UINT, 0, MaxOccurs::Count(1), 4),
         ],
         _ => return None,
     };
@@ -573,38 +635,6 @@ pub fn canonical_event_type(id: u32) -> Option<EventTypeDefinition> {
         },
         slots,
     })
-}
-
-fn condition_slots(include_class_and_severity: bool) -> Vec<SlotDefinition> {
-    let mut slots = vec![slot(KEY_CONDITION_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1)];
-    let mut order = 2;
-    if include_class_and_severity {
-        slots.push(slot(
-            KEY_CONDITION_CLASS,
-            TY_UINT,
-            1,
-            MaxOccurs::Count(1),
-            order,
-        ));
-        order += 1;
-        slots.push(slot(KEY_SEVERITY, TY_UINT, 1, MaxOccurs::Count(1), order));
-        order += 1;
-    }
-    slots.push(slot(
-        KEY_CORRELATION_ID,
-        TY_UDINT,
-        0,
-        MaxOccurs::Count(1),
-        order,
-    ));
-    slots.push(slot(
-        KEY_CAUSE_OPERAND,
-        TY_UDINT,
-        0,
-        MaxOccurs::Unbounded("unbounded".to_string()),
-        order + 1,
-    ));
-    slots
 }
 
 /// A small definition covering the positive record-vector spine.
@@ -879,6 +909,51 @@ mod tests {
     }
 
     #[test]
+    fn canonical_event_types_match_rev6_section7_slots() {
+        for expected in rev6_section7_events() {
+            let actual = canonical_event_type(expected.event_id).expect("event schema");
+            assert_eq!(
+                actual.slots.len(),
+                expected.slots.len(),
+                "event 0x{:04X} slot count drifted",
+                expected.event_id
+            );
+            for (actual, expected_slot) in actual.slots.iter().zip(expected.slots.iter()) {
+                assert_eq!(
+                    actual.key, expected_slot.key,
+                    "event 0x{:04X} key drift at order {}",
+                    expected.event_id, expected_slot.order_class
+                );
+                assert_eq!(
+                    actual.tlv_type, expected_slot.tlv_type,
+                    "event 0x{:04X} type drift for key 0x{:04X}",
+                    expected.event_id, expected_slot.key
+                );
+                assert_eq!(
+                    actual.value_payload, expected_slot.value_payload,
+                    "event 0x{:04X} value-payload drift for key 0x{:04X}",
+                    expected.event_id, expected_slot.key
+                );
+                assert_eq!(
+                    actual.min_occurs, expected_slot.min_occurs,
+                    "event 0x{:04X} minOccurs drift for key 0x{:04X}",
+                    expected.event_id, expected_slot.key
+                );
+                assert_eq!(
+                    actual.max_occurs, expected_slot.max_occurs,
+                    "event 0x{:04X} maxOccurs drift for key 0x{:04X}",
+                    expected.event_id, expected_slot.key
+                );
+                assert_eq!(
+                    actual.order_class, expected_slot.order_class,
+                    "event 0x{:04X} orderClass drift for key 0x{:04X}",
+                    expected.event_id, expected_slot.key
+                );
+            }
+        }
+    }
+
+    #[test]
     fn deadband_model_contains_no_floating_point_type() {
         let deadband = Deadband {
             decimal: Some("0.125".to_string()),
@@ -890,5 +965,312 @@ mod tests {
 
         assert_eq!(deadband.decimal.as_deref(), Some("0.125"));
         assert_eq!(deadband.scaled.as_ref().unwrap().value, 125);
+    }
+
+    #[derive(Debug)]
+    struct ExpectedEvent {
+        event_id: u32,
+        slots: Vec<SlotDefinition>,
+    }
+
+    fn rev6_section7_events() -> Vec<ExpectedEvent> {
+        vec![
+            e(
+                EVENT_STATE_TRANSITION,
+                vec![
+                    s(KEY_STATE_MACHINE_ID, TY_UDINT, 1, 1, 1),
+                    s(KEY_CATEGORY, TY_UINT, 1, 1, 2),
+                    s(KEY_PREVIOUS_STATE, TY_UINT, 1, 1, 3),
+                    s(KEY_NEW_STATE, TY_UINT, 1, 1, 4),
+                ],
+            ),
+            e(
+                EVENT_VALUE_CHANGED,
+                vec![
+                    s(KEY_VALUE_ID, TY_UDINT, 1, 1, 1),
+                    vp(KEY_NEW_VALUE, 1, 1, 2),
+                    vp(KEY_PREVIOUS_VALUE, 0, 1, 3),
+                    s(KEY_QUALITY, TY_UINT, 0, 1, 4),
+                    s(KEY_SEMANTIC_ROLE, TY_UINT, 0, 1, 5),
+                    s(KEY_UNIT, TY_UINT, 0, 1, 6),
+                ],
+            ),
+            e(
+                EVENT_MESSAGE,
+                vec![
+                    s(KEY_MESSAGE_TEMPLATE_ID, TY_UDINT, 1, 1, 1),
+                    vp_unbounded(KEY_ARG, 0, 2),
+                    s(KEY_SEVERITY, TY_UINT, 0, 1, 3),
+                ],
+            ),
+            e(
+                EVENT_CONDITION_ACTIVE,
+                vec![
+                    s(KEY_CONDITION_ID, TY_UDINT, 1, 1, 1),
+                    s(KEY_CONDITION_CLASS, TY_UINT, 1, 1, 2),
+                    s(KEY_CORRELATION_ID, TY_UDINT, 1, 1, 3),
+                    s(KEY_SEVERITY, TY_UINT, 0, 1, 4),
+                    s_unbounded(KEY_CAUSE_OPERAND, TY_UDINT, 0, 5),
+                    s(KEY_GROUP_ID, TY_UDINT, 0, 1, 6),
+                    s(KEY_FIRST_IN_GROUP, TY_BOOL, 0, 1, 7),
+                    s(KEY_REFRESH_ID, TY_UDINT, 0, 1, 8),
+                ],
+            ),
+            e(
+                EVENT_CONDITION_CLEARED,
+                vec![
+                    s(KEY_CONDITION_ID, TY_UDINT, 1, 1, 1),
+                    s(KEY_CONDITION_CLASS, TY_UINT, 1, 1, 2),
+                    s(KEY_CORRELATION_ID, TY_UDINT, 1, 1, 3),
+                    s(KEY_REFRESH_ID, TY_UDINT, 0, 1, 4),
+                ],
+            ),
+            e(
+                EVENT_CONDITION_ACKNOWLEDGED,
+                vec![
+                    s(KEY_CONDITION_ID, TY_UDINT, 1, 1, 1),
+                    s(KEY_CORRELATION_ID, TY_UDINT, 1, 1, 2),
+                    s(KEY_ACK_BY, TY_STRING, 0, 1, 3),
+                    s(KEY_REFRESH_ID, TY_UDINT, 0, 1, 4),
+                ],
+            ),
+            e(
+                EVENT_CONDITION_CONFIRMED,
+                vec![
+                    s(KEY_CONDITION_ID, TY_UDINT, 1, 1, 1),
+                    s(KEY_CORRELATION_ID, TY_UDINT, 1, 1, 2),
+                    s(KEY_ACK_BY, TY_STRING, 0, 1, 3),
+                    s(KEY_REFRESH_ID, TY_UDINT, 0, 1, 4),
+                ],
+            ),
+            e(
+                EVENT_CONDITION_SHELVED,
+                vec![
+                    s(KEY_CONDITION_ID, TY_UDINT, 1, 1, 1),
+                    s(KEY_CORRELATION_ID, TY_UDINT, 1, 1, 2),
+                    s(KEY_ACK_BY, TY_STRING, 0, 1, 3),
+                    s(KEY_SHELVE_SECS, TY_UDINT, 0, 1, 4),
+                    s(KEY_REFRESH_ID, TY_UDINT, 0, 1, 5),
+                ],
+            ),
+            e(
+                EVENT_CONDITION_UNSHELVED,
+                vec![
+                    s(KEY_CONDITION_ID, TY_UDINT, 1, 1, 1),
+                    s(KEY_CORRELATION_ID, TY_UDINT, 1, 1, 2),
+                    s(KEY_REFRESH_ID, TY_UDINT, 0, 1, 3),
+                ],
+            ),
+            e(
+                EVENT_CONDITION_SUPPRESSED,
+                vec![
+                    s(KEY_CONDITION_ID, TY_UDINT, 1, 1, 1),
+                    s(KEY_REASON, TY_STRING, 0, 1, 2),
+                    s(KEY_REFRESH_ID, TY_UDINT, 0, 1, 3),
+                ],
+            ),
+            e(
+                EVENT_CONDITION_UNSUPPRESSED,
+                vec![
+                    s(KEY_CONDITION_ID, TY_UDINT, 1, 1, 1),
+                    s(KEY_REFRESH_ID, TY_UDINT, 0, 1, 2),
+                ],
+            ),
+            e(
+                EVENT_CONDITION_OUT_OF_SERVICE,
+                vec![
+                    s(KEY_CONDITION_ID, TY_UDINT, 1, 1, 1),
+                    s(KEY_ACK_BY, TY_STRING, 0, 1, 2),
+                    s(KEY_REFRESH_ID, TY_UDINT, 0, 1, 3),
+                ],
+            ),
+            e(
+                EVENT_CONDITION_IN_SERVICE,
+                vec![
+                    s(KEY_CONDITION_ID, TY_UDINT, 1, 1, 1),
+                    s(KEY_REFRESH_ID, TY_UDINT, 0, 1, 2),
+                ],
+            ),
+            e(
+                EVENT_CONDITION_COMMENTED,
+                vec![
+                    s(KEY_CONDITION_ID, TY_UDINT, 1, 1, 1),
+                    s(KEY_CORRELATION_ID, TY_UDINT, 1, 1, 2),
+                    s(KEY_COMMENT, TY_STRING, 1, 1, 3),
+                    s(KEY_ACK_BY, TY_STRING, 0, 1, 4),
+                    s(KEY_REFRESH_ID, TY_UDINT, 0, 1, 5),
+                ],
+            ),
+            e(
+                EVENT_CONDITION_RESET,
+                vec![
+                    s(KEY_CONDITION_ID, TY_UDINT, 1, 1, 1),
+                    s(KEY_CORRELATION_ID, TY_UDINT, 1, 1, 2),
+                    s(KEY_ACK_BY, TY_STRING, 0, 1, 3),
+                    s(KEY_REFRESH_ID, TY_UDINT, 0, 1, 4),
+                ],
+            ),
+            e(
+                EVENT_CONDITION_PRIORITY_CHANGED,
+                vec![
+                    s(KEY_CONDITION_ID, TY_UDINT, 1, 1, 1),
+                    s(KEY_PREVIOUS_PRIORITY, TY_UINT, 1, 1, 2),
+                    s(KEY_NEW_PRIORITY, TY_UINT, 1, 1, 3),
+                    s(KEY_ACK_BY, TY_STRING, 0, 1, 4),
+                    s(KEY_REFRESH_ID, TY_UDINT, 0, 1, 5),
+                ],
+            ),
+            e(
+                EVENT_REFRESH_START,
+                vec![s(KEY_REFRESH_ID, TY_UDINT, 1, 1, 1)],
+            ),
+            e(
+                EVENT_REFRESH_END,
+                vec![s(KEY_REFRESH_ID, TY_UDINT, 1, 1, 1)],
+            ),
+            e(
+                EVENT_RECIPE_LOADED,
+                vec![
+                    s(KEY_RECIPE_ID, TY_UDINT, 1, 1, 1),
+                    s(KEY_RECIPE_VERSION, TY_STRING, 1, 1, 2),
+                    s(KEY_BATCH_ID, TY_UDINT, 0, 1, 3),
+                    s(KEY_EFFECTIVE_TIME, TY_DATE_TIME, 0, 1, 4),
+                ],
+            ),
+            e(
+                EVENT_RECIPE_APPROVED,
+                vec![
+                    s(KEY_RECIPE_ID, TY_UDINT, 1, 1, 1),
+                    s(KEY_RECIPE_VERSION, TY_STRING, 1, 1, 2),
+                    s(KEY_AUTH_RESULT, TY_UINT, 0, 1, 3),
+                    s(KEY_ACK_BY, TY_STRING, 0, 1, 4),
+                ],
+            ),
+            e(
+                EVENT_BATCH_EVENT,
+                vec![
+                    s(KEY_BATCH_ID, TY_UDINT, 1, 1, 1),
+                    s(KEY_NEW_STATE, TY_UINT, 1, 1, 2),
+                    s(KEY_RECIPE_ID, TY_UDINT, 0, 1, 3),
+                ],
+            ),
+            e(
+                EVENT_MATERIAL_ADDITION,
+                vec![
+                    s(KEY_BATCH_ID, TY_UDINT, 1, 1, 1),
+                    s(KEY_MATERIAL_ID, TY_UDINT, 1, 1, 2),
+                    s(KEY_QUANTITY, TY_LREAL, 1, 1, 3),
+                    s(KEY_UNIT, TY_UINT, 0, 1, 4),
+                    s(KEY_CORRECTION_OF, TY_ULINT, 0, 1, 5),
+                ],
+            ),
+            e(
+                EVENT_OPERATOR_ACTION,
+                vec![
+                    s(KEY_ACTION_ID, TY_UDINT, 1, 1, 1),
+                    s(KEY_ACTOR, TY_STRING, 1, 1, 2),
+                    s_unbounded(KEY_CONTEXT_REF, TY_UDINT, 0, 3),
+                    s(KEY_AUTH_RESULT, TY_UINT, 0, 1, 4),
+                    s(KEY_WORKSTATION, TY_STRING, 0, 1, 5),
+                ],
+            ),
+            e(
+                EVENT_OPERATOR_LOGIN,
+                vec![
+                    s(KEY_ACTOR, TY_STRING, 1, 1, 1),
+                    s(KEY_AUTH_RESULT, TY_UINT, 1, 1, 2),
+                    s(KEY_WORKSTATION, TY_STRING, 0, 1, 3),
+                    s(KEY_ROLE, TY_UINT, 0, 1, 4),
+                ],
+            ),
+            e(
+                EVENT_OPERATOR_LOGOUT,
+                vec![
+                    s(KEY_ACTOR, TY_STRING, 1, 1, 1),
+                    s(KEY_WORKSTATION, TY_STRING, 0, 1, 2),
+                ],
+            ),
+            e(
+                EVENT_PARAMETER_CHANGE,
+                vec![
+                    s(KEY_VALUE_ID, TY_UDINT, 1, 1, 1),
+                    vp(KEY_PREVIOUS_VALUE, 1, 1, 2),
+                    vp(KEY_NEW_VALUE, 1, 1, 3),
+                    s(KEY_ACTOR, TY_STRING, 1, 1, 4),
+                    s(KEY_REASON, TY_STRING, 1, 1, 5),
+                    s(KEY_AUTH_RESULT, TY_UINT, 0, 1, 6),
+                ],
+            ),
+            e(
+                EVENT_ESIGNATURE,
+                vec![
+                    s(KEY_ACTION_ID, TY_UDINT, 1, 1, 1),
+                    s(KEY_ACTOR, TY_STRING, 1, 1, 2),
+                    s(KEY_SIGNATURE_MEANING, TY_UINT, 1, 1, 3),
+                    s(KEY_SIGNED_EVENT_SEQ, TY_ULINT, 1, 1, 4),
+                    s(KEY_AUTH_RESULT, TY_UINT, 0, 1, 5),
+                ],
+            ),
+            e(
+                EVENT_SECURITY_ACCESS_FAILURE,
+                vec![
+                    s(KEY_ACTOR, TY_STRING, 1, 1, 1),
+                    s(KEY_WORKSTATION, TY_STRING, 0, 1, 2),
+                    s(KEY_REASON, TY_STRING, 0, 1, 3),
+                ],
+            ),
+            e(
+                EVENT_PROGRAM_DOWNLOAD,
+                vec![
+                    s(KEY_DEF_HASH_NEW, TY_BYTES, 1, 1, 1),
+                    s(KEY_PROGRAM_ID, TY_UDINT, 1, 1, 2),
+                    s(KEY_ACTOR, TY_STRING, 1, 1, 3),
+                    s(KEY_AUTH_RESULT, TY_UINT, 0, 1, 4),
+                ],
+            ),
+        ]
+    }
+
+    fn e(event_id: u32, slots: Vec<SlotDefinition>) -> ExpectedEvent {
+        ExpectedEvent { event_id, slots }
+    }
+
+    fn s(
+        key: u16,
+        tlv_type: u8,
+        min_occurs: u16,
+        max_occurs: u16,
+        order_class: u16,
+    ) -> SlotDefinition {
+        slot(
+            key,
+            tlv_type,
+            min_occurs,
+            MaxOccurs::Count(max_occurs),
+            order_class,
+        )
+    }
+
+    fn s_unbounded(key: u16, tlv_type: u8, min_occurs: u16, order_class: u16) -> SlotDefinition {
+        slot(
+            key,
+            tlv_type,
+            min_occurs,
+            MaxOccurs::Unbounded("unbounded".to_string()),
+            order_class,
+        )
+    }
+
+    fn vp(key: u16, min_occurs: u16, max_occurs: u16, order_class: u16) -> SlotDefinition {
+        value_slot(key, min_occurs, MaxOccurs::Count(max_occurs), order_class)
+    }
+
+    fn vp_unbounded(key: u16, min_occurs: u16, order_class: u16) -> SlotDefinition {
+        value_slot(
+            key,
+            min_occurs,
+            MaxOccurs::Unbounded("unbounded".to_string()),
+            order_class,
+        )
     }
 }
