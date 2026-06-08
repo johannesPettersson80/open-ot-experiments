@@ -1,0 +1,32 @@
+{
+  "name": "conformant_parameter_change_string",
+  "description": "definition-layer positive ParameterChange record carrying STRING previous/new values",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "conformant_parameter_change_string.hex",
+  "byteCount": 112,
+  "headerLength": 40,
+  "totalRecordLength": 112,
+  "flags": "0x0008",
+  "crc32c": "0xA468BE76",
+  "detail": {
+    "eventName": "ParameterChange",
+    "schemaExpected": "accept",
+    "fields": {
+      "sourceTime": 1000000380,
+      "runId": 1,
+      "seq": 39,
+      "sourceId": 66,
+      "eventTypeId": "0x0403"
+    },
+    "slots": [
+      { "key": "0x000D", "type": "UDInt", "name": "valueId", "value": 2012 },
+      { "key": "0x000F", "type": "String", "name": "previousValue", "value": "manual" },
+      { "key": "0x0010", "type": "String", "name": "newValue", "value": "auto" },
+      { "key": "0x000B", "type": "String", "name": "actor", "value": "operator-c" },
+      { "key": "0x001F", "type": "String", "name": "reason", "value": "mode note" },
+      { "key": "0x0020", "type": "UInt", "name": "authResult", "value": 1 }
+    ]
+  }
+}

@@ -81,7 +81,8 @@ reading a `STRING` representation.
 - `src/openot_value_state.st` defines `ValueChanged` encoders for `REAL`,
   `DINT`, generic fixed-width value payloads (`BOOL`, integer widths, `LREAL`),
   bounded `STRING`, plus the parameterized `StateTransition` and
-  `ConditionActive`/`ConditionCleared` encoders, and exact condition-lifecycle
+  `ConditionActive`/`ConditionCleared` encoders, `ParameterChange` encoders for
+  audited REAL, DINT, fixed-width, and bounded STRING values, and exact condition-lifecycle
   encoders for acknowledge, confirm, shelve, unshelve, suppress, unsuppress,
   out-of-service, in-service, comment, reset, and priority-changed records, plus
   batch/recipe encoders for `RecipeLoaded`, `RecipeApproved`, `BatchEvent`, and
@@ -96,9 +97,9 @@ reading a `STRING` representation.
   `ValueChanged`, `Op = 7` for `DINT` `ValueChanged`, `Op = 8` for
   `StateTransition`, `Op = 9` for active/cleared conditions, `Op = 10` for
   generic fixed-width values, `Op = 11` for bounded `STRING` values, and
-  `Op = 12` for producer-internal condition lifecycle commands, and `Op = 13`
-  for batch/recipe command records, and `Op = 14` for operator/regulated command
-  records),
+  `Op = 12` for producer-internal condition lifecycle commands, `Op = 13`
+  for batch/recipe command records, `Op = 14` for operator/regulated command
+  records, and `Op = 15` for audited `ParameterChange` values),
   generalized pre-encoded staging (`Op = 5`), per-scan record-list outputs, and
   the cold/warm epoch transition state machine.
 - `captures/openot_s4a_capture.st` defines the S4a scenario drivers
@@ -144,8 +145,10 @@ for a `DINT`, `Op = 8` emits a `StateTransition`, `Op = 9` emits
   emits `RecipeLoaded`, `RecipeApproved`, `BatchEvent`, and `MaterialAddition`
   records from bound recipe/batch/material fields. `Op = 14` emits
   `OperatorAction`, `OperatorLogin`, `OperatorLogout`, and
-  `SecurityAccessFailure` records from bound operator/security fields. These ops track
-  last value/state/condition inside the producer and emit only on
+  `SecurityAccessFailure` records from bound operator/security fields. `Op = 15`
+  emits `ParameterChange` records for audited values, seeding the first
+  observation and emitting previous/new/actor/reason on subsequent changes.
+  These ops track last value/state/condition inside the producer and emit only on
   change/deadband/edge. For `Op = 12`, activation-scoped commands such as
   `ConditionAcknowledged`, `ConditionConfirmed`, `ConditionShelved`,
   `ConditionUnshelved`, `ConditionCommented`, and `ConditionReset` use the

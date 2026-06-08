@@ -1,0 +1,32 @@
+{
+  "name": "conformant_parameter_change_real",
+  "description": "definition-layer positive ParameterChange record carrying REAL previous/new values",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "conformant_parameter_change_real.hex",
+  "byteCount": 112,
+  "headerLength": 40,
+  "totalRecordLength": 112,
+  "flags": "0x0008",
+  "crc32c": "0x114034C6",
+  "detail": {
+    "eventName": "ParameterChange",
+    "schemaExpected": "accept",
+    "fields": {
+      "sourceTime": 1000000350,
+      "runId": 1,
+      "seq": 36,
+      "sourceId": 66,
+      "eventTypeId": "0x0403"
+    },
+    "slots": [
+      { "key": "0x000D", "type": "UDInt", "name": "valueId", "value": 2001 },
+      { "key": "0x000F", "type": "Real", "name": "previousValue", "value": 12.5 },
+      { "key": "0x0010", "type": "Real", "name": "newValue", "value": 13.75 },
+      { "key": "0x000B", "type": "String", "name": "actor", "value": "operator-a" },
+      { "key": "0x001F", "type": "String", "name": "reason", "value": "setpoint change" },
+      { "key": "0x0020", "type": "UInt", "name": "authResult", "value": 0 }
+    ]
+  }
+}

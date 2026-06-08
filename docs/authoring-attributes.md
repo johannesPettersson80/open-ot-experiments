@@ -54,11 +54,16 @@ consumer reads the emitted value back typed.
 | `quality` | Optional OPC-UA-style quality code (`good`, `uncertain`, `bad`, `unknown`, or `0`..`3`). When present it emits the `quality` slot on each `ValueChanged`. |
 | `semanticRole` | Optional value role (`actual`, `setpoint`, `command`, `count`, `position`, `status`, or `0`..`5`). This is definition-file metadata, not a wire slot. |
 | `previous` | `true`/`false`. Defaults to `true`: once the producer has a previous sample, it emits `previousValue`. Set `false` when the consumer only needs the new value. |
+| `audit` | `true`/`false`. When `true`, this value emits `ParameterChange` (0x0403) instead of `ValueChanged`; it requires `actor` and `reason`, and emits every detected change. |
+| `actor` | Required with `audit := 'true'`. A variable reference to `STRING[n]` where `n <= 96`; bare `STRING` is rejected because the compiler cannot prove the 256-byte producer buffer bound. Emitted as the `actor` slot. |
+| `reason` | Required with `audit := 'true'`. A variable reference to `STRING[n]` where `n <= 96`. Emitted as the `reason` slot. |
+| `auth` | Optional with `audit := 'true'`. Either an authResult symbol (`Granted`, `Denied`, `NotRequired`, `Pending`, `Expired`) or a `UINT` variable. Emitted as the `authResult` slot. |
 
 ```iecst
 Level : REAL {attribute 'oot' := 'value', 'unit' := 'L', 'deadband' := '0.5'};
 Pressure : REAL {attribute 'oot' := 'value', 'sampling' := 'periodic', 'interval' := '1000'};
 Flow : REAL {attribute 'oot' := 'value', 'sampling' := 'hysteresis', 'deadband' := '1.5'};
+SetPoint : REAL {attribute 'oot' := 'value', 'audit' := 'true', 'actor' := OperatorName, 'reason' := ReasonText, 'auth' := 'Granted'};
 ```
 
 ### `sampling` — when the value emits
@@ -79,6 +84,21 @@ uses `values[].samplingPolicy` to describe the policy:
 `deadband` and `hysteresis` are `REAL` only in this slice. Periodic sampling uses
 the source timestamp supplied to the producer; hosted truST supplies Unix
 nanoseconds, and target hardware supplies its configured source clock.
+
+### `audit` — regulated value changes
+
+`audit := 'true'` changes only the emitted event family for that value. The
+definition still contains a normal `values[]` entry (`valueId`, name, type,
+unit, semantic role), but the wire record becomes `ParameterChange` with
+`valueId`, required `previousValue`, required `newValue`, required `actor`,
+required `reason`, and optional `authResult`.
+
+The first observation seeds the producer's baseline and emits nothing, because
+`ParameterChange` requires a real previous value. Every later value change emits;
+`deadband`, `quality`, `previous`, `sampling`, and `interval` are invalid on an
+audited value. The compiler rejects `actor`, `reason`, and audited `STRING`
+values unless their declarations use explicit `STRING[n]` widths that prove the
+worst-case record fits the producer's 256-byte buffer.
 
 ## `'state'` — a state machine moved
 
@@ -345,6 +365,8 @@ prefer to state them explicitly rather than rely on the default.
 | `value` | `quality` | none | no quality slot emitted |
 | `value` | `semanticRole` | `actual` | definition metadata |
 | `value` | `previous` | `true` | emit `previousValue` after the first sample |
+| `value` | `audit` | `false` | audited values emit `ParameterChange` instead of `ValueChanged` |
+| `value` | `actor` / `reason` / `auth` | none | `actor` and `reason` are required only when `audit := 'true'`; `auth` is optional |
 | `state` | `category` | `process` | the machine-local default, matching the VS Code action |
 | `state` | `model` | none | **required** when `category := 'procedural'` (compile error otherwise) |
 | `alarm` | `class` | `alarm` | the alternative is `interlock` |
@@ -436,7 +458,8 @@ batch states. That's how `ValueChanged valueId=2001 new=15.25` becomes
   lifecycle command set through `priority-changed`, the first §7.4 batch/recipe
   set (`batch`, `recipe-loaded`, `recipe-approved`, `material-addition`), and
   the simple §7.5 operator/regulated edge events (`operator-action`,
-  `operator-login`, `operator-logout`, `security-failure`).
+  `operator-login`, `operator-logout`, `security-failure`), plus audited values
+  (`audit := 'true'`) as `ParameterChange`.
 - **Deadband/sampling:** `REAL` deadband, periodic, and `REAL` hysteresis are
   implemented. Integer deadband and hysteresis for non-REAL values are not yet
   implemented.

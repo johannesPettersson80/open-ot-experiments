@@ -228,7 +228,9 @@ names in a follow-up, to keep the slice bounded.)*
 
 ---
 
-## 4. Operator / regulated / e-signature authoring — kinds `operator-action`, `operator-login`, `operator-logout`, `parameter-change`, `e-signature`, `security-failure`
+## 4. Operator / regulated / e-signature authoring — kinds `operator-action`, `operator-login`, `operator-logout`, `e-signature`, `security-failure` (plus the `audit` facet on `value` → ParameterChange)
+
+> **ParameterChange is NOT a kind** — it is the `'audit' := 'true'` facet on the existing `value` kind (see the dedicated paragraph below). It is listed in this section because it is part of the §7.5/§11.4 regulated surface, but it is authored as an audited value, not as a trigger.
 
 Edge-triggered with bindings; this is the Producer-Audit surface (§7.5, §11.4).
 

@@ -234,6 +234,10 @@ VAR_INPUT
     RegulatedRole : UINT;
     RegulatedHasReason : BOOL;
     RegulatedReason : STRING[96];
+    AuditActor : STRING[96];
+    AuditReason : STRING[96];
+    AuditHasAuthResult : BOOL;
+    AuditAuthResult : UINT;
     MessageTemplateId : UDINT;
     MessageHasSeverity : BOOL;
     MessageSeverity : UINT;
@@ -316,6 +320,10 @@ VAR
     ConditionLifecycleEncoder : OPENOT_EncodeConditionLifecycle;
     BatchRecipeEncoder : OPENOT_EncodeBatchRecipe;
     RegulatedEncoder : OPENOT_EncodeRegulated;
+    ParameterRealEncoder : OPENOT_EncodeParameterChangeReal;
+    ParameterIntEncoder : OPENOT_EncodeParameterChangeInt;
+    ParameterBitsEncoder : OPENOT_EncodeParameterChangeBits;
+    ParameterStringEncoder : OPENOT_EncodeParameterChangeString;
     HighWaterEncoder : OPENOT_EncodeSourceHighWater;
     StoppedEncoder : OPENOT_EncodeLoggerStopped;
     StartedEncoder : OPENOT_EncodeLoggerStarted;
@@ -390,6 +398,12 @@ VAR
     RegulatedReasonLength : UINT;
     RegulatedRecordLength : UINT;
     RegulatedShouldEmit : BOOL;
+    AuditActorLength : UINT;
+    AuditReasonLength : UINT;
+    AuditPreviousStringLength : UINT;
+    AuditNewStringLength : UINT;
+    AuditRecordLength : UINT;
+    AuditShouldEmit : BOOL;
 END_VAR
 
 IF NOT Initialized THEN
@@ -424,7 +438,7 @@ IF ResetScanRecords THEN
 END_IF;
 
 IF ExecuteEdge THEN
-    IF (NOT AccumulateScanRecords) AND (Op <> UINT#6) AND (Op <> UINT#7) AND (Op <> UINT#8) AND (Op <> UINT#9) AND (Op <> UINT#10) AND (Op <> UINT#11) AND (Op <> UINT#12) AND (Op <> UINT#13) THEN
+    IF (NOT AccumulateScanRecords) AND (Op <> UINT#6) AND (Op <> UINT#7) AND (Op <> UINT#8) AND (Op <> UINT#9) AND (Op <> UINT#10) AND (Op <> UINT#11) AND (Op <> UINT#12) AND (Op <> UINT#13) AND (Op <> UINT#14) AND (Op <> UINT#15) THEN
         ResetOk := OPENOT_ResetScanRecordList(
             ScanRecordOffsets := ScanRecordOffsets,
             ScanRecordLengths := ScanRecordLengths,
@@ -1889,6 +1903,425 @@ IF ExecuteEdge THEN
                     Emissions[EmissionCount].SourceId := ActiveSourceId;
                     Emissions[EmissionCount].Seq := AssignedSeq;
                     EmissionCount := EmissionCount + UINT#1;
+                END_IF;
+                Done := TRUE;
+            ELSE
+                StateDroppedCommandCount := StateDroppedCommandCount + ULINT#1;
+                StateLastCommandError := UINT#5;
+                Error := TRUE;
+            END_IF;
+        END_IF;
+    ELSIF Op = UINT#15 THEN
+        ActiveSourceId := SourceId;
+        IF ActiveSourceId = UDINT#0 THEN
+            ActiveSourceId := UDINT#1;
+        END_IF;
+
+        StateFound := FALSE;
+        StateFreeFound := FALSE;
+        StateIndex := UINT#0;
+        AuditShouldEmit := FALSE;
+
+        IF ValueId = UDINT#0 THEN
+            StateDroppedCommandCount := StateDroppedCommandCount + ULINT#1;
+            StateLastCommandError := UINT#1;
+            Error := TRUE;
+        ELSIF (ValueTypeTag = BYTE#16#09) AND (ValuePayloadLength = UINT#4) THEN
+            FOR Index := UINT#0 TO UINT#15 DO
+                IF RealValueStates[Index].Used AND (RealValueStates[Index].ValueId = ValueId) THEN
+                    IF NOT StateFound THEN
+                        StateIndex := Index;
+                        StateFound := TRUE;
+                    END_IF;
+                ELSIF (NOT StateFound) AND (NOT RealValueStates[Index].Used) AND (NOT StateFreeFound) THEN
+                    StateIndex := Index;
+                    StateFreeFound := TRUE;
+                END_IF;
+            END_FOR;
+
+            IF StateFound THEN
+                IF RealValueStates[StateIndex].HasLast THEN
+                    AuditShouldEmit := ValueReal <> RealValueStates[StateIndex].LastValue;
+                    IF NOT AuditShouldEmit THEN
+                        Done := TRUE;
+                    END_IF;
+                ELSE
+                    RealValueStates[StateIndex].HasLast := TRUE;
+                    RealValueStates[StateIndex].LastValue := ValueReal;
+                    Done := TRUE;
+                END_IF;
+            ELSIF StateFreeFound THEN
+                RealValueStates[StateIndex].Used := TRUE;
+                RealValueStates[StateIndex].ValueId := ValueId;
+                RealValueStates[StateIndex].HasLast := TRUE;
+                RealValueStates[StateIndex].LastValue := ValueReal;
+                RealValueStates[StateIndex].HasLastEmitSourceTime := FALSE;
+                RealValueStates[StateIndex].HasBandCenter := FALSE;
+                Done := TRUE;
+            ELSE
+                StateDroppedCommandCount := StateDroppedCommandCount + ULINT#1;
+                StateLastCommandError := UINT#4;
+                Error := TRUE;
+            END_IF;
+        ELSIF (ValueTypeTag = BYTE#16#06) AND (ValuePayloadLength = UINT#4) THEN
+            FOR Index := UINT#0 TO UINT#15 DO
+                IF IntValueStates[Index].Used AND (IntValueStates[Index].ValueId = ValueId) THEN
+                    IF NOT StateFound THEN
+                        StateIndex := Index;
+                        StateFound := TRUE;
+                    END_IF;
+                ELSIF (NOT StateFound) AND (NOT IntValueStates[Index].Used) AND (NOT StateFreeFound) THEN
+                    StateIndex := Index;
+                    StateFreeFound := TRUE;
+                END_IF;
+            END_FOR;
+
+            IF StateFound THEN
+                IF IntValueStates[StateIndex].HasLast THEN
+                    AuditShouldEmit := ValueInt <> IntValueStates[StateIndex].LastValue;
+                    IF NOT AuditShouldEmit THEN
+                        Done := TRUE;
+                    END_IF;
+                ELSE
+                    IntValueStates[StateIndex].HasLast := TRUE;
+                    IntValueStates[StateIndex].LastValue := ValueInt;
+                    Done := TRUE;
+                END_IF;
+            ELSIF StateFreeFound THEN
+                IntValueStates[StateIndex].Used := TRUE;
+                IntValueStates[StateIndex].ValueId := ValueId;
+                IntValueStates[StateIndex].HasLast := TRUE;
+                IntValueStates[StateIndex].LastValue := ValueInt;
+                IntValueStates[StateIndex].HasLastEmitSourceTime := FALSE;
+                Done := TRUE;
+            ELSE
+                StateDroppedCommandCount := StateDroppedCommandCount + ULINT#1;
+                StateLastCommandError := UINT#4;
+                Error := TRUE;
+            END_IF;
+        ELSIF ValueTypeTag = BYTE#16#0C THEN
+            FOR Index := UINT#0 TO UINT#15 DO
+                IF StringValueStates[Index].Used AND (StringValueStates[Index].ValueId = ValueId) THEN
+                    IF NOT StateFound THEN
+                        StateIndex := Index;
+                        StateFound := TRUE;
+                    END_IF;
+                ELSIF (NOT StateFound) AND (NOT StringValueStates[Index].Used) AND (NOT StateFreeFound) THEN
+                    StateIndex := Index;
+                    StateFreeFound := TRUE;
+                END_IF;
+            END_FOR;
+
+            IF StateFound THEN
+                IF StringValueStates[StateIndex].HasLast THEN
+                    AuditShouldEmit := ValueString <> StringValueStates[StateIndex].LastValue;
+                    IF NOT AuditShouldEmit THEN
+                        Done := TRUE;
+                    END_IF;
+                ELSE
+                    StringValueStates[StateIndex].HasLast := TRUE;
+                    StringValueStates[StateIndex].LastValue := ValueString;
+                    Done := TRUE;
+                END_IF;
+            ELSIF StateFreeFound THEN
+                StringValueStates[StateIndex].Used := TRUE;
+                StringValueStates[StateIndex].ValueId := ValueId;
+                StringValueStates[StateIndex].HasLast := TRUE;
+                StringValueStates[StateIndex].LastValue := ValueString;
+                StringValueStates[StateIndex].HasLastEmitSourceTime := FALSE;
+                Done := TRUE;
+            ELSE
+                StateDroppedCommandCount := StateDroppedCommandCount + ULINT#1;
+                StateLastCommandError := UINT#4;
+                Error := TRUE;
+            END_IF;
+        ELSIF (ValuePayloadLength = UINT#1) OR (ValuePayloadLength = UINT#2) OR (ValuePayloadLength = UINT#4) OR (ValuePayloadLength = UINT#8) THEN
+            FOR Index := UINT#0 TO UINT#15 DO
+                IF BitsValueStates[Index].Used AND (BitsValueStates[Index].ValueId = ValueId) THEN
+                    IF NOT StateFound THEN
+                        StateIndex := Index;
+                        StateFound := TRUE;
+                    END_IF;
+                ELSIF (NOT StateFound) AND (NOT BitsValueStates[Index].Used) AND (NOT StateFreeFound) THEN
+                    StateIndex := Index;
+                    StateFreeFound := TRUE;
+                END_IF;
+            END_FOR;
+
+            IF StateFound THEN
+                IF BitsValueStates[StateIndex].HasLast THEN
+                    AuditShouldEmit := ValueBits <> BitsValueStates[StateIndex].LastBits;
+                    IF NOT AuditShouldEmit THEN
+                        Done := TRUE;
+                    END_IF;
+                ELSE
+                    BitsValueStates[StateIndex].HasLast := TRUE;
+                    BitsValueStates[StateIndex].LastBits := ValueBits;
+                    Done := TRUE;
+                END_IF;
+            ELSIF StateFreeFound THEN
+                BitsValueStates[StateIndex].Used := TRUE;
+                BitsValueStates[StateIndex].ValueId := ValueId;
+                BitsValueStates[StateIndex].HasLast := TRUE;
+                BitsValueStates[StateIndex].LastBits := ValueBits;
+                BitsValueStates[StateIndex].HasLastEmitSourceTime := FALSE;
+                Done := TRUE;
+            ELSE
+                StateDroppedCommandCount := StateDroppedCommandCount + ULINT#1;
+                StateLastCommandError := UINT#4;
+                Error := TRUE;
+            END_IF;
+        ELSE
+            StateDroppedCommandCount := StateDroppedCommandCount + ULINT#1;
+            StateLastCommandError := UINT#1;
+            Error := TRUE;
+        END_IF;
+
+        IF AuditShouldEmit AND (NOT Error) THEN
+            AuditActorLength := INT_TO_UINT(LEN(AuditActor));
+            AuditReasonLength := INT_TO_UINT(LEN(AuditReason));
+            IF AuditActorLength > UINT#96 THEN
+                AuditActorLength := UINT#96;
+            END_IF;
+            IF AuditReasonLength > UINT#96 THEN
+                AuditReasonLength := UINT#96;
+            END_IF;
+
+            AuditRecordLength := UINT#52 + OPENOT_ValueSlotEncodedLength(PayloadLength := AuditActorLength) + OPENOT_ValueSlotEncodedLength(PayloadLength := AuditReasonLength);
+            IF (ValueTypeTag = BYTE#16#09) OR (ValueTypeTag = BYTE#16#06) THEN
+                AuditRecordLength := AuditRecordLength + UINT#16;
+            ELSIF ValueTypeTag = BYTE#16#0C THEN
+                AuditPreviousStringLength := INT_TO_UINT(LEN(StringValueStates[StateIndex].LastValue));
+                AuditNewStringLength := INT_TO_UINT(LEN(ValueString));
+                IF AuditPreviousStringLength > UINT#96 THEN
+                    AuditPreviousStringLength := UINT#96;
+                END_IF;
+                IF AuditNewStringLength > UINT#96 THEN
+                    AuditNewStringLength := UINT#96;
+                END_IF;
+                AuditRecordLength := AuditRecordLength + OPENOT_ValueSlotEncodedLength(PayloadLength := AuditPreviousStringLength) + OPENOT_ValueSlotEncodedLength(PayloadLength := AuditNewStringLength);
+            ELSE
+                AuditRecordLength := AuditRecordLength + OPENOT_ValueSlotEncodedLength(PayloadLength := ValuePayloadLength) + OPENOT_ValueSlotEncodedLength(PayloadLength := ValuePayloadLength);
+            END_IF;
+            IF AuditHasAuthResult THEN
+                AuditRecordLength := AuditRecordLength + UINT#8;
+            END_IF;
+
+            IF (AuditActorLength = UINT#0) OR (AuditReasonLength = UINT#0) THEN
+                StateDroppedCommandCount := StateDroppedCommandCount + ULINT#1;
+                StateLastCommandError := UINT#2;
+                AuditShouldEmit := FALSE;
+                Error := TRUE;
+            ELSIF AuditRecordLength > UINT#256 THEN
+                StateDroppedCommandCount := StateDroppedCommandCount + ULINT#1;
+                StateLastCommandError := UINT#3;
+                AuditShouldEmit := FALSE;
+                Error := TRUE;
+            END_IF;
+        END_IF;
+
+        IF AuditShouldEmit AND (NOT Error) THEN
+            Found := FALSE;
+            FreeFound := FALSE;
+            EntryIndex := UINT#0;
+
+            FOR Index := UINT#0 TO UINT#15 DO
+                IF Sources[Index].Used AND (Sources[Index].SourceId = ActiveSourceId) THEN
+                    IF NOT Found THEN
+                        EntryIndex := Index;
+                        Found := TRUE;
+                    END_IF;
+                END_IF;
+            END_FOR;
+
+            IF NOT Found THEN
+                FOR Index := UINT#0 TO UINT#15 DO
+                    IF (NOT Sources[Index].Used) AND (NOT FreeFound) THEN
+                        EntryIndex := Index;
+                        FreeFound := TRUE;
+                    END_IF;
+                END_FOR;
+
+                IF FreeFound THEN
+                    Sources[EntryIndex].Used := TRUE;
+                    Sources[EntryIndex].SourceId := ActiveSourceId;
+                    Sources[EntryIndex].NextSeq := ULINT#0;
+                ELSE
+                    SourceTableFull := TRUE;
+                    StateDroppedCommandCount := StateDroppedCommandCount + ULINT#1;
+                    StateLastCommandError := UINT#4;
+                    AuditShouldEmit := FALSE;
+                    Error := TRUE;
+                END_IF;
+            END_IF;
+        END_IF;
+
+        IF AuditShouldEmit AND (NOT Error) THEN
+            AssignedSeq := Sources[EntryIndex].NextSeq;
+            EmitSourceTime := OPENOT_NextSourceTime(
+                UseSourceTimeInput := UseSourceTimeInput,
+                SourceTimeInput := SourceTimeInput,
+                StateSourceTime := StateSourceTime);
+
+            IF ValueTypeTag = BYTE#16#09 THEN
+                ParameterRealEncoder(
+                    SourceId := ActiveSourceId,
+                    RunId := StateRunId,
+                    Seq := AssignedSeq,
+                    SourceTime := EmitSourceTime,
+                    ValueId := ValueId,
+                    PreviousValue := RealValueStates[StateIndex].LastValue,
+                    NewValue := ValueReal,
+                    Actor := AuditActor,
+                    Reason := AuditReason,
+                    HasAuthResult := AuditHasAuthResult,
+                    AuthResult := AuditAuthResult);
+                RingProducer(
+                    Execute := TRUE,
+                    Record := ParameterRealEncoder.Buffer,
+                    Length := ParameterRealEncoder.Length,
+                    RunId := StateRunId,
+                    SourceId := ActiveSourceId,
+                    Seq := AssignedSeq);
+
+                IF RingProducer.Done AND (NOT RingProducer.Error) THEN
+                    AppendOk := OPENOT_AppendScanRecord(
+                        Record := ParameterRealEncoder.Buffer,
+                        Length := ParameterRealEncoder.Length,
+                        ScanRecords := ScanRecords,
+                        ScanRecordOffsets := ScanRecordOffsets,
+                        ScanRecordLengths := ScanRecordLengths,
+                        ScanWritePos := ScanWritePos,
+                        ScanRecordCount := ScanRecordCount);
+                ELSE
+                    AppendOk := FALSE;
+                END_IF;
+            ELSIF ValueTypeTag = BYTE#16#06 THEN
+                ParameterIntEncoder(
+                    SourceId := ActiveSourceId,
+                    RunId := StateRunId,
+                    Seq := AssignedSeq,
+                    SourceTime := EmitSourceTime,
+                    ValueId := ValueId,
+                    PreviousValue := IntValueStates[StateIndex].LastValue,
+                    NewValue := ValueInt,
+                    Actor := AuditActor,
+                    Reason := AuditReason,
+                    HasAuthResult := AuditHasAuthResult,
+                    AuthResult := AuditAuthResult);
+                RingProducer(
+                    Execute := TRUE,
+                    Record := ParameterIntEncoder.Buffer,
+                    Length := ParameterIntEncoder.Length,
+                    RunId := StateRunId,
+                    SourceId := ActiveSourceId,
+                    Seq := AssignedSeq);
+
+                IF RingProducer.Done AND (NOT RingProducer.Error) THEN
+                    AppendOk := OPENOT_AppendScanRecord(
+                        Record := ParameterIntEncoder.Buffer,
+                        Length := ParameterIntEncoder.Length,
+                        ScanRecords := ScanRecords,
+                        ScanRecordOffsets := ScanRecordOffsets,
+                        ScanRecordLengths := ScanRecordLengths,
+                        ScanWritePos := ScanWritePos,
+                        ScanRecordCount := ScanRecordCount);
+                ELSE
+                    AppendOk := FALSE;
+                END_IF;
+            ELSIF ValueTypeTag = BYTE#16#0C THEN
+                ParameterStringEncoder(
+                    SourceId := ActiveSourceId,
+                    RunId := StateRunId,
+                    Seq := AssignedSeq,
+                    SourceTime := EmitSourceTime,
+                    ValueId := ValueId,
+                    PreviousValue := StringValueStates[StateIndex].LastValue,
+                    NewValue := ValueString,
+                    Actor := AuditActor,
+                    Reason := AuditReason,
+                    HasAuthResult := AuditHasAuthResult,
+                    AuthResult := AuditAuthResult);
+                RingProducer(
+                    Execute := TRUE,
+                    Record := ParameterStringEncoder.Buffer,
+                    Length := ParameterStringEncoder.Length,
+                    RunId := StateRunId,
+                    SourceId := ActiveSourceId,
+                    Seq := AssignedSeq);
+
+                IF RingProducer.Done AND (NOT RingProducer.Error) THEN
+                    AppendOk := OPENOT_AppendScanRecord(
+                        Record := ParameterStringEncoder.Buffer,
+                        Length := ParameterStringEncoder.Length,
+                        ScanRecords := ScanRecords,
+                        ScanRecordOffsets := ScanRecordOffsets,
+                        ScanRecordLengths := ScanRecordLengths,
+                        ScanWritePos := ScanWritePos,
+                        ScanRecordCount := ScanRecordCount);
+                ELSE
+                    AppendOk := FALSE;
+                END_IF;
+            ELSE
+                ParameterBitsEncoder(
+                    SourceId := ActiveSourceId,
+                    RunId := StateRunId,
+                    Seq := AssignedSeq,
+                    SourceTime := EmitSourceTime,
+                    ValueId := ValueId,
+                    TypeTag := ValueTypeTag,
+                    PayloadLength := ValuePayloadLength,
+                    PreviousBits := BitsValueStates[StateIndex].LastBits,
+                    NewBits := ValueBits,
+                    Actor := AuditActor,
+                    Reason := AuditReason,
+                    HasAuthResult := AuditHasAuthResult,
+                    AuthResult := AuditAuthResult);
+                RingProducer(
+                    Execute := TRUE,
+                    Record := ParameterBitsEncoder.Buffer,
+                    Length := ParameterBitsEncoder.Length,
+                    RunId := StateRunId,
+                    SourceId := ActiveSourceId,
+                    Seq := AssignedSeq);
+
+                IF RingProducer.Done AND (NOT RingProducer.Error) THEN
+                    AppendOk := OPENOT_AppendScanRecord(
+                        Record := ParameterBitsEncoder.Buffer,
+                        Length := ParameterBitsEncoder.Length,
+                        ScanRecords := ScanRecords,
+                        ScanRecordOffsets := ScanRecordOffsets,
+                        ScanRecordLengths := ScanRecordLengths,
+                        ScanWritePos := ScanWritePos,
+                        ScanRecordCount := ScanRecordCount);
+                ELSE
+                    AppendOk := FALSE;
+                END_IF;
+            END_IF;
+
+            IF AppendOk THEN
+                Sources[EntryIndex].NextSeq := AssignedSeq + ULINT#1;
+                StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
+                IF EmissionCount < UINT#32 THEN
+                    Emissions[EmissionCount].EventTypeId := UDINT#16#0403;
+                    Emissions[EmissionCount].RunId := StateRunId;
+                    Emissions[EmissionCount].SourceId := ActiveSourceId;
+                    Emissions[EmissionCount].Seq := AssignedSeq;
+                    EmissionCount := EmissionCount + UINT#1;
+                END_IF;
+
+                IF ValueTypeTag = BYTE#16#09 THEN
+                    RealValueStates[StateIndex].HasLast := TRUE;
+                    RealValueStates[StateIndex].LastValue := ValueReal;
+                ELSIF ValueTypeTag = BYTE#16#06 THEN
+                    IntValueStates[StateIndex].HasLast := TRUE;
+                    IntValueStates[StateIndex].LastValue := ValueInt;
+                ELSIF ValueTypeTag = BYTE#16#0C THEN
+                    StringValueStates[StateIndex].HasLast := TRUE;
+                    StringValueStates[StateIndex].LastValue := ValueString;
+                ELSE
+                    BitsValueStates[StateIndex].HasLast := TRUE;
+                    BitsValueStates[StateIndex].LastBits := ValueBits;
                 END_IF;
                 Done := TRUE;
             ELSE

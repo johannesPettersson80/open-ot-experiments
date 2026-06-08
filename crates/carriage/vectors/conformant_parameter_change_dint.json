@@ -1,0 +1,31 @@
+{
+  "name": "conformant_parameter_change_dint",
+  "description": "definition-layer positive ParameterChange record carrying DINT previous/new values",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "conformant_parameter_change_dint.hex",
+  "byteCount": 104,
+  "headerLength": 40,
+  "totalRecordLength": 104,
+  "flags": "0x0008",
+  "crc32c": "0x9A5C517F",
+  "detail": {
+    "eventName": "ParameterChange",
+    "schemaExpected": "accept",
+    "fields": {
+      "sourceTime": 1000000360,
+      "runId": 1,
+      "seq": 37,
+      "sourceId": 66,
+      "eventTypeId": "0x0403"
+    },
+    "slots": [
+      { "key": "0x000D", "type": "UDInt", "name": "valueId", "value": 2002 },
+      { "key": "0x000F", "type": "DInt", "name": "previousValue", "value": 40 },
+      { "key": "0x0010", "type": "DInt", "name": "newValue", "value": 42 },
+      { "key": "0x000B", "type": "String", "name": "actor", "value": "operator-a" },
+      { "key": "0x001F", "type": "String", "name": "reason", "value": "count corrected" }
+    ]
+  }
+}

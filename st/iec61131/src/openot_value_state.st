@@ -542,6 +542,332 @@ ELSE
 END_IF;
 END_FUNCTION_BLOCK
 
+FUNCTION_BLOCK OPENOT_EncodeParameterChangeReal
+VAR_INPUT
+    SourceId : UDINT;
+    RunId : ULINT;
+    Seq : ULINT;
+    SourceTime : ULINT;
+    ValueId : UDINT;
+    PreviousValue : REAL;
+    NewValue : REAL;
+    Actor : STRING[96];
+    Reason : STRING[96];
+    HasAuthResult : BOOL;
+    AuthResult : UINT;
+END_VAR
+VAR_OUTPUT
+    Buffer : OPENOT_BYTE_BUFFER;
+    Length : UINT;
+END_VAR
+VAR
+    Pos : UINT;
+    TotalLength : UINT;
+    Crc : DWORD;
+    ValueBits : DWORD;
+    ActorLength : UINT;
+    ReasonLength : UINT;
+END_VAR
+
+ActorLength := INT_TO_UINT(LEN(Actor));
+ReasonLength := INT_TO_UINT(LEN(Reason));
+IF ActorLength > UINT#96 THEN
+    ActorLength := UINT#96;
+END_IF;
+IF ReasonLength > UINT#96 THEN
+    ReasonLength := UINT#96;
+END_IF;
+
+TotalLength := UINT#52 + UINT#8 + UINT#8 + OPENOT_ValueSlotEncodedLength(PayloadLength := ActorLength) + OPENOT_ValueSlotEncodedLength(PayloadLength := ReasonLength);
+IF HasAuthResult THEN
+    TotalLength := TotalLength + UINT#8;
+END_IF;
+
+Pos := OPENOT_WriteHeader(
+    TotalLength := TotalLength,
+    Flags := UINT#16#0008,
+    SourceTime := SourceTime,
+    RunId := RunId,
+    Seq := Seq,
+    SourceId := SourceId,
+    EventTypeId := UDINT#16#0403,
+    Buffer := Buffer);
+
+Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#000D, TypeTag := BYTE#16#05, PayloadLength := BYTE#4, Buffer := Buffer);
+Pos := OPENOT_WriteU32LE(Offset := Pos, Value := ValueId, Buffer := Buffer);
+
+ValueBits := REAL_TO_DWORD(PreviousValue);
+Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#000F, TypeTag := BYTE#16#09, PayloadLength := BYTE#4, Buffer := Buffer);
+Pos := OPENOT_WriteDWordLE(Offset := Pos, Value := ValueBits, Buffer := Buffer);
+
+ValueBits := REAL_TO_DWORD(NewValue);
+Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0010, TypeTag := BYTE#16#09, PayloadLength := BYTE#4, Buffer := Buffer);
+Pos := OPENOT_WriteDWordLE(Offset := Pos, Value := ValueBits, Buffer := Buffer);
+
+Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#000B, TypeTag := BYTE#16#0C, PayloadLength := UINT_TO_BYTE(ActorLength), Buffer := Buffer);
+Pos := OPENOT_WriteStringPayload(Offset := Pos, Value := Actor, PayloadLength := ActorLength, Buffer := Buffer);
+
+Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#001F, TypeTag := BYTE#16#0C, PayloadLength := UINT_TO_BYTE(ReasonLength), Buffer := Buffer);
+Pos := OPENOT_WriteStringPayload(Offset := Pos, Value := Reason, PayloadLength := ReasonLength, Buffer := Buffer);
+
+IF HasAuthResult THEN
+    Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0020, TypeTag := BYTE#16#03, PayloadLength := BYTE#2, Buffer := Buffer);
+    Pos := OPENOT_WriteU16LE(Offset := Pos, Value := AuthResult, Buffer := Buffer);
+    Pos := OPENOT_WriteByte(Offset := Pos, Value := BYTE#16#00, Buffer := Buffer);
+    Pos := OPENOT_WriteByte(Offset := Pos, Value := BYTE#16#00, Buffer := Buffer);
+END_IF;
+
+Crc := OPENOT_Crc32c(Data := Buffer, Length := Pos);
+Pos := OPENOT_WriteDWordLE(Offset := Pos, Value := Crc, Buffer := Buffer);
+Length := Pos;
+END_FUNCTION_BLOCK
+
+FUNCTION_BLOCK OPENOT_EncodeParameterChangeInt
+VAR_INPUT
+    SourceId : UDINT;
+    RunId : ULINT;
+    Seq : ULINT;
+    SourceTime : ULINT;
+    ValueId : UDINT;
+    PreviousValue : DINT;
+    NewValue : DINT;
+    Actor : STRING[96];
+    Reason : STRING[96];
+    HasAuthResult : BOOL;
+    AuthResult : UINT;
+END_VAR
+VAR_OUTPUT
+    Buffer : OPENOT_BYTE_BUFFER;
+    Length : UINT;
+END_VAR
+VAR
+    Pos : UINT;
+    TotalLength : UINT;
+    Crc : DWORD;
+    ValueBits : DWORD;
+    ActorLength : UINT;
+    ReasonLength : UINT;
+END_VAR
+
+ActorLength := INT_TO_UINT(LEN(Actor));
+ReasonLength := INT_TO_UINT(LEN(Reason));
+IF ActorLength > UINT#96 THEN
+    ActorLength := UINT#96;
+END_IF;
+IF ReasonLength > UINT#96 THEN
+    ReasonLength := UINT#96;
+END_IF;
+
+TotalLength := UINT#52 + UINT#8 + UINT#8 + OPENOT_ValueSlotEncodedLength(PayloadLength := ActorLength) + OPENOT_ValueSlotEncodedLength(PayloadLength := ReasonLength);
+IF HasAuthResult THEN
+    TotalLength := TotalLength + UINT#8;
+END_IF;
+
+Pos := OPENOT_WriteHeader(
+    TotalLength := TotalLength,
+    Flags := UINT#16#0008,
+    SourceTime := SourceTime,
+    RunId := RunId,
+    Seq := Seq,
+    SourceId := SourceId,
+    EventTypeId := UDINT#16#0403,
+    Buffer := Buffer);
+
+Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#000D, TypeTag := BYTE#16#05, PayloadLength := BYTE#4, Buffer := Buffer);
+Pos := OPENOT_WriteU32LE(Offset := Pos, Value := ValueId, Buffer := Buffer);
+
+ValueBits := DINT_TO_DWORD(PreviousValue);
+Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#000F, TypeTag := BYTE#16#06, PayloadLength := BYTE#4, Buffer := Buffer);
+Pos := OPENOT_WriteDWordLE(Offset := Pos, Value := ValueBits, Buffer := Buffer);
+
+ValueBits := DINT_TO_DWORD(NewValue);
+Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0010, TypeTag := BYTE#16#06, PayloadLength := BYTE#4, Buffer := Buffer);
+Pos := OPENOT_WriteDWordLE(Offset := Pos, Value := ValueBits, Buffer := Buffer);
+
+Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#000B, TypeTag := BYTE#16#0C, PayloadLength := UINT_TO_BYTE(ActorLength), Buffer := Buffer);
+Pos := OPENOT_WriteStringPayload(Offset := Pos, Value := Actor, PayloadLength := ActorLength, Buffer := Buffer);
+
+Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#001F, TypeTag := BYTE#16#0C, PayloadLength := UINT_TO_BYTE(ReasonLength), Buffer := Buffer);
+Pos := OPENOT_WriteStringPayload(Offset := Pos, Value := Reason, PayloadLength := ReasonLength, Buffer := Buffer);
+
+IF HasAuthResult THEN
+    Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0020, TypeTag := BYTE#16#03, PayloadLength := BYTE#2, Buffer := Buffer);
+    Pos := OPENOT_WriteU16LE(Offset := Pos, Value := AuthResult, Buffer := Buffer);
+    Pos := OPENOT_WriteByte(Offset := Pos, Value := BYTE#16#00, Buffer := Buffer);
+    Pos := OPENOT_WriteByte(Offset := Pos, Value := BYTE#16#00, Buffer := Buffer);
+END_IF;
+
+Crc := OPENOT_Crc32c(Data := Buffer, Length := Pos);
+Pos := OPENOT_WriteDWordLE(Offset := Pos, Value := Crc, Buffer := Buffer);
+Length := Pos;
+END_FUNCTION_BLOCK
+
+FUNCTION_BLOCK OPENOT_EncodeParameterChangeBits
+VAR_INPUT
+    SourceId : UDINT;
+    RunId : ULINT;
+    Seq : ULINT;
+    SourceTime : ULINT;
+    ValueId : UDINT;
+    TypeTag : BYTE;
+    PayloadLength : UINT;
+    PreviousBits : ULINT;
+    NewBits : ULINT;
+    Actor : STRING[96];
+    Reason : STRING[96];
+    HasAuthResult : BOOL;
+    AuthResult : UINT;
+END_VAR
+VAR_OUTPUT
+    Buffer : OPENOT_BYTE_BUFFER;
+    Length : UINT;
+END_VAR
+VAR
+    Pos : UINT;
+    TotalLength : UINT;
+    Crc : DWORD;
+    ActorLength : UINT;
+    ReasonLength : UINT;
+END_VAR
+
+ActorLength := INT_TO_UINT(LEN(Actor));
+ReasonLength := INT_TO_UINT(LEN(Reason));
+IF ActorLength > UINT#96 THEN
+    ActorLength := UINT#96;
+END_IF;
+IF ReasonLength > UINT#96 THEN
+    ReasonLength := UINT#96;
+END_IF;
+
+TotalLength := UINT#52 + OPENOT_ValueSlotEncodedLength(PayloadLength := PayloadLength) + OPENOT_ValueSlotEncodedLength(PayloadLength := PayloadLength) + OPENOT_ValueSlotEncodedLength(PayloadLength := ActorLength) + OPENOT_ValueSlotEncodedLength(PayloadLength := ReasonLength);
+IF HasAuthResult THEN
+    TotalLength := TotalLength + UINT#8;
+END_IF;
+
+Pos := OPENOT_WriteHeader(
+    TotalLength := TotalLength,
+    Flags := UINT#16#0008,
+    SourceTime := SourceTime,
+    RunId := RunId,
+    Seq := Seq,
+    SourceId := SourceId,
+    EventTypeId := UDINT#16#0403,
+    Buffer := Buffer);
+
+Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#000D, TypeTag := BYTE#16#05, PayloadLength := BYTE#4, Buffer := Buffer);
+Pos := OPENOT_WriteU32LE(Offset := Pos, Value := ValueId, Buffer := Buffer);
+
+Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#000F, TypeTag := TypeTag, PayloadLength := UINT_TO_BYTE(PayloadLength), Buffer := Buffer);
+Pos := OPENOT_WriteValueBitsLE(Offset := Pos, Value := PreviousBits, PayloadLength := PayloadLength, Buffer := Buffer);
+
+Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0010, TypeTag := TypeTag, PayloadLength := UINT_TO_BYTE(PayloadLength), Buffer := Buffer);
+Pos := OPENOT_WriteValueBitsLE(Offset := Pos, Value := NewBits, PayloadLength := PayloadLength, Buffer := Buffer);
+
+Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#000B, TypeTag := BYTE#16#0C, PayloadLength := UINT_TO_BYTE(ActorLength), Buffer := Buffer);
+Pos := OPENOT_WriteStringPayload(Offset := Pos, Value := Actor, PayloadLength := ActorLength, Buffer := Buffer);
+
+Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#001F, TypeTag := BYTE#16#0C, PayloadLength := UINT_TO_BYTE(ReasonLength), Buffer := Buffer);
+Pos := OPENOT_WriteStringPayload(Offset := Pos, Value := Reason, PayloadLength := ReasonLength, Buffer := Buffer);
+
+IF HasAuthResult THEN
+    Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0020, TypeTag := BYTE#16#03, PayloadLength := BYTE#2, Buffer := Buffer);
+    Pos := OPENOT_WriteU16LE(Offset := Pos, Value := AuthResult, Buffer := Buffer);
+    Pos := OPENOT_WriteByte(Offset := Pos, Value := BYTE#16#00, Buffer := Buffer);
+    Pos := OPENOT_WriteByte(Offset := Pos, Value := BYTE#16#00, Buffer := Buffer);
+END_IF;
+
+Crc := OPENOT_Crc32c(Data := Buffer, Length := Pos);
+Pos := OPENOT_WriteDWordLE(Offset := Pos, Value := Crc, Buffer := Buffer);
+Length := Pos;
+END_FUNCTION_BLOCK
+
+FUNCTION_BLOCK OPENOT_EncodeParameterChangeString
+VAR_INPUT
+    SourceId : UDINT;
+    RunId : ULINT;
+    Seq : ULINT;
+    SourceTime : ULINT;
+    ValueId : UDINT;
+    PreviousValue : STRING[96];
+    NewValue : STRING[96];
+    Actor : STRING[96];
+    Reason : STRING[96];
+    HasAuthResult : BOOL;
+    AuthResult : UINT;
+END_VAR
+VAR_OUTPUT
+    Buffer : OPENOT_BYTE_BUFFER;
+    Length : UINT;
+END_VAR
+VAR
+    Pos : UINT;
+    TotalLength : UINT;
+    PreviousLength : UINT;
+    NewLength : UINT;
+    ActorLength : UINT;
+    ReasonLength : UINT;
+    Crc : DWORD;
+END_VAR
+
+PreviousLength := INT_TO_UINT(LEN(PreviousValue));
+NewLength := INT_TO_UINT(LEN(NewValue));
+ActorLength := INT_TO_UINT(LEN(Actor));
+ReasonLength := INT_TO_UINT(LEN(Reason));
+IF PreviousLength > UINT#96 THEN
+    PreviousLength := UINT#96;
+END_IF;
+IF NewLength > UINT#96 THEN
+    NewLength := UINT#96;
+END_IF;
+IF ActorLength > UINT#96 THEN
+    ActorLength := UINT#96;
+END_IF;
+IF ReasonLength > UINT#96 THEN
+    ReasonLength := UINT#96;
+END_IF;
+
+TotalLength := UINT#52 + OPENOT_ValueSlotEncodedLength(PayloadLength := PreviousLength) + OPENOT_ValueSlotEncodedLength(PayloadLength := NewLength) + OPENOT_ValueSlotEncodedLength(PayloadLength := ActorLength) + OPENOT_ValueSlotEncodedLength(PayloadLength := ReasonLength);
+IF HasAuthResult THEN
+    TotalLength := TotalLength + UINT#8;
+END_IF;
+
+Pos := OPENOT_WriteHeader(
+    TotalLength := TotalLength,
+    Flags := UINT#16#0008,
+    SourceTime := SourceTime,
+    RunId := RunId,
+    Seq := Seq,
+    SourceId := SourceId,
+    EventTypeId := UDINT#16#0403,
+    Buffer := Buffer);
+
+Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#000D, TypeTag := BYTE#16#05, PayloadLength := BYTE#4, Buffer := Buffer);
+Pos := OPENOT_WriteU32LE(Offset := Pos, Value := ValueId, Buffer := Buffer);
+
+Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#000F, TypeTag := BYTE#16#0C, PayloadLength := UINT_TO_BYTE(PreviousLength), Buffer := Buffer);
+Pos := OPENOT_WriteStringPayload(Offset := Pos, Value := PreviousValue, PayloadLength := PreviousLength, Buffer := Buffer);
+
+Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0010, TypeTag := BYTE#16#0C, PayloadLength := UINT_TO_BYTE(NewLength), Buffer := Buffer);
+Pos := OPENOT_WriteStringPayload(Offset := Pos, Value := NewValue, PayloadLength := NewLength, Buffer := Buffer);
+
+Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#000B, TypeTag := BYTE#16#0C, PayloadLength := UINT_TO_BYTE(ActorLength), Buffer := Buffer);
+Pos := OPENOT_WriteStringPayload(Offset := Pos, Value := Actor, PayloadLength := ActorLength, Buffer := Buffer);
+
+Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#001F, TypeTag := BYTE#16#0C, PayloadLength := UINT_TO_BYTE(ReasonLength), Buffer := Buffer);
+Pos := OPENOT_WriteStringPayload(Offset := Pos, Value := Reason, PayloadLength := ReasonLength, Buffer := Buffer);
+
+IF HasAuthResult THEN
+    Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0020, TypeTag := BYTE#16#03, PayloadLength := BYTE#2, Buffer := Buffer);
+    Pos := OPENOT_WriteU16LE(Offset := Pos, Value := AuthResult, Buffer := Buffer);
+    Pos := OPENOT_WriteByte(Offset := Pos, Value := BYTE#16#00, Buffer := Buffer);
+    Pos := OPENOT_WriteByte(Offset := Pos, Value := BYTE#16#00, Buffer := Buffer);
+END_IF;
+
+Crc := OPENOT_Crc32c(Data := Buffer, Length := Pos);
+Pos := OPENOT_WriteDWordLE(Offset := Pos, Value := Crc, Buffer := Buffer);
+Length := Pos;
+END_FUNCTION_BLOCK
+
 FUNCTION_BLOCK OPENOT_EncodeConformantConditionAcknowledged
 VAR_OUTPUT
     Buffer : OPENOT_BYTE_BUFFER;
@@ -1203,6 +1529,108 @@ Encoder(
     Role := UINT#0,
     HasReason := TRUE,
     Reason := 'denied');
+Buffer := Encoder.Buffer;
+Length := Encoder.Length;
+END_FUNCTION_BLOCK
+
+FUNCTION_BLOCK OPENOT_EncodeConformantParameterChangeReal
+VAR_OUTPUT
+    Buffer : OPENOT_BYTE_BUFFER;
+    Length : UINT;
+END_VAR
+VAR
+    Encoder : OPENOT_EncodeParameterChangeReal;
+END_VAR
+
+Encoder(
+    SourceId := UDINT#66,
+    RunId := ULINT#1,
+    Seq := ULINT#36,
+    SourceTime := ULINT#1000000350,
+    ValueId := UDINT#2001,
+    PreviousValue := REAL#12.5,
+    NewValue := REAL#13.75,
+    Actor := 'operator-a',
+    Reason := 'setpoint change',
+    HasAuthResult := TRUE,
+    AuthResult := UINT#0);
+Buffer := Encoder.Buffer;
+Length := Encoder.Length;
+END_FUNCTION_BLOCK
+
+FUNCTION_BLOCK OPENOT_EncodeConformantParameterChangeInt
+VAR_OUTPUT
+    Buffer : OPENOT_BYTE_BUFFER;
+    Length : UINT;
+END_VAR
+VAR
+    Encoder : OPENOT_EncodeParameterChangeInt;
+END_VAR
+
+Encoder(
+    SourceId := UDINT#66,
+    RunId := ULINT#1,
+    Seq := ULINT#37,
+    SourceTime := ULINT#1000000360,
+    ValueId := UDINT#2002,
+    PreviousValue := DINT#40,
+    NewValue := DINT#42,
+    Actor := 'operator-a',
+    Reason := 'count corrected',
+    HasAuthResult := FALSE,
+    AuthResult := UINT#0);
+Buffer := Encoder.Buffer;
+Length := Encoder.Length;
+END_FUNCTION_BLOCK
+
+FUNCTION_BLOCK OPENOT_EncodeConformantParameterChangeBits
+VAR_OUTPUT
+    Buffer : OPENOT_BYTE_BUFFER;
+    Length : UINT;
+END_VAR
+VAR
+    Encoder : OPENOT_EncodeParameterChangeBits;
+END_VAR
+
+Encoder(
+    SourceId := UDINT#66,
+    RunId := ULINT#1,
+    Seq := ULINT#38,
+    SourceTime := ULINT#1000000370,
+    ValueId := UDINT#2003,
+    TypeTag := BYTE#16#00,
+    PayloadLength := UINT#1,
+    PreviousBits := ULINT#0,
+    NewBits := ULINT#1,
+    Actor := 'operator-b',
+    Reason := 'enable audit',
+    HasAuthResult := FALSE,
+    AuthResult := UINT#0);
+Buffer := Encoder.Buffer;
+Length := Encoder.Length;
+END_FUNCTION_BLOCK
+
+FUNCTION_BLOCK OPENOT_EncodeConformantParameterChangeString
+VAR_OUTPUT
+    Buffer : OPENOT_BYTE_BUFFER;
+    Length : UINT;
+END_VAR
+VAR
+    Encoder : OPENOT_EncodeParameterChangeString;
+END_VAR
+
+Encoder(
+    SourceId := UDINT#66,
+    RunId := ULINT#1,
+    Seq := ULINT#39,
+    SourceTime := ULINT#1000000380,
+    ValueId := UDINT#2012,
+    PreviousValue := 'manual',
+    NewValue := 'auto',
+    Actor := 'operator-c',
+    Reason := 'mode note',
+    HasAuthResult := TRUE,
+    AuthResult := UINT#1);
 Buffer := Encoder.Buffer;
 Length := Encoder.Length;
 END_FUNCTION_BLOCK

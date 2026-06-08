@@ -1,0 +1,31 @@
+{
+  "name": "conformant_parameter_change_bool",
+  "description": "definition-layer positive ParameterChange record carrying BOOL previous/new values through the bits path",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "conformant_parameter_change_bool.hex",
+  "byteCount": 100,
+  "headerLength": 40,
+  "totalRecordLength": 100,
+  "flags": "0x0008",
+  "crc32c": "0x6E6ACA59",
+  "detail": {
+    "eventName": "ParameterChange",
+    "schemaExpected": "accept",
+    "fields": {
+      "sourceTime": 1000000370,
+      "runId": 1,
+      "seq": 38,
+      "sourceId": 66,
+      "eventTypeId": "0x0403"
+    },
+    "slots": [
+      { "key": "0x000D", "type": "UDInt", "name": "valueId", "value": 2003 },
+      { "key": "0x000F", "type": "Bool", "name": "previousValue", "value": false },
+      { "key": "0x0010", "type": "Bool", "name": "newValue", "value": true },
+      { "key": "0x000B", "type": "String", "name": "actor", "value": "operator-b" },
+      { "key": "0x001F", "type": "String", "name": "reason", "value": "enable audit" }
+    ]
+  }
+}

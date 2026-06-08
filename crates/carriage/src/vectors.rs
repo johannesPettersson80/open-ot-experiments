@@ -19,18 +19,19 @@ use crate::registry::{
     EVENT_CONDITION_RESET, EVENT_CONDITION_SHELVED, EVENT_CONDITION_SUPPRESSED,
     EVENT_CONDITION_UNSHELVED, EVENT_CONDITION_UNSUPPRESSED, EVENT_DEFINITION_CHANGED,
     EVENT_LOGGER_STARTED, EVENT_LOGGER_STOPPED, EVENT_MATERIAL_ADDITION, EVENT_MESSAGE,
-    EVENT_OPERATOR_ACTION, EVENT_OPERATOR_LOGIN, EVENT_OPERATOR_LOGOUT, EVENT_RECIPE_APPROVED,
-    EVENT_RECIPE_LOADED, EVENT_SECURITY_ACCESS_FAILURE, EVENT_SOURCE_HIGH_WATER,
-    EVENT_STATE_TRANSITION, EVENT_VALUE_CHANGED, KEY_ACK_BY, KEY_ACTION_ID, KEY_ACTOR, KEY_ARG,
-    KEY_AUTH_RESULT, KEY_BATCH_ID, KEY_CATEGORY, KEY_CAUSE_OPERAND, KEY_COLD_START, KEY_COMMENT,
-    KEY_CONDITION_CLASS, KEY_CONDITION_ID, KEY_CONTEXT_REF, KEY_CORRELATION_ID, KEY_DEF_HASH_NEW,
-    KEY_DEF_HASH_OLD, KEY_DROPPED_COUNT, KEY_EPOCH_ID, KEY_FIRST_LOST_SEQ, KEY_LAST_LOST_SEQ,
-    KEY_MATERIAL_ID, KEY_MESSAGE_TEMPLATE_ID, KEY_NEW_PRIORITY, KEY_NEW_STATE, KEY_NEW_VALUE,
-    KEY_PREVIOUS_PRIORITY, KEY_PREVIOUS_STATE, KEY_PREVIOUS_VALUE, KEY_QUALITY, KEY_QUANTITY,
-    KEY_REASON, KEY_RECIPE_ID, KEY_RECIPE_VERSION, KEY_ROLE, KEY_SEVERITY, KEY_SHELVE_SECS,
-    KEY_SOURCE_HIGH_WATER, KEY_STATE_MACHINE_ID, KEY_UNIT, KEY_VALUE_ID, KEY_WINDOW_END,
-    KEY_WINDOW_START, KEY_WORKSTATION, SYSTEM_SOURCE_ID, TY_BOOL, TY_BYTES, TY_DATE_TIME, TY_DINT,
-    TY_INT, TY_LINT, TY_LREAL, TY_REAL, TY_SINT, TY_STRING, TY_UDINT, TY_UINT, TY_ULINT, TY_USINT,
+    EVENT_OPERATOR_ACTION, EVENT_OPERATOR_LOGIN, EVENT_OPERATOR_LOGOUT, EVENT_PARAMETER_CHANGE,
+    EVENT_RECIPE_APPROVED, EVENT_RECIPE_LOADED, EVENT_SECURITY_ACCESS_FAILURE,
+    EVENT_SOURCE_HIGH_WATER, EVENT_STATE_TRANSITION, EVENT_VALUE_CHANGED, KEY_ACK_BY,
+    KEY_ACTION_ID, KEY_ACTOR, KEY_ARG, KEY_AUTH_RESULT, KEY_BATCH_ID, KEY_CATEGORY,
+    KEY_CAUSE_OPERAND, KEY_COLD_START, KEY_COMMENT, KEY_CONDITION_CLASS, KEY_CONDITION_ID,
+    KEY_CONTEXT_REF, KEY_CORRELATION_ID, KEY_DEF_HASH_NEW, KEY_DEF_HASH_OLD, KEY_DROPPED_COUNT,
+    KEY_EPOCH_ID, KEY_FIRST_LOST_SEQ, KEY_LAST_LOST_SEQ, KEY_MATERIAL_ID, KEY_MESSAGE_TEMPLATE_ID,
+    KEY_NEW_PRIORITY, KEY_NEW_STATE, KEY_NEW_VALUE, KEY_PREVIOUS_PRIORITY, KEY_PREVIOUS_STATE,
+    KEY_PREVIOUS_VALUE, KEY_QUALITY, KEY_QUANTITY, KEY_REASON, KEY_RECIPE_ID, KEY_RECIPE_VERSION,
+    KEY_ROLE, KEY_SEVERITY, KEY_SHELVE_SECS, KEY_SOURCE_HIGH_WATER, KEY_STATE_MACHINE_ID, KEY_UNIT,
+    KEY_VALUE_ID, KEY_WINDOW_END, KEY_WINDOW_START, KEY_WORKSTATION, SYSTEM_SOURCE_ID, TY_BOOL,
+    TY_BYTES, TY_DATE_TIME, TY_DINT, TY_INT, TY_LINT, TY_LREAL, TY_REAL, TY_SINT, TY_STRING,
+    TY_UDINT, TY_UINT, TY_ULINT, TY_USINT,
 };
 use crate::ring::{LossRange, RingBuffer};
 use crate::wire::{FLAG_HAS_CRC, HEADER_LEN, Record, SYNC, Slot, WireError, decode};
@@ -889,6 +890,108 @@ pub fn generate_files() -> Vec<VectorFile> {
     { "key": "0x000B", "type": "String", "name": "actor", "value": "operator-x" },
     { "key": "0x0021", "type": "String", "name": "workstation", "value": "station-2" },
     { "key": "0x001F", "type": "String", "name": "reason", "value": "denied" }
+  ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
+        "conformant_parameter_change_real",
+        "definition-layer positive ParameterChange record carrying REAL previous/new values",
+        &conformant_parameter_change_real_record(),
+        r#"{
+  "eventName": "ParameterChange",
+  "schemaExpected": "accept",
+  "fields": {
+    "sourceTime": 1000000350,
+    "runId": 1,
+    "seq": 36,
+    "sourceId": 66,
+    "eventTypeId": "0x0403"
+  },
+  "slots": [
+    { "key": "0x000D", "type": "UDInt", "name": "valueId", "value": 2001 },
+    { "key": "0x000F", "type": "Real", "name": "previousValue", "value": 12.5 },
+    { "key": "0x0010", "type": "Real", "name": "newValue", "value": 13.75 },
+    { "key": "0x000B", "type": "String", "name": "actor", "value": "operator-a" },
+    { "key": "0x001F", "type": "String", "name": "reason", "value": "setpoint change" },
+    { "key": "0x0020", "type": "UInt", "name": "authResult", "value": 0 }
+  ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
+        "conformant_parameter_change_dint",
+        "definition-layer positive ParameterChange record carrying DINT previous/new values",
+        &conformant_parameter_change_dint_record(),
+        r#"{
+  "eventName": "ParameterChange",
+  "schemaExpected": "accept",
+  "fields": {
+    "sourceTime": 1000000360,
+    "runId": 1,
+    "seq": 37,
+    "sourceId": 66,
+    "eventTypeId": "0x0403"
+  },
+  "slots": [
+    { "key": "0x000D", "type": "UDInt", "name": "valueId", "value": 2002 },
+    { "key": "0x000F", "type": "DInt", "name": "previousValue", "value": 40 },
+    { "key": "0x0010", "type": "DInt", "name": "newValue", "value": 42 },
+    { "key": "0x000B", "type": "String", "name": "actor", "value": "operator-a" },
+    { "key": "0x001F", "type": "String", "name": "reason", "value": "count corrected" }
+  ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
+        "conformant_parameter_change_bool",
+        "definition-layer positive ParameterChange record carrying BOOL previous/new values through the bits path",
+        &conformant_parameter_change_bool_record(),
+        r#"{
+  "eventName": "ParameterChange",
+  "schemaExpected": "accept",
+  "fields": {
+    "sourceTime": 1000000370,
+    "runId": 1,
+    "seq": 38,
+    "sourceId": 66,
+    "eventTypeId": "0x0403"
+  },
+  "slots": [
+    { "key": "0x000D", "type": "UDInt", "name": "valueId", "value": 2003 },
+    { "key": "0x000F", "type": "Bool", "name": "previousValue", "value": false },
+    { "key": "0x0010", "type": "Bool", "name": "newValue", "value": true },
+    { "key": "0x000B", "type": "String", "name": "actor", "value": "operator-b" },
+    { "key": "0x001F", "type": "String", "name": "reason", "value": "enable audit" }
+  ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
+        "conformant_parameter_change_string",
+        "definition-layer positive ParameterChange record carrying STRING previous/new values",
+        &conformant_parameter_change_string_record(),
+        r#"{
+  "eventName": "ParameterChange",
+  "schemaExpected": "accept",
+  "fields": {
+    "sourceTime": 1000000380,
+    "runId": 1,
+    "seq": 39,
+    "sourceId": 66,
+    "eventTypeId": "0x0403"
+  },
+  "slots": [
+    { "key": "0x000D", "type": "UDInt", "name": "valueId", "value": 2012 },
+    { "key": "0x000F", "type": "String", "name": "previousValue", "value": "manual" },
+    { "key": "0x0010", "type": "String", "name": "newValue", "value": "auto" },
+    { "key": "0x000B", "type": "String", "name": "actor", "value": "operator-c" },
+    { "key": "0x001F", "type": "String", "name": "reason", "value": "mode note" },
+    { "key": "0x0020", "type": "UInt", "name": "authResult", "value": 1 }
   ]
 }"#,
     );
@@ -1974,6 +2077,92 @@ fn conformant_security_access_failure_record() -> Record {
     record
 }
 
+fn conformant_parameter_change_real_record() -> Record {
+    let mut record = Record::new(1_000_000_350, 1, 36, 66, EVENT_PARAMETER_CHANGE);
+    record
+        .slots
+        .push(Slot::new(KEY_VALUE_ID, TY_UDINT, 2001u32.to_le_bytes()));
+    record.slots.push(Slot::new(
+        KEY_PREVIOUS_VALUE,
+        TY_REAL,
+        12.5f32.to_le_bytes(),
+    ));
+    record
+        .slots
+        .push(Slot::new(KEY_NEW_VALUE, TY_REAL, 13.75f32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_ACTOR, TY_STRING, b"operator-a"));
+    record
+        .slots
+        .push(Slot::new(KEY_REASON, TY_STRING, b"setpoint change"));
+    record
+        .slots
+        .push(Slot::new(KEY_AUTH_RESULT, TY_UINT, 0u16.to_le_bytes()));
+    record
+}
+
+fn conformant_parameter_change_dint_record() -> Record {
+    let mut record = Record::new(1_000_000_360, 1, 37, 66, EVENT_PARAMETER_CHANGE);
+    record
+        .slots
+        .push(Slot::new(KEY_VALUE_ID, TY_UDINT, 2002u32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_PREVIOUS_VALUE, TY_DINT, 40i32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_NEW_VALUE, TY_DINT, 42i32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_ACTOR, TY_STRING, b"operator-a"));
+    record
+        .slots
+        .push(Slot::new(KEY_REASON, TY_STRING, b"count corrected"));
+    record
+}
+
+fn conformant_parameter_change_bool_record() -> Record {
+    let mut record = Record::new(1_000_000_370, 1, 38, 66, EVENT_PARAMETER_CHANGE);
+    record
+        .slots
+        .push(Slot::new(KEY_VALUE_ID, TY_UDINT, 2003u32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_PREVIOUS_VALUE, TY_BOOL, [0]));
+    record.slots.push(Slot::new(KEY_NEW_VALUE, TY_BOOL, [1]));
+    record
+        .slots
+        .push(Slot::new(KEY_ACTOR, TY_STRING, b"operator-b"));
+    record
+        .slots
+        .push(Slot::new(KEY_REASON, TY_STRING, b"enable audit"));
+    record
+}
+
+fn conformant_parameter_change_string_record() -> Record {
+    let mut record = Record::new(1_000_000_380, 1, 39, 66, EVENT_PARAMETER_CHANGE);
+    record
+        .slots
+        .push(Slot::new(KEY_VALUE_ID, TY_UDINT, 2012u32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_PREVIOUS_VALUE, TY_STRING, b"manual"));
+    record
+        .slots
+        .push(Slot::new(KEY_NEW_VALUE, TY_STRING, b"auto"));
+    record
+        .slots
+        .push(Slot::new(KEY_ACTOR, TY_STRING, b"operator-c"));
+    record
+        .slots
+        .push(Slot::new(KEY_REASON, TY_STRING, b"mode note"));
+    record
+        .slots
+        .push(Slot::new(KEY_AUTH_RESULT, TY_UINT, 1u16.to_le_bytes()));
+    record
+}
+
 fn conformant_records_dropped_record() -> Record {
     let mut record = Record::new(0, 9, 100, 66, EVENT_RECORDS_DROPPED);
     record
@@ -2130,6 +2319,10 @@ fn hex_path(stem: &'static str) -> &'static str {
         "conformant_operator_login" => "conformant_operator_login.hex",
         "conformant_operator_logout" => "conformant_operator_logout.hex",
         "conformant_security_access_failure" => "conformant_security_access_failure.hex",
+        "conformant_parameter_change_real" => "conformant_parameter_change_real.hex",
+        "conformant_parameter_change_dint" => "conformant_parameter_change_dint.hex",
+        "conformant_parameter_change_bool" => "conformant_parameter_change_bool.hex",
+        "conformant_parameter_change_string" => "conformant_parameter_change_string.hex",
         "conformant_records_dropped" => "conformant_records_dropped.hex",
         "conformant_source_high_water" => "conformant_source_high_water.hex",
         "records_dropped" => "records_dropped.hex",
@@ -2181,6 +2374,10 @@ fn json_path(stem: &'static str) -> &'static str {
         "conformant_operator_login" => "conformant_operator_login.json",
         "conformant_operator_logout" => "conformant_operator_logout.json",
         "conformant_security_access_failure" => "conformant_security_access_failure.json",
+        "conformant_parameter_change_real" => "conformant_parameter_change_real.json",
+        "conformant_parameter_change_dint" => "conformant_parameter_change_dint.json",
+        "conformant_parameter_change_bool" => "conformant_parameter_change_bool.json",
+        "conformant_parameter_change_string" => "conformant_parameter_change_string.json",
         "conformant_records_dropped" => "conformant_records_dropped.json",
         "conformant_source_high_water" => "conformant_source_high_water.json",
         "records_dropped" => "records_dropped.json",
@@ -2477,6 +2674,48 @@ mod tests {
                 (KEY_ACTOR, TY_STRING, "operator-x".len()),
                 (KEY_WORKSTATION, TY_STRING, "station-2".len()),
                 (KEY_REASON, TY_STRING, "denied".len()),
+            ],
+        );
+        assert_slots(
+            &conformant_parameter_change_real_record(),
+            &[
+                (KEY_VALUE_ID, TY_UDINT, 4),
+                (KEY_PREVIOUS_VALUE, TY_REAL, 4),
+                (KEY_NEW_VALUE, TY_REAL, 4),
+                (KEY_ACTOR, TY_STRING, "operator-a".len()),
+                (KEY_REASON, TY_STRING, "setpoint change".len()),
+                (KEY_AUTH_RESULT, TY_UINT, 2),
+            ],
+        );
+        assert_slots(
+            &conformant_parameter_change_dint_record(),
+            &[
+                (KEY_VALUE_ID, TY_UDINT, 4),
+                (KEY_PREVIOUS_VALUE, TY_DINT, 4),
+                (KEY_NEW_VALUE, TY_DINT, 4),
+                (KEY_ACTOR, TY_STRING, "operator-a".len()),
+                (KEY_REASON, TY_STRING, "count corrected".len()),
+            ],
+        );
+        assert_slots(
+            &conformant_parameter_change_bool_record(),
+            &[
+                (KEY_VALUE_ID, TY_UDINT, 4),
+                (KEY_PREVIOUS_VALUE, TY_BOOL, 1),
+                (KEY_NEW_VALUE, TY_BOOL, 1),
+                (KEY_ACTOR, TY_STRING, "operator-b".len()),
+                (KEY_REASON, TY_STRING, "enable audit".len()),
+            ],
+        );
+        assert_slots(
+            &conformant_parameter_change_string_record(),
+            &[
+                (KEY_VALUE_ID, TY_UDINT, 4),
+                (KEY_PREVIOUS_VALUE, TY_STRING, "manual".len()),
+                (KEY_NEW_VALUE, TY_STRING, "auto".len()),
+                (KEY_ACTOR, TY_STRING, "operator-c".len()),
+                (KEY_REASON, TY_STRING, "mode note".len()),
+                (KEY_AUTH_RESULT, TY_UINT, 2),
             ],
         );
         assert_slots(
