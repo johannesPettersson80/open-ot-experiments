@@ -78,7 +78,8 @@ reading a `STRING` representation.
 - `src/openot_value_state.st` defines `ValueChanged` encoders for `REAL`,
   `DINT`, generic fixed-width value payloads (`BOOL`, integer widths, `LREAL`),
   bounded `STRING`, plus the parameterized `StateTransition` and
-  `ConditionActive`/`ConditionCleared` encoders.
+  `ConditionActive`/`ConditionCleared` encoders, and exact condition-lifecycle
+  encoders for acknowledge, shelve, suppress, and out-of-service records.
 - `src/openot_source_high_water.st` defines the parameterized `SourceHighWater`
   encoder used by producer checkpoints.
 - `src/openot_lifecycle.st` defines byte-exact encoders for system lifecycle
@@ -87,7 +88,8 @@ reading a `STRING` representation.
   per-source sequence table, typed authoring ops (`Op = 6` for `REAL`
   `ValueChanged`, `Op = 7` for `DINT` `ValueChanged`, `Op = 8` for
   `StateTransition`, `Op = 9` for active/cleared conditions, `Op = 10` for
-  generic fixed-width values, and `Op = 11` for bounded `STRING` values),
+  generic fixed-width values, `Op = 11` for bounded `STRING` values, and
+  `Op = 12` for producer-internal condition lifecycle commands),
   generalized pre-encoded staging (`Op = 5`), per-scan record-list outputs, and
   the cold/warm epoch transition state machine.
 - `captures/openot_s4a_capture.st` defines the S4a scenario drivers
@@ -128,9 +130,13 @@ The `OPENOT_Producer` typed ops are retained as the compiler/internal lowering
 target. `Op = 6` emits a `ValueChanged` record for a `REAL`, `Op = 7` emits one
 for a `DINT`, `Op = 8` emits a `StateTransition`, `Op = 9` emits
 `ConditionActive`/`ConditionCleared` on a BOOL alarm edge, `Op = 10` emits
-fixed-width value payloads, and `Op = 11` emits bounded `STRING` values. These
-ops track last value/state/condition inside the producer and emit only on
-change/deadband/edge.
+  fixed-width value payloads, `Op = 11` emits bounded `STRING` values, and
+  `Op = 12` emits condition lifecycle commands for a parent alarm. These ops track
+  last value/state/condition inside the producer and emit only on
+  change/deadband/edge. For `Op = 12`, activation-scoped commands such as
+  `ConditionAcknowledged` use the producer's stored live `correlationId`; if no
+  activation is live the producer emits no record and increments
+  `DroppedLifecycleCount` with `LastLifecycleError` set.
 If `SourceId` is omitted or zero, the producer uses source `1`; the generated
 call does not carry an `EventTypeId`.
 

@@ -58,6 +58,7 @@ TYPE
 
     OPENOT_CONDITION_STATE : STRUCT
         Used : BOOL;
+        SourceId : UDINT;
         ConditionId : UDINT;
         HasLast : BOOL;
         LastActive : BOOL;
@@ -186,6 +187,11 @@ VAR_INPUT
     ConditionActive : BOOL;
     HasCauseOperand : BOOL;
     CauseOperand : UDINT;
+    ConditionLifecycleEventTypeId : UDINT;
+    LifecycleHasAckBy : BOOL;
+    LifecycleAckBy : STRING[96];
+    LifecycleHasReason : BOOL;
+    LifecycleReason : STRING[96];
     MessageTemplateId : UDINT;
     MessageHasSeverity : BOOL;
     MessageSeverity : UINT;
@@ -240,6 +246,8 @@ VAR_OUTPUT
     Emissions : OPENOT_EMISSION_LOG;
     EmissionCount : UINT;
     PublishedRecordCount : ULINT;
+    DroppedLifecycleCount : ULINT;
+    LastLifecycleError : UINT;
     ScanRecords : OPENOT_SCAN_RECORD_BUFFER;
     ScanRecordOffsets : OPENOT_SCAN_RECORD_UINT_TABLE;
     ScanRecordLengths : OPENOT_SCAN_RECORD_UINT_TABLE;
@@ -261,6 +269,7 @@ VAR
     ValueStringEncoder : OPENOT_EncodeValueChangedString;
     StateTransitionEncoder : OPENOT_EncodeStateTransition;
     ConditionEncoder : OPENOT_EncodeCondition;
+    ConditionLifecycleEncoder : OPENOT_EncodeConditionLifecycle;
     HighWaterEncoder : OPENOT_EncodeSourceHighWater;
     StoppedEncoder : OPENOT_EncodeLoggerStopped;
     StartedEncoder : OPENOT_EncodeLoggerStarted;
@@ -280,6 +289,8 @@ VAR
     StateEpochId : ULINT;
     StateEpochFirstAbs : ULINT;
     StateNextConditionCorrelationId : UDINT;
+    StateDroppedLifecycleCount : ULINT;
+    StateLastLifecycleError : UINT;
     StateDefinitionHash : OPENOT_HASH8;
     StatePrevDefinitionHash : OPENOT_HASH8;
     StatePublishedRecordCount : ULINT;
@@ -310,6 +321,8 @@ VAR
     ResetOk : BOOL;
     ConditionEventTypeId : UDINT;
     ConditionCorrelationId : UDINT;
+    LifecycleShouldEmit : BOOL;
+    LifecycleActivationScoped : BOOL;
 END_VAR
 
 IF NOT Initialized THEN
@@ -319,6 +332,8 @@ IF NOT Initialized THEN
     StateEpochId := ULINT#1;
     StateEpochFirstAbs := ULINT#0;
     StateNextConditionCorrelationId := UDINT#1;
+    StateDroppedLifecycleCount := ULINT#0;
+    StateLastLifecycleError := UINT#0;
     StatePublishedRecordCount := ULINT#0;
     Initialized := TRUE;
 END_IF;
@@ -340,7 +355,7 @@ IF ResetScanRecords THEN
 END_IF;
 
 IF ExecuteEdge THEN
-    IF (NOT AccumulateScanRecords) AND (Op <> UINT#6) AND (Op <> UINT#7) AND (Op <> UINT#8) AND (Op <> UINT#9) AND (Op <> UINT#10) AND (Op <> UINT#11) THEN
+    IF (NOT AccumulateScanRecords) AND (Op <> UINT#6) AND (Op <> UINT#7) AND (Op <> UINT#8) AND (Op <> UINT#9) AND (Op <> UINT#10) AND (Op <> UINT#11) AND (Op <> UINT#12) THEN
         ResetOk := OPENOT_ResetScanRecordList(
             ScanRecordOffsets := ScanRecordOffsets,
             ScanRecordLengths := ScanRecordLengths,
@@ -1105,7 +1120,7 @@ IF ExecuteEdge THEN
             Error := TRUE;
         ELSE
             FOR Index := UINT#0 TO UINT#15 DO
-                IF ConditionStates[Index].Used AND (ConditionStates[Index].ConditionId = ConditionId) THEN
+                IF ConditionStates[Index].Used AND (ConditionStates[Index].SourceId = ActiveSourceId) AND (ConditionStates[Index].ConditionId = ConditionId) THEN
                     IF NOT StateFound THEN
                         StateIndex := Index;
                         StateFound := TRUE;
@@ -1124,6 +1139,7 @@ IF ExecuteEdge THEN
                 END_IF;
             ELSIF StateFreeFound THEN
                 ConditionStates[StateIndex].Used := TRUE;
+                ConditionStates[StateIndex].SourceId := ActiveSourceId;
                 ConditionStates[StateIndex].ConditionId := ConditionId;
                 ConditionStates[StateIndex].HasLast := FALSE;
                 ConditionStates[StateIndex].CorrelationId := UDINT#0;
@@ -1233,6 +1249,140 @@ IF ExecuteEdge THEN
                     END_IF;
                     ConditionStates[StateIndex].HasLast := TRUE;
                     ConditionStates[StateIndex].LastActive := ConditionActive;
+                    Done := TRUE;
+                ELSE
+                    Error := TRUE;
+                END_IF;
+            END_IF;
+        END_IF;
+    ELSIF Op = UINT#12 THEN
+        ActiveSourceId := SourceId;
+        IF ActiveSourceId = UDINT#0 THEN
+            ActiveSourceId := UDINT#1;
+        END_IF;
+
+        ConditionEventTypeId := ConditionLifecycleEventTypeId;
+        ConditionCorrelationId := UDINT#0;
+        LifecycleShouldEmit := FALSE;
+        LifecycleActivationScoped := ConditionEventTypeId = UDINT#16#0202;
+
+        IF ConditionId = UDINT#0 THEN
+            StateLastLifecycleError := UINT#2;
+            Error := TRUE;
+        ELSIF (ConditionEventTypeId <> UDINT#16#0202) AND (ConditionEventTypeId <> UDINT#16#0206) THEN
+            StateLastLifecycleError := UINT#3;
+            Error := TRUE;
+        ELSIF LifecycleActivationScoped THEN
+            StateFound := FALSE;
+            StateIndex := UINT#0;
+
+            FOR Index := UINT#0 TO UINT#15 DO
+                IF ConditionStates[Index].Used AND (ConditionStates[Index].SourceId = ActiveSourceId) AND (ConditionStates[Index].ConditionId = ConditionId) THEN
+                    IF NOT StateFound THEN
+                        StateIndex := Index;
+                        StateFound := TRUE;
+                    END_IF;
+                END_IF;
+            END_FOR;
+
+            IF StateFound AND ConditionStates[StateIndex].HasLast AND ConditionStates[StateIndex].LastActive AND (ConditionStates[StateIndex].CorrelationId <> UDINT#0) THEN
+                ConditionCorrelationId := ConditionStates[StateIndex].CorrelationId;
+                LifecycleShouldEmit := TRUE;
+            ELSE
+                StateDroppedLifecycleCount := StateDroppedLifecycleCount + ULINT#1;
+                StateLastLifecycleError := UINT#1;
+                Error := TRUE;
+            END_IF;
+        ELSE
+            LifecycleShouldEmit := TRUE;
+        END_IF;
+
+        IF LifecycleShouldEmit THEN
+            Found := FALSE;
+            FreeFound := FALSE;
+            EntryIndex := UINT#0;
+
+            FOR Index := UINT#0 TO UINT#15 DO
+                IF Sources[Index].Used AND (Sources[Index].SourceId = ActiveSourceId) THEN
+                    IF NOT Found THEN
+                        EntryIndex := Index;
+                        Found := TRUE;
+                    END_IF;
+                END_IF;
+            END_FOR;
+
+            IF NOT Found THEN
+                FOR Index := UINT#0 TO UINT#15 DO
+                    IF (NOT Sources[Index].Used) AND (NOT FreeFound) THEN
+                        EntryIndex := Index;
+                        FreeFound := TRUE;
+                    END_IF;
+                END_FOR;
+
+                IF FreeFound THEN
+                    Sources[EntryIndex].Used := TRUE;
+                    Sources[EntryIndex].SourceId := ActiveSourceId;
+                    Sources[EntryIndex].NextSeq := ULINT#0;
+                ELSE
+                    SourceTableFull := TRUE;
+                    StateLastLifecycleError := UINT#4;
+                    Error := TRUE;
+                END_IF;
+            END_IF;
+
+            IF NOT Error THEN
+                AssignedSeq := Sources[EntryIndex].NextSeq;
+                EmitSourceTime := OPENOT_NextSourceTime(
+                    UseSourceTimeInput := UseSourceTimeInput,
+                    SourceTimeInput := SourceTimeInput,
+                    StateSourceTime := StateSourceTime);
+                ConditionLifecycleEncoder(
+                    SourceId := ActiveSourceId,
+                    RunId := StateRunId,
+                    Seq := AssignedSeq,
+                    SourceTime := EmitSourceTime,
+                    EventTypeId := ConditionEventTypeId,
+                    ConditionId := ConditionId,
+                    CorrelationId := ConditionCorrelationId,
+                    HasAckBy := LifecycleHasAckBy AND (ConditionEventTypeId = UDINT#16#0202),
+                    AckBy := LifecycleAckBy,
+                    HasShelveSecs := FALSE,
+                    ShelveSecs := UDINT#0,
+                    HasReason := LifecycleHasReason AND (ConditionEventTypeId = UDINT#16#0206),
+                    Reason := LifecycleReason,
+                    HasRefreshId := FALSE,
+                    RefreshId := UDINT#0);
+                RingProducer(
+                    Execute := TRUE,
+                    Record := ConditionLifecycleEncoder.Buffer,
+                    Length := ConditionLifecycleEncoder.Length,
+                    RunId := StateRunId,
+                    SourceId := ActiveSourceId,
+                    Seq := AssignedSeq);
+
+                IF RingProducer.Done AND (NOT RingProducer.Error) THEN
+                    AppendOk := OPENOT_AppendScanRecord(
+                        Record := ConditionLifecycleEncoder.Buffer,
+                        Length := ConditionLifecycleEncoder.Length,
+                        ScanRecords := ScanRecords,
+                        ScanRecordOffsets := ScanRecordOffsets,
+                        ScanRecordLengths := ScanRecordLengths,
+                        ScanWritePos := ScanWritePos,
+                        ScanRecordCount := ScanRecordCount);
+                ELSE
+                    AppendOk := FALSE;
+                END_IF;
+
+                IF AppendOk THEN
+                    Sources[EntryIndex].NextSeq := AssignedSeq + ULINT#1;
+                    StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
+                    IF EmissionCount < UINT#32 THEN
+                        Emissions[EmissionCount].EventTypeId := ConditionEventTypeId;
+                        Emissions[EmissionCount].RunId := StateRunId;
+                        Emissions[EmissionCount].SourceId := ActiveSourceId;
+                        Emissions[EmissionCount].Seq := AssignedSeq;
+                        EmissionCount := EmissionCount + UINT#1;
+                    END_IF;
                     Done := TRUE;
                 ELSE
                     Error := TRUE;
@@ -1572,6 +1722,8 @@ ELSE
 END_IF;
 SystemSeq := StateSystemSeq;
 PublishedRecordCount := StatePublishedRecordCount;
+DroppedLifecycleCount := StateDroppedLifecycleCount;
+LastLifecycleError := StateLastLifecycleError;
 EpochId := StateEpochId;
 EpochFirstAbs := StateEpochFirstAbs;
 TransitionOpen := PendingOpen;

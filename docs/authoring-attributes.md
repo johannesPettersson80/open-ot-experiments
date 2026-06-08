@@ -19,7 +19,7 @@ Name : TYPE {attribute 'oot' := '<kind>', '<key>' := '<value>', ...} := <init>;
 
 The pragma attaches to the `VAR` declaration so it survives rename/refactor.
 
-## The four kinds — what each means
+## The five kinds — what each means
 
 | `'oot' :=` | Use it for… | Emits | Fires when |
 |---|---|---|---|
@@ -27,6 +27,7 @@ The pragma attaches to the `VAR` declaration so it survives rename/refactor.
 | `'state'` | the operating state of equipment/a procedure — a phase, a mode | `StateTransition` (0x0001) | the enum changes value |
 | `'alarm'` | an abnormal condition the operator must see — a high temp, a fault, a safety interlock | `ConditionActive` (0x0200) on trip / `ConditionCleared` (0x0201) on reset | the BOOL goes TRUE / FALSE |
 | `'message'` | a human-readable event or diagnostic line | `Message` (0x0003) | the BOOL goes TRUE |
+| `'condition'` | an operator/logic lifecycle command for an existing alarm | `ConditionAcknowledged` (0x0202) or `ConditionSuppressed` (0x0206) | the command BOOL goes TRUE |
 
 ---
 
@@ -143,6 +144,35 @@ This is the first bounded cause model: one named operand per condition.
 HighPhAlarm : BOOL {attribute 'oot' := 'alarm', 'class' := 'alarm', 'severity' := '900', 'cause' := 'Level'};
 ```
 
+## `'condition'` — an alarm lifecycle command fired
+
+Logs an operator/logic command against an existing `alarm` declaration. The
+command variable is a companion `BOOL`: a rising edge emits one lifecycle record.
+The command inherits the parent alarm's `conditionId` and `sourceId`; there are
+no ids on the command itself.
+
+| Key | Meaning |
+|---|---|
+| `of` | Required. The parent `alarm` variable name. Forward references within the same `PROGRAM` are accepted. |
+| `event` | Required. This slice supports `acknowledge` and `suppress`. |
+| `by` | Optional `STRING` variable naming the operator/actor. Used as `ackBy` on `acknowledge`. |
+| `reason` | Optional `STRING` variable. Used as `reason` on `suppress`. |
+
+`acknowledge` is activation-scoped: the producer uses the live `correlationId`
+minted by `ConditionActive`. If there is no live activation, the producer emits
+no record and increments `DroppedLifecycleCount`; the runtime treats that as a
+fail-closed telemetry error. `suppress` is condition-scoped: it carries no
+`correlationId` and can be emitted even if the alarm is not currently active.
+
+```iecst
+OperatorName : STRING[32];
+ReasonText : STRING[32];
+HighPhAlarm : BOOL {attribute 'oot' := 'alarm', 'class' := 'alarm', 'severity' := '900'};
+
+AckHighPh : BOOL {attribute 'oot' := 'condition', 'of' := HighPhAlarm, 'event' := 'acknowledge', 'by' := OperatorName};
+SuppressHighPh : BOOL {attribute 'oot' := 'condition', 'of' := HighPhAlarm, 'event' := 'suppress', 'reason' := ReasonText};
+```
+
 ## `'message'` — a human-readable event
 
 Logs a `Message` keyed by a template id. The template **text stays in the
@@ -182,6 +212,10 @@ prefer to state them explicitly rather than rely on the default.
 | `alarm` | `class` | `alarm` | the alternative is `interlock` |
 | `alarm` | `severity` | `800` (high) | OPC-UA 1–1000 scale |
 | `alarm` | `cause` | none | no cause operand slot |
+| `condition` | `of` | none | required |
+| `condition` | `event` | none | required; `acknowledge` or `suppress` in this slice |
+| `condition` | `by` | none | no `ackBy` slot |
+| `condition` | `reason` | none | no `reason` slot |
 | `message` | `template` | the **variable name** | an untemplated message still resolves to *something* |
 | `message` | `severity` | none | no message severity slot |
 | `message` | `arg1`…`arg4` | none | no typed argument slots |
@@ -196,6 +230,10 @@ prefer to state them explicitly rather than rely on the default.
 Numeric ids are **auto-assigned by declaration order**. The counter increments before
 assignment, so the **first** generated id is `value` 2001, `state` 7001, `alarm` 9001,
 `message` 10001.
+
+`condition` lifecycle command variables do not get their own ids. They inherit
+the parent alarm's `conditionId` and `sourceId`; id/source pinning keys are compile
+errors on `oot := 'condition'`.
 
 > ⚠️ **Stability caveat.** Because ids follow declaration order, inserting or reordering
 > tagged variables shifts ids and changes the definition hash — which spec §6.3 warns
@@ -219,9 +257,10 @@ batch states. That's how `ValueChanged valueId=2001 new=15.25` becomes
   (`category`, `class`, `model`), invalid severity ranges, invalid
   `model`/`category` combinations, unsupported value types, non-REAL
   deadbands, and procedural enum states outside the named model are compile errors.
-- **Kinds covered:** `value`, `state`, `alarm`, `message` only. Batch/recipe,
-  operator/regulated, and the full condition lifecycle (ack/shelve/suppress) are
-  not yet exposed as attributes.
+- **Kinds covered:** `value`, `state`, `alarm`, `message`, and the first
+  condition lifecycle commands (`acknowledge`, `suppress`). Batch/recipe,
+  operator/regulated, and the remaining condition lifecycle events are not yet
+  exposed as attributes.
 - **Deadband/sampling:** `REAL` deadband, periodic, and `REAL` hysteresis are
   implemented. Integer deadband and hysteresis for non-REAL values are not yet
   implemented.
@@ -229,12 +268,13 @@ batch states. That's how `ValueChanged valueId=2001 new=15.25` becomes
   braces inside an IEC pragma string are not portable through the current parser;
   use template prose and positional arg definitions until pragma escaping is
   settled.
-- **Alarm lifecycle:** active/cleared records are correlated; acknowledge, shelve,
-  suppress, out-of-service, latch/return-to-normal are not yet implemented.
+- **Alarm lifecycle:** active/cleared records are correlated; acknowledge and
+  suppress are implemented. Shelve, out-of-service, latch/return-to-normal, and
+  the remaining full lifecycle records are not yet implemented.
 - **Ids are order-assigned** — see the stability caveat.
 
 ## See also
 
 - [`carriage-contract.md`](carriage-contract.md) — the wire format these lower to.
 - `examples/reactor/openot-definition.json` — a generated definition file.
-- `examples/reactor/Reactor.st` — a worked program using all four kinds.
+- `examples/reactor/Reactor.st` — a worked program using the four base kinds.

@@ -24,6 +24,36 @@ of truth).
 
 ---
 
+## PREREQUISITE — P0 schema-fidelity amendment (do this FIRST)
+
+**Codex's review found the Phase-0 frozen `model.rs::canonical_event_type()` schemas diverge from
+rev-6 §7.3–7.5** — Phase 0 captured an *approximation*, not the spec. Examples: `BatchEvent` carries
+`actionId, reason` instead of `newState, [recipeId?]`; `ESignature` omits the required `actionId`; the
+activation-scoped (carry `correlationId`) vs condition-scoped (no `correlationId`, keyed by
+`conditionId`, §8.1) split is wrong for ack/reset/suppress/OOS/priority; `RecipeLoaded` makes
+`recipeVersion` optional and adds a non-spec `actor`. The hash golden passed only because it checks
+*self-consistency*, not spec-fidelity.
+
+**This authoring design targets the SPEC, so the fix is to correct the schemas, not the design.**
+Before any authoring slice, a **P0 schema amendment** (Codex-implemented, mechanical) MUST:
+1. **Re-audit EVERY event schema** against §6–§7, not just the vocabulary — a spot-check shows the
+   *implemented* `ValueChanged` also diverges (it orders `previousValue` before `newValue`, but §9's
+   grammar sets `orderClass` = the §7.1 listing position, where `newValue` is first; and it omits the
+   spec's optional `[semanticRole?]`/`[unit?]` record slots). Rewrite `canonical_event_type()` to
+   transcribe §7.1 **and** §7.3–7.5 **exactly** — correct required/optional, slot order, and the
+   activation-vs-condition `correlationId` scope (§8.1). **Add a spec-fidelity guard** (a test mapping
+   each event's slots to a machine-checked §7 field list) so a self-consistent-but-spec-wrong schema
+   can't silently pass again.
+2. Add the value-definition metadata this design needs — an explicit `samplingIntervalMs` field (§1).
+3. Resolve refresh-replay (§7.3 lines 310–315): either add an optional `refreshId` slot to the
+   replayable condition events, or explicitly defer refresh replay and drop any "full §7.3" claim.
+4. Regenerate the hash golden + affected vectors honestly — this is the one allowed structural re-cut,
+   a reviewed P0 amendment per the execution plan.
+
+Only then do the authoring slices below attach to correct schemas.
+
+---
+
 ## 0. The unifying pattern: triggered event attributes with field bindings
 
 Today's four kinds (`value`/`state`/`alarm`/`message`) tag a variable whose *own value* is the datum.
@@ -37,7 +67,9 @@ variables**. So this design adds one pattern, reused by every new kind:
   Notation in this doc: `'key' := VarName` (bareword = variable) vs `'key' := 'literal'` (quoted =
   constant). *(Codex: confirm the pragma parser can carry a bareword variable reference; if only
   quoted strings are accepted, use `'key' := 'VarName'` and resolve names that match an in-scope
-  declaration — same approach as `cause`.)*
+  declaration — same approach as `cause`.)* **The pragma parser splits on commas, so a bound string
+  *literal* cannot contain a comma — bind string fields (`reason`/`comment`/`recipeVersion`) to a
+  variable, not a quoted literal with commas.**
 - **Parent reference.** Lifecycle events name their parent condition with `'of' := ConditionVarName`;
   the lowering resolves it to that condition's `conditionId` (and, for activation-scoped events, its
   live `correlationId`).
@@ -85,6 +117,38 @@ emit-vs-suppress pair and a hysteresis cross pair.
 
 ## 2. Condition lifecycle authoring — new kind `condition`
 
+> **Review corrections (folded from Codex's prompt-review — these OVERRIDE the prose below where they conflict):**
+> 1. **Lifecycle is a producer-INTERNAL op, not a lowering resolution.** `correlationId` is private
+>    producer state (`OPENOT_CONDITION_STATE.CorrelationId`, *not* on `VAR_OUTPUT`) — the compiler
+>    **cannot** read it. The lowering resolves only the parent `conditionId` + parent **source** and
+>    calls a new producer lifecycle op; the **producer** owns correlationId. Activation-scoped events
+>    gate on `Used && HasLast && LastActive && CorrelationId != 0` (not just non-zero — after a clear,
+>    `LastActive=FALSE` but `CorrelationId` is left stale, so a non-zero check would emit a stale id).
+> 2. **Fail-closed must be VISIBLE.** A dropped activation-scoped event (no live activation) sets a new
+>    producer output (`DroppedLifecycleCount` / `LastLifecycleError`) the runtime reads — **not** a
+>    silent drop, and **not** an invented wire record (the ST-FB reader today reads only record
+>    counts/offsets, not producer `Error`).
+> 3. **Condition-scoped events do NOT require active state.** Only activation-scoped (ack/shelve/
+>    confirm/unshelve/comment/reset) need a live correlation. `suppress`/`out-of-service`/`unsuppress`/
+>    `in-service`/`priority-changed` emit from the compile-time `conditionId` + parent source
+>    **regardless** of whether the condition is/was ever active.
+> 4. **Source = the parent alarm's source.** Lifecycle events inherit the parent alarm's `sourceId`
+>    (consumers match by `(source, correlationId)`, §8.1). Reject `sourceid` on `oot := 'condition'`.
+> 5. **Annotation index + phased emission.** Build a same-program OpenOT annotation index (name →
+>    kind/id/source/type) so `of` validates against an actual `alarm` and forward references within a
+>    `PROGRAM` work; emit generated statements in **phases** — alarm active/cleared updates **before**
+>    lifecycle commands — to avoid the same-scan ordering trap.
+> 6. **New lifecycle encoders.** `OPENOT_EncodeCondition` can't be reused (it always writes
+>    `conditionClass`/active-cleared geometry); add exact lifecycle encoders matching the frozen
+>    `canonical_event_type` slot sets.
+> 7. **Stricter binding validation:** `by`/`reason` → `STRING` variables, `seconds` → `UDINT`. **LSP:**
+>    completions/inlay hints only; the auto code-action is parent-aware or deferred.
+>
+> **Split into reviewable PRs:** **(A)** `[ref]` the four lifecycle ST encoders + vectors; **(B)**
+> `[LOCKSTEP]` the authoring + producer-internal op for **one activation** (acknowledge) + **one
+> condition-scoped** (suppress) event — incl. the annotation index, phased emission, source
+> inheritance, and the visible fail-closed counter; **(C)** shelve/OOS + remaining bindings + LSP polish.
+
 Parent is an existing `alarm`. Operator/logic commands (ack, shelve, suppress, …) arrive as program
 `BOOL`s (typically HMI-written); each is tagged to reference its parent condition. On the rising edge,
 the lowering emits the matching §7.3 event.
@@ -116,10 +180,10 @@ OosHighPh    : BOOL {attribute 'oot' := 'condition', 'of' := HighPhAlarm, 'event
 
 **correlationId handling**: the producer already stores the live `correlationId` per condition (set
 on `ConditionActive`, P2-c). Activation-scoped lifecycle events read that stored id; condition-scoped
-events omit it. An activation-scoped event fired while the condition is **not active** is
-compile-time-undetectable, so the implementation must define the runtime policy before coding.
-Recommended first policy: suppress the activation-scoped lifecycle record when no live correlation id
-exists, and surface that in diagnostics/tests; do not fabricate a stale correlation id.
+events omit it. An activation-scoped event fired while the condition is **not active** must **not** be a silent
+no-op — a disappearing audit action (ack/shelve/reset) is indefensible. Policy: **fail-closed** —
+emit a producer diagnostic/error and bump an explicit dropped-lifecycle counter; never fabricate a
+stale correlation id, never silently drop. The consumer then sees the diagnostic, not a gap.
 
 **Field bindings** → spec fields: `by`→`ackBy`(String), `seconds`→`shelveSecs`(UDInt),
 `reason`→`reason`(String), `comment`→`comment`(String), `priority`/`previous-priority`→`newPriority`/
@@ -172,23 +236,26 @@ Edge-triggered with bindings; this is the Producer-Audit surface (§7.5, §11.4)
 OpAction   : BOOL {attribute 'oot' := 'operator-action', 'action' := ActionId, 'actor' := OperatorName, 'workstation' := Ws};
 Login      : BOOL {attribute 'oot' := 'operator-login', 'actor' := OperatorName, 'auth' := AuthResult, 'role' := Role};
 Logout     : BOOL {attribute 'oot' := 'operator-logout', 'actor' := OperatorName};
-ESign      : BOOL {attribute 'oot' := 'e-signature', 'action' := ActionId, 'actor' := Signer, 'meaning' := 'approved', 'signed-event' := AttestedSeq};
+ESign      : BOOL {attribute 'oot' := 'e-signature', 'action' := ActionId, 'actor' := Signer, 'meaning' := 'approved', 'attests' := BatchApprovedEvent};
 SecFail    : BOOL {attribute 'oot' := 'security-failure', 'actor' := WhoTried, 'reason' := DenyReason};
 ```
 
 - `operator-action` → `0x0400 {actionId, actor, [contextRef?]*, [authResult?], [workstation?]}`.
-- `operator-login` → `0x0401 {actor, authResult, [workstation?], [role?]}`; `operator-logout` → `0x0402`.
+- `operator-login` → `0x0401 {actor, authResult, [workstation?], [role?]}`; `operator-logout` → `0x0402`. (`auth`→`authResult` and `role` are **UInt enums** per §6.2.1 — bind enum/numeric values, not strings.)
 - `e-signature` → `0x0404 {actionId, actor, signatureMeaning, signedEventSeq, [authResult?]}`. `meaning`
-  → `signatureMeaning` UInt enum (§6.4: 0 Authored..5 Witnessed). `signed-event` → `signedEventSeq`
-  (ULInt) = the envelope `seq` of the event this signature attests to, supplied by the program (a
-  variable that captured it). This is the heaviest binding — call it out for review.
+  → `signatureMeaning` UInt enum (§6.4). **`signedEventSeq` is a compiler/runtime linkage, NOT
+  engineer-supplied** — a normal program variable can't reliably capture a hidden producer-generated
+  `seq`. `'attests' := <NamedTaggedEvent>` references another `{attribute 'oot'}` event in the same
+  source; the lowering records that event's emitted `seq` into hidden producer state and the
+  e-signature reads it back (same-source ordering is guaranteed by the single producer task, §3/line 107).
 - `security-failure` → `0x0405 {actor, [workstation?], [reason?]}`.
 
 **`parameter-change` (0x0403)** is special — it is *audited `ValueChanged`*: `{valueId, previousValue,
 newValue, actor, reason, [authResult?]}`. Design it as a **facet on the existing `value` kind**, not a
 trigger: a value tagged `'audit' := 'true'` with `'actor'`/`'reason'` bindings emits `ParameterChange`
-(carrying its own before/after) instead of `ValueChanged` when those are present. `reason` is REQUIRED
-at the Audit profile (§11.4) — enforce it.
+instead of `ValueChanged`. **Contract:** for an audited value, `ParameterChange` **replaces** the
+ordinary value stream — a consumer treats it as *the* value-change record for that `valueId` (no
+parallel `ValueChanged`). `reason` is REQUIRED at the Audit profile (§11.4) — enforce it.
 
 `ProgramDownload`/`DefinitionChanged` (0x0406/0x0106) are epoch-protocol records the runtime emits on
 a definition change (§9.3), **not** program-authored — left to the runtime, noted in limitations.
