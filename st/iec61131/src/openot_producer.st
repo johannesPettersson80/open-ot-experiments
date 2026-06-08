@@ -16,6 +16,10 @@ TYPE
         ValueId : UDINT;
         HasLast : BOOL;
         LastValue : REAL;
+        HasLastEmitSourceTime : BOOL;
+        LastEmitSourceTime : ULINT;
+        HasBandCenter : BOOL;
+        BandCenter : REAL;
     END_STRUCT;
 
     OPENOT_INT_VALUE_STATE : STRUCT
@@ -23,6 +27,8 @@ TYPE
         ValueId : UDINT;
         HasLast : BOOL;
         LastValue : DINT;
+        HasLastEmitSourceTime : BOOL;
+        LastEmitSourceTime : ULINT;
     END_STRUCT;
 
     OPENOT_BITS_VALUE_STATE : STRUCT
@@ -30,6 +36,8 @@ TYPE
         ValueId : UDINT;
         HasLast : BOOL;
         LastBits : ULINT;
+        HasLastEmitSourceTime : BOOL;
+        LastEmitSourceTime : ULINT;
     END_STRUCT;
 
     OPENOT_STRING_VALUE_STATE : STRUCT
@@ -37,6 +45,8 @@ TYPE
         ValueId : UDINT;
         HasLast : BOOL;
         LastValue : STRING[96];
+        HasLastEmitSourceTime : BOOL;
+        LastEmitSourceTime : ULINT;
     END_STRUCT;
 
     OPENOT_STATE_MACHINE_STATE : STRUCT
@@ -161,6 +171,8 @@ VAR_INPUT
     ValuePayloadLength : UINT;
     ValueString : STRING[96];
     DeadbandReal : REAL;
+    SamplingMode : UINT;
+    SamplingIntervalMs : ULINT;
     SuppressPrevious : BOOL;
     HasQuality : BOOL;
     Quality : UINT;
@@ -289,6 +301,9 @@ VAR
     ActiveSourceId : UDINT;
     ShouldEmit : BOOL;
     DeltaReal : REAL;
+    PolicySourceTime : ULINT;
+    SamplingIntervalNs : ULINT;
+    PeriodicDue : BOOL;
     CandidateFound : BOOL;
     ScanWritePos : UINT;
     AppendOk : BOOL;
@@ -597,6 +612,12 @@ IF ExecuteEdge THEN
         StateFreeFound := FALSE;
         StateIndex := UINT#0;
         ShouldEmit := FALSE;
+        PolicySourceTime := SourceTimeInput;
+        IF NOT UseSourceTimeInput THEN
+            PolicySourceTime := StateSourceTime;
+        END_IF;
+        SamplingIntervalNs := SamplingIntervalMs * ULINT#1000000;
+        PeriodicDue := FALSE;
 
         IF Op = UINT#6 THEN
             IF ValueId = UDINT#0 THEN
@@ -615,19 +636,29 @@ IF ExecuteEdge THEN
                 END_FOR;
 
                 IF StateFound THEN
-                    IF RealValueStates[StateIndex].HasLast THEN
-                        DeltaReal := ValueReal - RealValueStates[StateIndex].LastValue;
-                        IF DeltaReal < REAL#0.0 THEN
-                            DeltaReal := REAL#0.0 - DeltaReal;
+                    IF SamplingMode = UINT#2 THEN
+                        IF RealValueStates[StateIndex].HasBandCenter THEN
+                            ShouldEmit := (ValueReal > (RealValueStates[StateIndex].BandCenter + DeadbandReal)) OR (ValueReal < (RealValueStates[StateIndex].BandCenter - DeadbandReal));
+                        ELSE
+                            ShouldEmit := TRUE;
                         END_IF;
-                        ShouldEmit := DeltaReal > DeadbandReal;
                     ELSE
-                        ShouldEmit := TRUE;
+                        IF RealValueStates[StateIndex].HasLast THEN
+                            DeltaReal := ValueReal - RealValueStates[StateIndex].LastValue;
+                            IF DeltaReal < REAL#0.0 THEN
+                                DeltaReal := REAL#0.0 - DeltaReal;
+                            END_IF;
+                            ShouldEmit := DeltaReal > DeadbandReal;
+                        ELSE
+                            ShouldEmit := TRUE;
+                        END_IF;
                     END_IF;
                 ELSIF StateFreeFound THEN
                     RealValueStates[StateIndex].Used := TRUE;
                     RealValueStates[StateIndex].ValueId := ValueId;
                     RealValueStates[StateIndex].HasLast := FALSE;
+                    RealValueStates[StateIndex].HasLastEmitSourceTime := FALSE;
+                    RealValueStates[StateIndex].HasBandCenter := FALSE;
                     ShouldEmit := TRUE;
                 ELSE
                     Error := TRUE;
@@ -659,6 +690,7 @@ IF ExecuteEdge THEN
                     IntValueStates[StateIndex].Used := TRUE;
                     IntValueStates[StateIndex].ValueId := ValueId;
                     IntValueStates[StateIndex].HasLast := FALSE;
+                    IntValueStates[StateIndex].HasLastEmitSourceTime := FALSE;
                     ShouldEmit := TRUE;
                 ELSE
                     Error := TRUE;
@@ -690,6 +722,7 @@ IF ExecuteEdge THEN
                     BitsValueStates[StateIndex].Used := TRUE;
                     BitsValueStates[StateIndex].ValueId := ValueId;
                     BitsValueStates[StateIndex].HasLast := FALSE;
+                    BitsValueStates[StateIndex].HasLastEmitSourceTime := FALSE;
                     ShouldEmit := TRUE;
                 ELSE
                     Error := TRUE;
@@ -721,6 +754,7 @@ IF ExecuteEdge THEN
                     StringValueStates[StateIndex].Used := TRUE;
                     StringValueStates[StateIndex].ValueId := ValueId;
                     StringValueStates[StateIndex].HasLast := FALSE;
+                    StringValueStates[StateIndex].HasLastEmitSourceTime := FALSE;
                     ShouldEmit := TRUE;
                 ELSE
                     Error := TRUE;
@@ -757,6 +791,53 @@ IF ExecuteEdge THEN
                     ShouldEmit := FALSE;
                 END_IF;
             END_IF;
+        END_IF;
+
+        IF (NOT Error) AND (SamplingMode = UINT#1) AND ((Op = UINT#6) OR (Op = UINT#7) OR (Op = UINT#10) OR (Op = UINT#11)) THEN
+            IF SamplingIntervalMs = ULINT#0 THEN
+                Error := TRUE;
+            ELSIF Op = UINT#6 THEN
+                IF RealValueStates[StateIndex].HasLastEmitSourceTime THEN
+                    IF PolicySourceTime >= RealValueStates[StateIndex].LastEmitSourceTime THEN
+                        PeriodicDue := (PolicySourceTime - RealValueStates[StateIndex].LastEmitSourceTime) >= SamplingIntervalNs;
+                    ELSE
+                        PeriodicDue := TRUE;
+                    END_IF;
+                ELSE
+                    PeriodicDue := TRUE;
+                END_IF;
+            ELSIF Op = UINT#7 THEN
+                IF IntValueStates[StateIndex].HasLastEmitSourceTime THEN
+                    IF PolicySourceTime >= IntValueStates[StateIndex].LastEmitSourceTime THEN
+                        PeriodicDue := (PolicySourceTime - IntValueStates[StateIndex].LastEmitSourceTime) >= SamplingIntervalNs;
+                    ELSE
+                        PeriodicDue := TRUE;
+                    END_IF;
+                ELSE
+                    PeriodicDue := TRUE;
+                END_IF;
+            ELSIF Op = UINT#10 THEN
+                IF BitsValueStates[StateIndex].HasLastEmitSourceTime THEN
+                    IF PolicySourceTime >= BitsValueStates[StateIndex].LastEmitSourceTime THEN
+                        PeriodicDue := (PolicySourceTime - BitsValueStates[StateIndex].LastEmitSourceTime) >= SamplingIntervalNs;
+                    ELSE
+                        PeriodicDue := TRUE;
+                    END_IF;
+                ELSE
+                    PeriodicDue := TRUE;
+                END_IF;
+            ELSE
+                IF StringValueStates[StateIndex].HasLastEmitSourceTime THEN
+                    IF PolicySourceTime >= StringValueStates[StateIndex].LastEmitSourceTime THEN
+                        PeriodicDue := (PolicySourceTime - StringValueStates[StateIndex].LastEmitSourceTime) >= SamplingIntervalNs;
+                    ELSE
+                        PeriodicDue := TRUE;
+                    END_IF;
+                ELSE
+                    PeriodicDue := TRUE;
+                END_IF;
+            END_IF;
+            ShouldEmit := ShouldEmit OR PeriodicDue;
         END_IF;
 
         IF (NOT Error) AND (NOT ShouldEmit) THEN
@@ -980,15 +1061,25 @@ IF ExecuteEdge THEN
                     IF Op = UINT#6 THEN
                         RealValueStates[StateIndex].HasLast := TRUE;
                         RealValueStates[StateIndex].LastValue := ValueReal;
+                        RealValueStates[StateIndex].HasLastEmitSourceTime := TRUE;
+                        RealValueStates[StateIndex].LastEmitSourceTime := EmitSourceTime;
+                        RealValueStates[StateIndex].HasBandCenter := TRUE;
+                        RealValueStates[StateIndex].BandCenter := ValueReal;
                     ELSIF Op = UINT#7 THEN
                         IntValueStates[StateIndex].HasLast := TRUE;
                         IntValueStates[StateIndex].LastValue := ValueInt;
+                        IntValueStates[StateIndex].HasLastEmitSourceTime := TRUE;
+                        IntValueStates[StateIndex].LastEmitSourceTime := EmitSourceTime;
                     ELSIF Op = UINT#10 THEN
                         BitsValueStates[StateIndex].HasLast := TRUE;
                         BitsValueStates[StateIndex].LastBits := ValueBits;
+                        BitsValueStates[StateIndex].HasLastEmitSourceTime := TRUE;
+                        BitsValueStates[StateIndex].LastEmitSourceTime := EmitSourceTime;
                     ELSIF Op = UINT#11 THEN
                         StringValueStates[StateIndex].HasLast := TRUE;
                         StringValueStates[StateIndex].LastValue := ValueString;
+                        StringValueStates[StateIndex].HasLastEmitSourceTime := TRUE;
+                        StringValueStates[StateIndex].LastEmitSourceTime := EmitSourceTime;
                     ELSE
                         StateMachineStates[StateIndex].HasLast := TRUE;
                         StateMachineStates[StateIndex].LastState := NewState;

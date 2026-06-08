@@ -23,7 +23,7 @@ The pragma attaches to the `VAR` declaration so it survives rename/refactor.
 
 | `'oot' :=` | Use it for… | Emits | Fires when |
 |---|---|---|---|
-| `'value'` | a measured/process value — temperature, level, pressure, a count, a setpoint | `ValueChanged` (0x0002) | the value moves more than `deadband` |
+| `'value'` | a measured/process value — temperature, level, pressure, a count, a setpoint | `ValueChanged` (0x0002) | the value's sampling policy says to emit |
 | `'state'` | the operating state of equipment/a procedure — a phase, a mode | `StateTransition` (0x0001) | the enum changes value |
 | `'alarm'` | an abnormal condition the operator must see — a high temp, a fault, a safety interlock | `ConditionActive` (0x0200) on trip / `ConditionCleared` (0x0201) on reset | the BOOL goes TRUE / FALSE |
 | `'message'` | a human-readable event or diagnostic line | `Message` (0x0003) | the BOOL goes TRUE |
@@ -40,13 +40,36 @@ consumer reads the emitted value back typed.
 |---|---|
 | `unit` | The **engineering unit** of the value — `'L'`, `'degC'`, `'bar'`, `'rpm'`. It does not change the logging logic; it tells the consumer how to label and convert the number. Lives **only in the definition file**, resolved by `valueId` — the wire carries **no unit**, just the `valueId` and the typed value bytes. |
 | `deadband` | **Noise filter.** The smallest change worth logging. `'0.5'` on a temperature means "only emit a `ValueChanged` once it has moved more than 0.5 °C since the last logged value." Without it, every scan's tiny fluctuation would flood the log. `REAL` only. This is the value's *sampling policy*. |
+| `sampling` | Optional emit policy: `on-change`, `deadband`, `periodic`, or `hysteresis`. Without this key, the current default remains `deadband` when `deadband` is present and `on-change` otherwise. |
+| `interval` | Positive integer milliseconds. Required with `sampling := 'periodic'`; invalid otherwise. Periodic emits on value change and also when the source timestamp has advanced by at least the interval since the last emitted sample. |
 | `quality` | Optional OPC-UA-style quality code (`good`, `uncertain`, `bad`, `unknown`, or `0`..`3`). When present it emits the `quality` slot on each `ValueChanged`. |
 | `semanticRole` | Optional value role (`actual`, `setpoint`, `command`, `count`, `position`, `status`, or `0`..`5`). This is definition-file metadata, not a wire slot. |
 | `previous` | `true`/`false`. Defaults to `true`: once the producer has a previous sample, it emits `previousValue`. Set `false` when the consumer only needs the new value. |
 
 ```iecst
 Level : REAL {attribute 'oot' := 'value', 'unit' := 'L', 'deadband' := '0.5'};
+Pressure : REAL {attribute 'oot' := 'value', 'sampling' := 'periodic', 'interval' := '1000'};
+Flow : REAL {attribute 'oot' := 'value', 'sampling' := 'hysteresis', 'deadband' := '1.5'};
 ```
+
+### `sampling` — when the value emits
+
+Sampling changes **when** `ValueChanged` records are emitted; it does not add a
+wire slot and does not change the record shape. The generated definition file
+uses `values[].samplingPolicy` to describe the policy:
+
+| Authoring policy | Producer behavior | `samplingPolicy` |
+|---|---|---|
+| omitted, no `deadband` | emit when the value differs from the last emitted value | `"on-change"` |
+| omitted, with `deadband` | current default deadband behavior; metadata left as the existing null fixture | `null` |
+| `on-change` | emit when the value differs from the last emitted value | `"on-change"` |
+| `deadband` | emit when a `REAL` moves more than `deadband` since the last emitted value | `"deadband"` |
+| `periodic` | emit on change and at least every `interval` milliseconds according to the producer `SourceTime` | `"periodic:<ms>"` |
+| `hysteresis` | emit when a `REAL` crosses above `center + deadband` or below `center - deadband`; recenter on each emitted value | `"hysteresis"` |
+
+`deadband` and `hysteresis` are `REAL` only in this slice. Periodic sampling uses
+the source timestamp supplied to the producer; hosted truST supplies Unix
+nanoseconds, and target hardware supplies its configured source clock.
 
 ## `'state'` — a state machine moved
 
@@ -149,6 +172,8 @@ prefer to state them explicitly rather than rely on the default.
 |---|---|---|---|
 | `value` | `unit` | none | no unit on the wire or in the def file |
 | `value` | `deadband` | none | every supported non-REAL type is on-change |
+| `value` | `sampling` | `deadband` if `deadband` is present, else `on-change` | explicit policies are written to `samplingPolicy`; legacy deadband-only values keep `samplingPolicy: null` |
+| `value` | `interval` | none | required only for `sampling := 'periodic'` |
 | `value` | `quality` | none | no quality slot emitted |
 | `value` | `semanticRole` | `actual` | definition metadata |
 | `value` | `previous` | `true` | emit `previousValue` after the first sample |
@@ -197,8 +222,8 @@ batch states. That's how `ValueChanged valueId=2001 new=15.25` becomes
 - **Kinds covered:** `value`, `state`, `alarm`, `message` only. Batch/recipe,
   operator/regulated, and the full condition lifecycle (ack/shelve/suppress) are
   not yet exposed as attributes.
-- **Deadband/sampling:** only `REAL` deadband and on-change sampling are
-  implemented. Integer deadband, periodic, and hysteresis policies are not yet
+- **Deadband/sampling:** `REAL` deadband, periodic, and `REAL` hysteresis are
+  implemented. Integer deadband and hysteresis for non-REAL values are not yet
   implemented.
 - **Message templates:** typed `arg1`…`arg4` values are emitted, but literal `{n}`
   braces inside an IEC pragma string are not portable through the current parser;
