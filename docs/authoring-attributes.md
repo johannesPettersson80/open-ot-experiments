@@ -27,7 +27,7 @@ The pragma attaches to the `VAR` declaration so it survives rename/refactor.
 | `'state'` | the operating state of equipment/a procedure — a phase, a mode | `StateTransition` (0x0001) | the enum changes value |
 | `'alarm'` | an abnormal condition the operator must see — a high temp, a fault, a safety interlock | `ConditionActive` (0x0200) on trip / `ConditionCleared` (0x0201) on reset | the BOOL goes TRUE / FALSE |
 | `'message'` | a human-readable event or diagnostic line | `Message` (0x0003) | the BOOL goes TRUE |
-| `'condition'` | an operator/logic lifecycle command for an existing alarm | `ConditionAcknowledged` (0x0202) or `ConditionSuppressed` (0x0206) | the command BOOL goes TRUE |
+| `'condition'` | an operator/logic lifecycle command for an existing alarm | `ConditionAcknowledged` (0x0202), `ConditionShelved` (0x0204), `ConditionSuppressed` (0x0206), or `ConditionOutOfService` (0x0208) | the command BOOL goes TRUE |
 
 ---
 
@@ -154,23 +154,28 @@ no ids on the command itself.
 | Key | Meaning |
 |---|---|
 | `of` | Required. The parent `alarm` variable name. Forward references within the same `PROGRAM` are accepted. |
-| `event` | Required. This slice supports `acknowledge` and `suppress`. |
-| `by` | Optional `STRING` variable naming the operator/actor. Used as `ackBy` on `acknowledge`. |
+| `event` | Required. This slice supports `acknowledge`, `shelve`, `suppress`, and `out-of-service`. |
+| `by` | Optional `STRING` variable naming the operator/actor. Used as `ackBy` on `acknowledge`, `shelve`, and `out-of-service`. |
+| `seconds` | Optional `UDINT` variable. Used as `shelveSecs` on `shelve`. |
 | `reason` | Optional `STRING` variable. Used as `reason` on `suppress`. |
 
-`acknowledge` is activation-scoped: the producer uses the live `correlationId`
-minted by `ConditionActive`. If there is no live activation, the producer emits
-no record and increments `DroppedLifecycleCount`; the runtime treats that as a
-fail-closed telemetry error. `suppress` is condition-scoped: it carries no
-`correlationId` and can be emitted even if the alarm is not currently active.
+`acknowledge` and `shelve` are activation-scoped: the producer uses the live
+`correlationId` minted by `ConditionActive`. If there is no live activation, the
+producer emits no record and increments `DroppedLifecycleCount`; the runtime
+treats that as a fail-closed telemetry error. `suppress` and `out-of-service`
+are condition-scoped: they carry no `correlationId` and can be emitted even if
+the alarm is not currently active.
 
 ```iecst
 OperatorName : STRING[32];
 ReasonText : STRING[32];
+ShelveSecs : UDINT := UDINT#300;
 HighPhAlarm : BOOL {attribute 'oot' := 'alarm', 'class' := 'alarm', 'severity' := '900'};
 
 AckHighPh : BOOL {attribute 'oot' := 'condition', 'of' := HighPhAlarm, 'event' := 'acknowledge', 'by' := OperatorName};
+ShelveHighPh : BOOL {attribute 'oot' := 'condition', 'of' := HighPhAlarm, 'event' := 'shelve', 'by' := OperatorName, 'seconds' := ShelveSecs};
 SuppressHighPh : BOOL {attribute 'oot' := 'condition', 'of' := HighPhAlarm, 'event' := 'suppress', 'reason' := ReasonText};
+OosHighPh : BOOL {attribute 'oot' := 'condition', 'of' := HighPhAlarm, 'event' := 'out-of-service', 'by' := OperatorName};
 ```
 
 ## `'message'` — a human-readable event
@@ -213,8 +218,9 @@ prefer to state them explicitly rather than rely on the default.
 | `alarm` | `severity` | `800` (high) | OPC-UA 1–1000 scale |
 | `alarm` | `cause` | none | no cause operand slot |
 | `condition` | `of` | none | required |
-| `condition` | `event` | none | required; `acknowledge` or `suppress` in this slice |
+| `condition` | `event` | none | required; `acknowledge`, `shelve`, `suppress`, or `out-of-service` in this slice |
 | `condition` | `by` | none | no `ackBy` slot |
+| `condition` | `seconds` | none | no `shelveSecs` slot |
 | `condition` | `reason` | none | no `reason` slot |
 | `message` | `template` | the **variable name** | an untemplated message still resolves to *something* |
 | `message` | `severity` | none | no message severity slot |

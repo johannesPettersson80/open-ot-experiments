@@ -190,6 +190,8 @@ VAR_INPUT
     ConditionLifecycleEventTypeId : UDINT;
     LifecycleHasAckBy : BOOL;
     LifecycleAckBy : STRING[96];
+    LifecycleHasShelveSecs : BOOL;
+    LifecycleShelveSecs : UDINT;
     LifecycleHasReason : BOOL;
     LifecycleReason : STRING[96];
     MessageTemplateId : UDINT;
@@ -1264,12 +1266,12 @@ IF ExecuteEdge THEN
         ConditionEventTypeId := ConditionLifecycleEventTypeId;
         ConditionCorrelationId := UDINT#0;
         LifecycleShouldEmit := FALSE;
-        LifecycleActivationScoped := ConditionEventTypeId = UDINT#16#0202;
+        LifecycleActivationScoped := (ConditionEventTypeId = UDINT#16#0202) OR (ConditionEventTypeId = UDINT#16#0204);
 
         IF ConditionId = UDINT#0 THEN
             StateLastLifecycleError := UINT#2;
             Error := TRUE;
-        ELSIF (ConditionEventTypeId <> UDINT#16#0202) AND (ConditionEventTypeId <> UDINT#16#0206) THEN
+        ELSIF (ConditionEventTypeId <> UDINT#16#0202) AND (ConditionEventTypeId <> UDINT#16#0204) AND (ConditionEventTypeId <> UDINT#16#0206) AND (ConditionEventTypeId <> UDINT#16#0208) THEN
             StateLastLifecycleError := UINT#3;
             Error := TRUE;
         ELSIF LifecycleActivationScoped THEN
@@ -1344,10 +1346,10 @@ IF ExecuteEdge THEN
                     EventTypeId := ConditionEventTypeId,
                     ConditionId := ConditionId,
                     CorrelationId := ConditionCorrelationId,
-                    HasAckBy := LifecycleHasAckBy AND (ConditionEventTypeId = UDINT#16#0202),
+                    HasAckBy := LifecycleHasAckBy AND ((ConditionEventTypeId = UDINT#16#0202) OR (ConditionEventTypeId = UDINT#16#0204) OR (ConditionEventTypeId = UDINT#16#0208)),
                     AckBy := LifecycleAckBy,
-                    HasShelveSecs := FALSE,
-                    ShelveSecs := UDINT#0,
+                    HasShelveSecs := LifecycleHasShelveSecs AND (ConditionEventTypeId = UDINT#16#0204),
+                    ShelveSecs := LifecycleShelveSecs,
                     HasReason := LifecycleHasReason AND (ConditionEventTypeId = UDINT#16#0206),
                     Reason := LifecycleReason,
                     HasRefreshId := FALSE,
