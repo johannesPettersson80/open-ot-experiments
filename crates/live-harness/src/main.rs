@@ -30,6 +30,7 @@ const DEFAULT_TIMEOUT_MS: u64 = 30_000;
 const LITMUS_CAP: usize = 512;
 const LITMUS_SOURCES: u32 = 1;
 const LITMUS_PER_SOURCE: u64 = 200_000;
+const DEFAULT_STRESS_ITERATIONS: u64 = 1;
 
 fn main() -> ExitCode {
     match real_main() {
@@ -176,6 +177,44 @@ fn consumer_cmd(args: ConsumerArgs) -> Result<(), Box<dyn Error>> {
 }
 
 fn run_cmd(args: RunArgs) -> Result<(), Box<dyn Error>> {
+    if args.iterations == 0 {
+        return Err("--iterations must be greater than zero".into());
+    }
+    if args.iterations > 1 && args.fence_mode != FenceMode::Unfenced {
+        return Err(
+            "--iterations > 1 is an unfenced diagnostic stress mode; pass --unfenced".into(),
+        );
+    }
+
+    if args.iterations > 1 {
+        return run_stress_cmd(args);
+    }
+
+    let observed = run_once(&args, None)?;
+    print_unfenced_non_reproduction_note(&args, &observed);
+    Ok(())
+}
+
+fn run_stress_cmd(args: RunArgs) -> Result<(), Box<dyn Error>> {
+    let mut stress = UnfencedStressSummary::default();
+    for iteration in 1..=args.iterations {
+        let observed = run_once(&args, Some(iteration))?;
+        let evidence = observed.unfenced_evidence();
+        stress.observe(&evidence);
+        println!("stress iteration {iteration}: {}", evidence.summary_line());
+    }
+
+    println!("{}", stress.summary_line(args.iterations));
+    if !stress.hazard_observed() {
+        println!(
+            "unfenced: {}",
+            open_ot_conformance::UnfencedEvidence::non_reproduction_note()
+        );
+    }
+    Ok(())
+}
+
+fn run_once(args: &RunArgs, iteration: Option<u64>) -> Result<ObservedReport, Box<dyn Error>> {
     let started = Instant::now();
     let _ = fs::remove_file(&args.shm);
     let done = done_path(&args.shm);
@@ -249,15 +288,28 @@ fn run_cmd(args: RunArgs) -> Result<(), Box<dyn Error>> {
         &observed,
     )?;
     let elapsed = started.elapsed();
-    println!(
-        "run: mode={} fence={} append_mode={} elapsed_ms={} pinned={} stale_violations={}",
-        args.mode.as_str(),
-        args.fence_mode.as_str(),
-        args.append_mode.as_str(),
-        elapsed.as_millis(),
-        pinning,
-        observed.stale_violations.len()
-    );
+    if let Some(iteration) = iteration {
+        println!(
+            "run: iteration={} mode={} fence={} append_mode={} elapsed_ms={} pinned={} stale_violations={}",
+            iteration,
+            args.mode.as_str(),
+            args.fence_mode.as_str(),
+            args.append_mode.as_str(),
+            elapsed.as_millis(),
+            pinning,
+            observed.stale_violations.len()
+        );
+    } else {
+        println!(
+            "run: mode={} fence={} append_mode={} elapsed_ms={} pinned={} stale_violations={}",
+            args.mode.as_str(),
+            args.fence_mode.as_str(),
+            args.append_mode.as_str(),
+            elapsed.as_millis(),
+            pinning,
+            observed.stale_violations.len()
+        );
+    }
     println!("{}", observed.summary_line());
     for source in &observed.sources {
         println!(
@@ -268,15 +320,6 @@ fn run_cmd(args: RunArgs) -> Result<(), Box<dyn Error>> {
             source.lost,
             source.delivered + source.lost
         );
-    }
-    if args.fence_mode == FenceMode::Unfenced && observed.stale_violations.is_empty() {
-        let evidence = observed.unfenced_evidence();
-        if !evidence.hazard_observed {
-            println!(
-                "unfenced: {}",
-                open_ot_conformance::UnfencedEvidence::non_reproduction_note()
-            );
-        }
     }
     for stale in &observed.stale_violations {
         println!(
@@ -289,7 +332,19 @@ fn run_cmd(args: RunArgs) -> Result<(), Box<dyn Error>> {
             stale.crc_passed
         );
     }
-    Ok(())
+    Ok(observed)
+}
+
+fn print_unfenced_non_reproduction_note(args: &RunArgs, observed: &ObservedReport) {
+    if args.fence_mode == FenceMode::Unfenced && observed.stale_violations.is_empty() {
+        let evidence = observed.unfenced_evidence();
+        if !evidence.hazard_observed {
+            println!(
+                "unfenced: {}",
+                open_ot_conformance::UnfencedEvidence::non_reproduction_note()
+            );
+        }
+    }
 }
 
 fn assert_run_result(
@@ -441,6 +496,7 @@ struct RunArgs {
     timeout_ms: u64,
     fence_mode: FenceMode,
     append_mode: AppendMode,
+    iterations: u64,
 }
 
 impl RunArgs {
@@ -469,6 +525,9 @@ impl RunArgs {
                 .unwrap_or(DEFAULT_TIMEOUT_MS),
             fence_mode: parser.fence_mode()?,
             append_mode: parser.append_mode()?.unwrap_or(AppendMode::WriteRecord),
+            iterations: parser
+                .optional_u64("--iterations")?
+                .unwrap_or(DEFAULT_STRESS_ITERATIONS),
         };
         parser.finish()?;
         Ok(parsed)
@@ -772,7 +831,62 @@ fn default_shm_path() -> PathBuf {
 }
 
 fn usage() -> &'static str {
-    "usage: open-ot-live-harness run [--mode smoke|litmus] [--fenced|--unfenced] [--shm PATH] [--cap BYTES] [--sources N] [--per-source N]\n\
+    "usage: open-ot-live-harness run [--mode smoke|litmus] [--fenced|--unfenced] [--iterations N] [--shm PATH] [--cap BYTES] [--sources N] [--per-source N]\n\
      or: open-ot-live-harness producer [--fenced|--unfenced] --shm PATH --cap BYTES --sources N --per-source N\n\
      or: open-ot-live-harness consumer [--mode smoke|litmus] [--fenced|--unfenced] --shm PATH --done FILE --sources N --per-source N [--out FILE]"
+}
+
+#[derive(Debug, Default)]
+struct UnfencedStressSummary {
+    hazard_iterations: u64,
+    stale_violations: u64,
+    rejected_records: u64,
+    poll_errors: u64,
+    overwritten_retries: u64,
+    lapped_batches: u64,
+    delivered_total: u64,
+    lost_total: u64,
+    lost_count: u64,
+}
+
+impl UnfencedStressSummary {
+    fn observe(&mut self, evidence: &open_ot_conformance::UnfencedEvidence) {
+        if evidence.hazard_observed {
+            self.hazard_iterations += 1;
+        }
+        self.stale_violations += evidence.stale_violations as u64;
+        self.rejected_records += evidence.rejected_records;
+        self.poll_errors += evidence.poll_errors;
+        self.overwritten_retries += evidence.overwritten_retries;
+        self.lapped_batches += evidence.lapped_batches;
+        self.delivered_total += evidence.delivered_total;
+        self.lost_total += evidence.lost_total;
+        self.lost_count += evidence.lost_count;
+    }
+
+    const fn hazard_observed(&self) -> bool {
+        self.hazard_iterations > 0
+    }
+
+    fn summary_line(&self, iterations: u64) -> String {
+        let outcome = if self.hazard_observed() {
+            "hazard-observed"
+        } else {
+            "non-reproduction"
+        };
+        format!(
+            "unfenced_stress: outcome={} iterations={} hazard_iterations={} stale={} rejected={} poll_errors={} retries={} lapped={} delivered={} lost={} lost_count={}",
+            outcome,
+            iterations,
+            self.hazard_iterations,
+            self.stale_violations,
+            self.rejected_records,
+            self.poll_errors,
+            self.overwritten_retries,
+            self.lapped_batches,
+            self.delivered_total,
+            self.lost_total,
+            self.lost_count
+        )
+    }
 }

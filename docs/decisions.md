@@ -58,8 +58,10 @@ accept a torn counter).
 *Why:* the unfenced publish/overwrite path can accept overwritten data on weakly
 ordered hardware — yet **loom does not surface it and x86 is too strongly ordered to
 expose it**, so it must be specified, not left for an implementer to discover by
-testing. Proven on ARM (fenced airtight; the unfenced model is checked in as a
-deliberately-broken control). See [`spec-feedback.md`](spec-feedback.md).
+testing. The proof rests on the fenced loom model and fence-hook tests; the ARM
+Cortex-A76 runs are bounded diagnostics where the fenced capstone is airtight and
+the unfenced contrast is a documented non-reproduction, not a positive leak. See
+[`spec-feedback.md`](spec-feedback.md).
 
 ## ST ↔ runtime handoff
 

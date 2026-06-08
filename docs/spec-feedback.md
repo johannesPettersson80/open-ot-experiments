@@ -10,6 +10,13 @@ These are implementation findings that should be considered when drafting a wire
 
 4. **The publish ordering must be normative.** The producer must advance `OldestAbs`, execute a Release fence, and only then clobber reclaimed bytes. The consumer must read candidate bytes, execute an Acquire fence, and then re-read `OldestAbs` before delivery. CRC catches mixed torn records; the fence-backed oldest check catches clean overwritten records at a stale absolute cursor.
 
+   The reference keeps an unfenced A/B diagnostic in `open-ot-live-harness`:
+   `open-ot-live-harness run --mode litmus --unfenced --iterations N`. It reuses
+   the same evidence path as the fenced harness and accumulates stale/rejected
+   outcomes across repeated runs. A clean run is reported as a bounded
+   **non-reproduction, not proof of safety**; the normative argument remains the
+   release/acquire model plus the fence-hook tests.
+
 5. **Sequence gaps need a silent-source completion signal.** A per-source sequence counter only exposes a gap after the source emits again. A per-source high-water checkpoint lets a consumer reconcile a source that produced records, was fully evicted, and then went silent.
 
 6. **The shared-memory control block should publish absolute positions coherently.** A physical `HeadOffset` is ambiguous after wrap. The experiment uses an 88-byte control block with a 32-bit `SeqLock` guarding 64-bit `HeadAbs`, `OldestAbs`, run, epoch, and definition-hash fields. Consumers keep their own absolute cursor.
