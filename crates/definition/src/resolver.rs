@@ -14,8 +14,8 @@ use open_ot_carriage::control::ControlBlockSnapshot;
 use open_ot_carriage::registry::{
     AUTH_RESULT_VALUES, CATEGORY_VALUES, FieldKind, KEY_AUTH_RESULT, KEY_CATEGORY,
     KEY_CAUSE_OPERAND, KEY_CONDITION_ID, KEY_MESSAGE_TEMPLATE_ID, KEY_NEW_STATE, KEY_NEW_VALUE,
-    KEY_PREVIOUS_STATE, KEY_PREVIOUS_VALUE, KEY_STATE_MACHINE_ID, KEY_VALUE_ID, SeverityBand,
-    field_spec, severity_band, tlv_type_spec,
+    KEY_PREVIOUS_STATE, KEY_PREVIOUS_VALUE, KEY_SIGNATURE_MEANING, KEY_STATE_MACHINE_ID,
+    KEY_VALUE_ID, SIGNATURE_MEANING_VALUES, SeverityBand, field_spec, severity_band, tlv_type_spec,
 };
 use open_ot_carriage::wire::{Record, Slot};
 use std::fmt;
@@ -630,6 +630,7 @@ fn enum_label(
     match key {
         KEY_CATEGORY => enum_value_label(CATEGORY_VALUES, int_value),
         KEY_AUTH_RESULT => enum_value_label(AUTH_RESULT_VALUES, int_value),
+        KEY_SIGNATURE_MEANING => enum_value_label(SIGNATURE_MEANING_VALUES, int_value),
         KEY_PREVIOUS_STATE | KEY_NEW_STATE => {
             state_label(context.state_machine_id?, int_value, definition)
         }

@@ -36,6 +36,7 @@ The pragma attaches to the `VAR` declaration so it survives rename/refactor.
 | `'operator-login'` | an operator login attempt/result | `OperatorLogin` (0x0401) | the BOOL goes TRUE |
 | `'operator-logout'` | an operator logout | `OperatorLogout` (0x0402) | the BOOL goes TRUE |
 | `'security-failure'` | a denied or failed security/access attempt | `SecurityAccessFailure` (0x0405) | the BOOL goes TRUE |
+| `'e-signature'` | an electronic signature attesting another emitted OpenOT event | `ESignature` (0x0404) | the BOOL goes TRUE |
 
 ---
 
@@ -294,7 +295,7 @@ Quantity : LREAL := LREAL#12.25;
 Addition : BOOL {attribute 'oot' := 'material-addition', 'batch' := BatchId, 'material' := MaterialId, 'quantity' := Quantity, 'unit' := 'kg'};
 ```
 
-## Operator and security events
+## Operator, security, and e-signature events
 
 These are edge-triggered BOOL declarations for the first §7.5
 operator/regulated records. The operator definition table is intentionally empty
@@ -307,6 +308,7 @@ program-authored event in this workbench and is rejected as an authoring kind.
 | `operator-login` | `actor` required `STRING[<=96]`, `auth` required, optional `workstation` `STRING[<=96]`, optional `role` `UINT` |
 | `operator-logout` | `actor` required `STRING[<=96]`, optional `workstation` `STRING[<=96]` |
 | `security-failure` | `actor` required `STRING[<=96]`, optional `workstation` `STRING[<=96]`, optional `reason` `STRING[<=96]` |
+| `e-signature` | `action` required `UDINT`, `actor` required `STRING[<=96]`, `meaning` required signature meaning, `attests` required tagged event variable, optional `auth` |
 
 `auth` emits the `authResult` `UINT` slot. It accepts the canonical symbols
 `Granted`, `Denied`, `NotRequired`, `Pending`, `Expired`, numeric `0`..`4`, or a
@@ -329,7 +331,34 @@ Action : BOOL {attribute 'oot' := 'operator-action', 'action' := ActionId, 'acto
 Login : BOOL {attribute 'oot' := 'operator-login', 'actor' := OperatorName, 'auth' := 'Granted', 'workstation' := Workstation, 'role' := Role};
 Logout : BOOL {attribute 'oot' := 'operator-logout', 'actor' := OperatorName, 'workstation' := Workstation};
 Denied : BOOL {attribute 'oot' := 'security-failure', 'actor' := OperatorName, 'workstation' := Workstation, 'reason' := ReasonText};
+SignAction : BOOL {attribute 'oot' := 'e-signature', 'action' := ActionId, 'actor' := OperatorName, 'meaning' := 'Approved', 'attests' := Action, 'auth' := 'Granted'};
 ```
+
+### `'e-signature'` — sign an emitted event
+
+`e-signature` emits `ESignature` with `actionId`, `actor`,
+`signatureMeaning`, `signedEventSeq`, and optional `authResult`.
+`signedEventSeq` is not an authoring key. The compiler assigns a hidden
+attestable id to the `attests` target, the producer records that target
+variable's last emitted sequence number, and the signature reads it back.
+
+`attests` must name a deterministic single-event OpenOT variable in the same
+source: `value`, audited `value`/`ParameterChange`, `state`, `message`,
+`batch`, `recipe-loaded`, `recipe-approved`, `material-addition`,
+`operator-action`, `operator-login`, `operator-logout`, or
+`security-failure`. It cannot name an `alarm`, a `condition` lifecycle command,
+or another `e-signature`. A producer instance supports at most 32 distinct
+attested targets.
+
+E-signatures are emitted after the other generated OpenOT calls in the scan, so
+a signature can attest a target declared later in the same `PROGRAM` if both
+fire in that scan. If the target has not emitted in the current run/epoch, the
+producer emits no signature, increments `DroppedCommandCount`, and the runtime
+fails the cycle. Attestable state is cleared on epoch transitions.
+
+`meaning` accepts `Authored`, `Reviewed`, `Approved`, `Verified`, `Performed`,
+`Witnessed`, or numeric `0`..`5`. `auth` accepts the same authResult symbols as
+the operator events.
 
 ## `'message'` — a human-readable event
 
@@ -407,6 +436,11 @@ prefer to state them explicitly rather than rely on the default.
 | `security-failure` | `actor` | none | required `STRING[<=96]` |
 | `security-failure` | `workstation` | none | no `workstation` slot |
 | `security-failure` | `reason` | none | no `reason` slot |
+| `e-signature` | `action` | none | required `UDINT` |
+| `e-signature` | `actor` | none | required `STRING[<=96]` |
+| `e-signature` | `meaning` | none | required signatureMeaning enum |
+| `e-signature` | `attests` | none | required same-source deterministic single-event target |
+| `e-signature` | `auth` | none | no `authResult` slot |
 | `message` | `template` | the **variable name** | an untemplated message still resolves to *something* |
 | `message` | `severity` | none | no message severity slot |
 | `message` | `arg1`…`arg4` | none | no typed argument slots |
@@ -427,10 +461,10 @@ the parent alarm's `conditionId` and `sourceId`; id/source pinning keys are comp
 errors on `oot := 'condition'`.
 
 `batch`, `recipe-loaded`, `recipe-approved`, `material-addition`, and the
-operator/regulated edge events use bound field identities (`batchId`, `recipeId`,
-`materialId`, `actionId`, `contextRef`) supplied by variables. They do not
-auto-generate recipe/batch/material/operator definition tables in this slice; the
-consumer renders the raw numeric ids.
+operator/regulated/e-signature edge events use bound field identities (`batchId`,
+`recipeId`, `materialId`, `actionId`, `contextRef`) supplied by variables. They
+do not auto-generate recipe/batch/material/operator/e-signature definition
+tables in this slice; the consumer renders the raw numeric ids and strings.
 
 > ⚠️ **Stability caveat.** Because ids follow declaration order, inserting or reordering
 > tagged variables shifts ids and changes the definition hash — which spec §6.3 warns
@@ -457,8 +491,8 @@ batch states. That's how `ValueChanged valueId=2001 new=15.25` becomes
 - **Kinds covered:** `value`, `state`, `alarm`, `message`, the full condition
   lifecycle command set through `priority-changed`, the first §7.4 batch/recipe
   set (`batch`, `recipe-loaded`, `recipe-approved`, `material-addition`), and
-  the simple §7.5 operator/regulated edge events (`operator-action`,
-  `operator-login`, `operator-logout`, `security-failure`), plus audited values
+  the §7.5 operator/regulated events (`operator-action`, `operator-login`,
+  `operator-logout`, `security-failure`, `e-signature`), plus audited values
   (`audit := 'true'`) as `ParameterChange`.
 - **Deadband/sampling:** `REAL` deadband, periodic, and `REAL` hysteresis are
   implemented. Integer deadband and hysteresis for non-REAL values are not yet

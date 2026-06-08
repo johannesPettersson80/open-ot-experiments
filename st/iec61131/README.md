@@ -27,6 +27,7 @@ The conformance contract is byte-exact comparison against:
 - `crates/carriage/vectors/conformant_condition_{acknowledged,confirmed,shelved,unshelved,suppressed,unsuppressed,out_of_service,in_service,commented,reset,priority_changed}.hex`
 - `crates/carriage/vectors/conformant_{recipe_loaded,recipe_approved,batch_event,material_addition}.hex`
 - `crates/carriage/vectors/conformant_{operator_action,operator_login,operator_logout,security_access_failure}.hex`
+- `crates/carriage/vectors/conformant_e_signature.hex`
 - `crates/carriage/vectors/conformant_records_dropped.hex`
 - `crates/carriage/vectors/conformant_source_high_water.hex`
 - `crates/carriage/vectors/control_block.hex`
@@ -87,7 +88,7 @@ reading a `STRING` representation.
   out-of-service, in-service, comment, reset, and priority-changed records, plus
   batch/recipe encoders for `RecipeLoaded`, `RecipeApproved`, `BatchEvent`, and
   `MaterialAddition`, and regulated encoders for `OperatorAction`,
-  `OperatorLogin`, `OperatorLogout`, and `SecurityAccessFailure`.
+  `OperatorLogin`, `OperatorLogout`, `SecurityAccessFailure`, and `ESignature`.
 - `src/openot_source_high_water.st` defines the parameterized `SourceHighWater`
   encoder used by producer checkpoints.
 - `src/openot_lifecycle.st` defines byte-exact encoders for system lifecycle
@@ -99,7 +100,8 @@ reading a `STRING` representation.
   generic fixed-width values, `Op = 11` for bounded `STRING` values, and
   `Op = 12` for producer-internal condition lifecycle commands, `Op = 13`
   for batch/recipe command records, `Op = 14` for operator/regulated command
-  records, and `Op = 15` for audited `ParameterChange` values),
+  records, `Op = 15` for audited `ParameterChange` values, and `Op = 16` for
+  producer-internal `ESignature` records),
   generalized pre-encoded staging (`Op = 5`), per-scan record-list outputs, and
   the cold/warm epoch transition state machine.
 - `captures/openot_s4a_capture.st` defines the S4a scenario drivers
@@ -148,6 +150,9 @@ for a `DINT`, `Op = 8` emits a `StateTransition`, `Op = 9` emits
   `SecurityAccessFailure` records from bound operator/security fields. `Op = 15`
   emits `ParameterChange` records for audited values, seeding the first
   observation and emitting previous/new/actor/reason on subsequent changes.
+  `Op = 16` emits `ESignature` records by resolving a hidden attestable id to
+  the target event's last emitted sequence number; missing target state fails
+  closed through `DroppedCommandCount`/`LastCommandError`.
   These ops track last value/state/condition inside the producer and emit only on
   change/deadband/edge. For `Op = 12`, activation-scoped commands such as
   `ConditionAcknowledged`, `ConditionConfirmed`, `ConditionShelved`,

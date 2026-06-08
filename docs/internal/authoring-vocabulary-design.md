@@ -247,9 +247,14 @@ SecFail    : BOOL {attribute 'oot' := 'security-failure', 'actor' := WhoTried, '
 - `e-signature` → `0x0404 {actionId, actor, signatureMeaning, signedEventSeq, [authResult?]}`. `meaning`
   → `signatureMeaning` UInt enum (§6.4). **`signedEventSeq` is a compiler/runtime linkage, NOT
   engineer-supplied** — a normal program variable can't reliably capture a hidden producer-generated
-  `seq`. `'attests' := <NamedTaggedEvent>` references another `{attribute 'oot'}` event in the same
-  source; the lowering records that event's emitted `seq` into hidden producer state and the
-  e-signature reads it back (same-source ordering is guaranteed by the single producer task, §3/line 107).
+  `seq`. `'attests' := <NamedTaggedEvent>` references another deterministic single-event
+  `{attribute 'oot'}` variable in the same source. The compiler assigns that target a hidden
+  `attestableId` (1..32 per producer instance), passes that id on the target's producer call, and
+  emits e-signatures last in the scan so same-scan attestation works even when the signature variable
+  is declared before the target. The producer records the target's last successful emitted `seq` keyed
+  by `attestableId` and the e-signature op reads it back. If the target has not emitted in the current
+  run/epoch, the op fails closed; the table is reset on epoch transition. Reject cross-source
+  attestation, self-attestation, `alarm`, `condition`, and `e-signature` targets.
 - `security-failure` → `0x0405 {actor, [workstation?], [reason?]}`.
 
 **`parameter-change` (0x0403)** is special — it is *audited `ValueChanged`*: `{valueId, previousValue,

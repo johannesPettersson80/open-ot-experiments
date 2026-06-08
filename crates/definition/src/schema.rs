@@ -806,6 +806,9 @@ mod tests {
                 "../../carriage/vectors/conformant_parameter_change_string.hex"
             )),
             hex_bytes(include_str!(
+                "../../carriage/vectors/conformant_e_signature.hex"
+            )),
+            hex_bytes(include_str!(
                 "../../carriage/vectors/conformant_records_dropped.hex"
             )),
             hex_bytes(include_str!(

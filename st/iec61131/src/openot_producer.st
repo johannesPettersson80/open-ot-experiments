@@ -73,6 +73,16 @@ TYPE
     END_STRUCT;
 
     OPENOT_EMISSION_LOG : ARRAY[0..31] OF OPENOT_EMISSION_ENTRY;
+
+    OPENOT_ATTESTABLE_EVENT_STATE : STRUCT
+        Used : BOOL;
+        AttestableId : UDINT;
+        SourceId : UDINT;
+        HasSeq : BOOL;
+        LastSeq : ULINT;
+    END_STRUCT;
+
+    OPENOT_ATTESTABLE_EVENT_LOG : ARRAY[0..31] OF OPENOT_ATTESTABLE_EVENT_STATE;
 END_TYPE
 
 FUNCTION OPENOT_AppendScanRecord : BOOL
@@ -128,6 +138,51 @@ FOR Index := UINT#0 TO UINT#16 DO
 END_FOR;
 
 OPENOT_ResetScanRecordList := TRUE;
+END_FUNCTION
+
+FUNCTION OPENOT_RecordAttestableSeq : BOOL
+VAR_INPUT
+    AttestableId : UDINT;
+    SourceId : UDINT;
+    Seq : ULINT;
+END_VAR
+VAR_IN_OUT
+    AttestableEvents : OPENOT_ATTESTABLE_EVENT_LOG;
+END_VAR
+VAR
+    Index : UINT;
+    EntryIndex : UINT;
+    Found : BOOL;
+    FreeFound : BOOL;
+END_VAR
+
+OPENOT_RecordAttestableSeq := FALSE;
+IF (AttestableId > UDINT#0) AND (AttestableId <= UDINT#32) THEN
+    Found := FALSE;
+    FreeFound := FALSE;
+    EntryIndex := UINT#0;
+
+    FOR Index := UINT#0 TO UINT#31 DO
+        IF AttestableEvents[Index].Used AND (AttestableEvents[Index].AttestableId = AttestableId) THEN
+            IF NOT Found THEN
+                EntryIndex := Index;
+                Found := TRUE;
+            END_IF;
+        ELSIF (NOT Found) AND (NOT AttestableEvents[Index].Used) AND (NOT FreeFound) THEN
+            EntryIndex := Index;
+            FreeFound := TRUE;
+        END_IF;
+    END_FOR;
+
+    IF Found OR FreeFound THEN
+        AttestableEvents[EntryIndex].Used := TRUE;
+        AttestableEvents[EntryIndex].AttestableId := AttestableId;
+        AttestableEvents[EntryIndex].SourceId := SourceId;
+        AttestableEvents[EntryIndex].HasSeq := TRUE;
+        AttestableEvents[EntryIndex].LastSeq := Seq;
+        OPENOT_RecordAttestableSeq := TRUE;
+    END_IF;
+END_IF;
 END_FUNCTION
 
 FUNCTION OPENOT_NextSourceTime : ULINT
@@ -258,6 +313,13 @@ VAR_INPUT
     MessageArg4PayloadLength : UINT;
     MessageArg4Bits : ULINT;
     MessageArg4String : STRING[96];
+    AttestableId : UDINT;
+    SignatureActionId : UDINT;
+    SignatureActor : STRING[96];
+    SignatureMeaning : UINT;
+    SignatureAttestsId : UDINT;
+    SignatureHasAuthResult : BOOL;
+    SignatureAuthResult : UINT;
 END_VAR
 VAR_OUTPUT
     AssignedSeq : ULINT;
@@ -309,6 +371,7 @@ VAR
     StringValueStates : ARRAY[0..15] OF OPENOT_STRING_VALUE_STATE;
     StateMachineStates : ARRAY[0..15] OF OPENOT_STATE_MACHINE_STATE;
     ConditionStates : ARRAY[0..15] OF OPENOT_CONDITION_STATE;
+    AttestableEvents : OPENOT_ATTESTABLE_EVENT_LOG;
     RingProducer : OPENOT_Ring256Producer;
     Encoder : OPENOT_EncodeMinimalMessage;
     ValueRealEncoder : OPENOT_EncodeValueChangedReal;
@@ -324,6 +387,7 @@ VAR
     ParameterIntEncoder : OPENOT_EncodeParameterChangeInt;
     ParameterBitsEncoder : OPENOT_EncodeParameterChangeBits;
     ParameterStringEncoder : OPENOT_EncodeParameterChangeString;
+    ESignatureEncoder : OPENOT_EncodeESignature;
     HighWaterEncoder : OPENOT_EncodeSourceHighWater;
     StoppedEncoder : OPENOT_EncodeLoggerStopped;
     StartedEncoder : OPENOT_EncodeLoggerStarted;
@@ -404,6 +468,11 @@ VAR
     AuditNewStringLength : UINT;
     AuditRecordLength : UINT;
     AuditShouldEmit : BOOL;
+    SignatureActorLength : UINT;
+    SignatureRecordLength : UINT;
+    SignatureShouldEmit : BOOL;
+    SignatureSeq : ULINT;
+    AttestableRecordOk : BOOL;
 END_VAR
 
 IF NOT Initialized THEN
@@ -418,6 +487,13 @@ IF NOT Initialized THEN
     StateDroppedCommandCount := ULINT#0;
     StateLastCommandError := UINT#0;
     StatePublishedRecordCount := ULINT#0;
+    FOR Index := UINT#0 TO UINT#31 DO
+        AttestableEvents[Index].Used := FALSE;
+        AttestableEvents[Index].AttestableId := UDINT#0;
+        AttestableEvents[Index].SourceId := UDINT#0;
+        AttestableEvents[Index].HasSeq := FALSE;
+        AttestableEvents[Index].LastSeq := ULINT#0;
+    END_FOR;
     Initialized := TRUE;
 END_IF;
 
@@ -438,7 +514,7 @@ IF ResetScanRecords THEN
 END_IF;
 
 IF ExecuteEdge THEN
-    IF (NOT AccumulateScanRecords) AND (Op <> UINT#6) AND (Op <> UINT#7) AND (Op <> UINT#8) AND (Op <> UINT#9) AND (Op <> UINT#10) AND (Op <> UINT#11) AND (Op <> UINT#12) AND (Op <> UINT#13) AND (Op <> UINT#14) AND (Op <> UINT#15) THEN
+    IF (NOT AccumulateScanRecords) AND (Op <> UINT#6) AND (Op <> UINT#7) AND (Op <> UINT#8) AND (Op <> UINT#9) AND (Op <> UINT#10) AND (Op <> UINT#11) AND (Op <> UINT#12) AND (Op <> UINT#13) AND (Op <> UINT#14) AND (Op <> UINT#15) AND (Op <> UINT#16) THEN
         ResetOk := OPENOT_ResetScanRecordList(
             ScanRecordOffsets := ScanRecordOffsets,
             ScanRecordLengths := ScanRecordLengths,
@@ -610,6 +686,11 @@ IF ExecuteEdge THEN
                             Emissions[EmissionCount].Seq := AssignedSeq;
                             EmissionCount := EmissionCount + UINT#1;
                         END_IF;
+                        AttestableRecordOk := OPENOT_RecordAttestableSeq(
+                            AttestableId := AttestableId,
+                            SourceId := SourceId,
+                            Seq := AssignedSeq,
+                            AttestableEvents := AttestableEvents);
                         Done := TRUE;
                     ELSE
                         Error := TRUE;
@@ -1155,6 +1236,11 @@ IF ExecuteEdge THEN
                         Emissions[EmissionCount].Seq := AssignedSeq;
                         EmissionCount := EmissionCount + UINT#1;
                     END_IF;
+                    AttestableRecordOk := OPENOT_RecordAttestableSeq(
+                        AttestableId := AttestableId,
+                        SourceId := ActiveSourceId,
+                        Seq := AssignedSeq,
+                        AttestableEvents := AttestableEvents);
 
                     IF Op = UINT#6 THEN
                         RealValueStates[StateIndex].HasLast := TRUE;
@@ -1696,6 +1782,11 @@ IF ExecuteEdge THEN
                     Emissions[EmissionCount].Seq := AssignedSeq;
                     EmissionCount := EmissionCount + UINT#1;
                 END_IF;
+                AttestableRecordOk := OPENOT_RecordAttestableSeq(
+                    AttestableId := AttestableId,
+                    SourceId := ActiveSourceId,
+                    Seq := AssignedSeq,
+                    AttestableEvents := AttestableEvents);
                 Done := TRUE;
             ELSE
                 StateDroppedCommandCount := StateDroppedCommandCount + ULINT#1;
@@ -1904,6 +1995,11 @@ IF ExecuteEdge THEN
                     Emissions[EmissionCount].Seq := AssignedSeq;
                     EmissionCount := EmissionCount + UINT#1;
                 END_IF;
+                AttestableRecordOk := OPENOT_RecordAttestableSeq(
+                    AttestableId := AttestableId,
+                    SourceId := ActiveSourceId,
+                    Seq := AssignedSeq,
+                    AttestableEvents := AttestableEvents);
                 Done := TRUE;
             ELSE
                 StateDroppedCommandCount := StateDroppedCommandCount + ULINT#1;
@@ -2309,6 +2405,11 @@ IF ExecuteEdge THEN
                     Emissions[EmissionCount].Seq := AssignedSeq;
                     EmissionCount := EmissionCount + UINT#1;
                 END_IF;
+                AttestableRecordOk := OPENOT_RecordAttestableSeq(
+                    AttestableId := AttestableId,
+                    SourceId := ActiveSourceId,
+                    Seq := AssignedSeq,
+                    AttestableEvents := AttestableEvents);
 
                 IF ValueTypeTag = BYTE#16#09 THEN
                     RealValueStates[StateIndex].HasLast := TRUE;
@@ -2322,6 +2423,155 @@ IF ExecuteEdge THEN
                 ELSE
                     BitsValueStates[StateIndex].HasLast := TRUE;
                     BitsValueStates[StateIndex].LastBits := ValueBits;
+                END_IF;
+                Done := TRUE;
+            ELSE
+                StateDroppedCommandCount := StateDroppedCommandCount + ULINT#1;
+                StateLastCommandError := UINT#5;
+                Error := TRUE;
+            END_IF;
+        END_IF;
+    ELSIF Op = UINT#16 THEN
+        ActiveSourceId := SourceId;
+        IF ActiveSourceId = UDINT#0 THEN
+            ActiveSourceId := UDINT#1;
+        END_IF;
+
+        SignatureShouldEmit := TRUE;
+        Found := FALSE;
+        FreeFound := FALSE;
+        EntryIndex := UINT#0;
+
+        IF (SignatureAttestsId = UDINT#0) OR (SignatureAttestsId > UDINT#32) THEN
+            StateDroppedCommandCount := StateDroppedCommandCount + ULINT#1;
+            StateLastCommandError := UINT#1;
+            SignatureShouldEmit := FALSE;
+            Error := TRUE;
+        ELSE
+            FOR Index := UINT#0 TO UINT#31 DO
+                IF AttestableEvents[Index].Used AND (AttestableEvents[Index].AttestableId = SignatureAttestsId) THEN
+                    IF (NOT Found) AND AttestableEvents[Index].HasSeq AND (AttestableEvents[Index].SourceId = ActiveSourceId) THEN
+                        SignatureSeq := AttestableEvents[Index].LastSeq;
+                        Found := TRUE;
+                    END_IF;
+                END_IF;
+            END_FOR;
+
+            IF NOT Found THEN
+                StateDroppedCommandCount := StateDroppedCommandCount + ULINT#1;
+                StateLastCommandError := UINT#6;
+                SignatureShouldEmit := FALSE;
+                Error := TRUE;
+            END_IF;
+        END_IF;
+
+        IF SignatureShouldEmit THEN
+            SignatureActorLength := INT_TO_UINT(LEN(SignatureActor));
+            IF SignatureActorLength > UINT#96 THEN
+                SignatureActorLength := UINT#96;
+            END_IF;
+
+            SignatureRecordLength := UINT#72 + OPENOT_ValueSlotEncodedLength(PayloadLength := SignatureActorLength);
+            IF SignatureHasAuthResult THEN
+                SignatureRecordLength := SignatureRecordLength + UINT#8;
+            END_IF;
+
+            IF SignatureActorLength = UINT#0 THEN
+                StateDroppedCommandCount := StateDroppedCommandCount + ULINT#1;
+                StateLastCommandError := UINT#2;
+                SignatureShouldEmit := FALSE;
+                Error := TRUE;
+            ELSIF SignatureRecordLength > UINT#256 THEN
+                StateDroppedCommandCount := StateDroppedCommandCount + ULINT#1;
+                StateLastCommandError := UINT#3;
+                SignatureShouldEmit := FALSE;
+                Error := TRUE;
+            END_IF;
+        END_IF;
+
+        IF SignatureShouldEmit THEN
+            Found := FALSE;
+            FreeFound := FALSE;
+            EntryIndex := UINT#0;
+
+            FOR Index := UINT#0 TO UINT#15 DO
+                IF Sources[Index].Used AND (Sources[Index].SourceId = ActiveSourceId) THEN
+                    IF NOT Found THEN
+                        EntryIndex := Index;
+                        Found := TRUE;
+                    END_IF;
+                END_IF;
+            END_FOR;
+
+            IF NOT Found THEN
+                FOR Index := UINT#0 TO UINT#15 DO
+                    IF (NOT Sources[Index].Used) AND (NOT FreeFound) THEN
+                        EntryIndex := Index;
+                        FreeFound := TRUE;
+                    END_IF;
+                END_FOR;
+
+                IF FreeFound THEN
+                    Sources[EntryIndex].Used := TRUE;
+                    Sources[EntryIndex].SourceId := ActiveSourceId;
+                    Sources[EntryIndex].NextSeq := ULINT#0;
+                ELSE
+                    SourceTableFull := TRUE;
+                    StateDroppedCommandCount := StateDroppedCommandCount + ULINT#1;
+                    StateLastCommandError := UINT#4;
+                    SignatureShouldEmit := FALSE;
+                    Error := TRUE;
+                END_IF;
+            END_IF;
+        END_IF;
+
+        IF SignatureShouldEmit THEN
+            AssignedSeq := Sources[EntryIndex].NextSeq;
+            EmitSourceTime := OPENOT_NextSourceTime(
+                UseSourceTimeInput := UseSourceTimeInput,
+                SourceTimeInput := SourceTimeInput,
+                StateSourceTime := StateSourceTime);
+            ESignatureEncoder(
+                SourceId := ActiveSourceId,
+                RunId := StateRunId,
+                Seq := AssignedSeq,
+                SourceTime := EmitSourceTime,
+                ActionId := SignatureActionId,
+                Actor := SignatureActor,
+                SignatureMeaning := SignatureMeaning,
+                SignedEventSeq := SignatureSeq,
+                HasAuthResult := SignatureHasAuthResult,
+                AuthResult := SignatureAuthResult);
+            RingProducer(
+                Execute := TRUE,
+                Record := ESignatureEncoder.Buffer,
+                Length := ESignatureEncoder.Length,
+                RunId := StateRunId,
+                SourceId := ActiveSourceId,
+                Seq := AssignedSeq);
+
+            IF RingProducer.Done AND (NOT RingProducer.Error) THEN
+                AppendOk := OPENOT_AppendScanRecord(
+                    Record := ESignatureEncoder.Buffer,
+                    Length := ESignatureEncoder.Length,
+                    ScanRecords := ScanRecords,
+                    ScanRecordOffsets := ScanRecordOffsets,
+                    ScanRecordLengths := ScanRecordLengths,
+                    ScanWritePos := ScanWritePos,
+                    ScanRecordCount := ScanRecordCount);
+            ELSE
+                AppendOk := FALSE;
+            END_IF;
+
+            IF AppendOk THEN
+                Sources[EntryIndex].NextSeq := AssignedSeq + ULINT#1;
+                StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
+                IF EmissionCount < UINT#32 THEN
+                    Emissions[EmissionCount].EventTypeId := UDINT#16#0404;
+                    Emissions[EmissionCount].RunId := StateRunId;
+                    Emissions[EmissionCount].SourceId := ActiveSourceId;
+                    Emissions[EmissionCount].Seq := AssignedSeq;
+                    EmissionCount := EmissionCount + UINT#1;
                 END_IF;
                 Done := TRUE;
             ELSE
@@ -2546,15 +2796,22 @@ IF ExecuteEdge THEN
                     ScanRecordLengths := ScanRecordLengths,
                     ScanWritePos := ScanWritePos,
                     ScanRecordCount := ScanRecordCount);
-                IF AppendOk THEN
-                    StateEpochFirstAbs := RingProducer.LastStartAbs;
-                    FOR Index := UINT#0 TO UINT#7 DO
-                        StatePrevDefinitionHash[Index] := PendingDefHashOld[Index];
-                        StateDefinitionHash[Index] := PendingDefHashNew[Index];
-                    END_FOR;
-                    PendingOpen := FALSE;
-                    PendingDefChangedEmitted := FALSE;
-                    StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
+	                IF AppendOk THEN
+	                    StateEpochFirstAbs := RingProducer.LastStartAbs;
+	                    FOR Index := UINT#0 TO UINT#7 DO
+	                        StatePrevDefinitionHash[Index] := PendingDefHashOld[Index];
+	                        StateDefinitionHash[Index] := PendingDefHashNew[Index];
+	                    END_FOR;
+	                    FOR Index := UINT#0 TO UINT#31 DO
+	                        AttestableEvents[Index].Used := FALSE;
+	                        AttestableEvents[Index].AttestableId := UDINT#0;
+	                        AttestableEvents[Index].SourceId := UDINT#0;
+	                        AttestableEvents[Index].HasSeq := FALSE;
+	                        AttestableEvents[Index].LastSeq := ULINT#0;
+	                    END_FOR;
+	                    PendingOpen := FALSE;
+	                    PendingDefChangedEmitted := FALSE;
+	                    StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
                     IF EmissionCount < UINT#32 THEN
                         Emissions[EmissionCount].EventTypeId := UDINT#16#0101;
                         Emissions[EmissionCount].RunId := StateRunId;
@@ -2584,6 +2841,13 @@ IF ExecuteEdge THEN
                 Sources[Index].Used := FALSE;
                 Sources[Index].SourceId := UDINT#0;
                 Sources[Index].NextSeq := ULINT#0;
+            END_FOR;
+            FOR Index := UINT#0 TO UINT#31 DO
+                AttestableEvents[Index].Used := FALSE;
+                AttestableEvents[Index].AttestableId := UDINT#0;
+                AttestableEvents[Index].SourceId := UDINT#0;
+                AttestableEvents[Index].HasSeq := FALSE;
+                AttestableEvents[Index].LastSeq := ULINT#0;
             END_FOR;
 
             EmitSeq := StateSystemSeq;

@@ -9,6 +9,7 @@ VAR_OUTPUT
     ParameterChangeIntPassed : BOOL;
     ParameterChangeBitsPassed : BOOL;
     ParameterChangeStringPassed : BOOL;
+    ESignaturePassed : BOOL;
     MismatchIndex : UINT;
 END_VAR
 VAR
@@ -20,6 +21,7 @@ VAR
     ParameterChangeIntEncoder : OPENOT_EncodeConformantParameterChangeInt;
     ParameterChangeBitsEncoder : OPENOT_EncodeConformantParameterChangeBits;
     ParameterChangeStringEncoder : OPENOT_EncodeConformantParameterChangeString;
+    ESignatureEncoder : OPENOT_EncodeConformantESignature;
     ExpectedOperatorAction : ARRAY[0..107] OF BYTE := [
         BYTE#16#4F, BYTE#16#4F, BYTE#16#54, BYTE#16#32, BYTE#16#6C, BYTE#16#00, BYTE#16#08, BYTE#16#00, BYTE#16#36, BYTE#16#CB, BYTE#16#9A, BYTE#16#3B, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00,
         BYTE#16#01, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#20, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00,
@@ -88,6 +90,14 @@ VAR
         BYTE#16#2D, BYTE#16#63, BYTE#16#00, BYTE#16#00, BYTE#16#1F, BYTE#16#00, BYTE#16#0C, BYTE#16#09, BYTE#16#6D, BYTE#16#6F, BYTE#16#64, BYTE#16#65, BYTE#16#20, BYTE#16#6E, BYTE#16#6F, BYTE#16#74,
         BYTE#16#65, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#20, BYTE#16#00, BYTE#16#03, BYTE#16#02, BYTE#16#01, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#76, BYTE#16#BE, BYTE#16#68, BYTE#16#A4
     ];
+    ExpectedESignature : ARRAY[0..91] OF BYTE := [
+        BYTE#16#4F, BYTE#16#4F, BYTE#16#54, BYTE#16#32, BYTE#16#5C, BYTE#16#00, BYTE#16#08, BYTE#16#00, BYTE#16#86, BYTE#16#CB, BYTE#16#9A, BYTE#16#3B, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00,
+        BYTE#16#01, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#28, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00,
+        BYTE#16#42, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#04, BYTE#16#04, BYTE#16#00, BYTE#16#00, BYTE#16#0A, BYTE#16#00, BYTE#16#05, BYTE#16#04, BYTE#16#72, BYTE#16#17, BYTE#16#00, BYTE#16#00,
+        BYTE#16#0B, BYTE#16#00, BYTE#16#0C, BYTE#16#08, BYTE#16#73, BYTE#16#69, BYTE#16#67, BYTE#16#6E, BYTE#16#65, BYTE#16#72, BYTE#16#2D, BYTE#16#61, BYTE#16#22, BYTE#16#00, BYTE#16#03, BYTE#16#02,
+        BYTE#16#02, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#2F, BYTE#16#00, BYTE#16#07, BYTE#16#08, BYTE#16#25, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00,
+        BYTE#16#20, BYTE#16#00, BYTE#16#03, BYTE#16#02, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#BC, BYTE#16#9A, BYTE#16#93, BYTE#16#23
+    ];
     Index : UINT;
 END_VAR
 
@@ -99,6 +109,7 @@ ParameterChangeRealEncoder();
 ParameterChangeIntEncoder();
 ParameterChangeBitsEncoder();
 ParameterChangeStringEncoder();
+ESignatureEncoder();
 
 OperatorActionPassed := OperatorActionEncoder.Length = UINT#108;
 OperatorLoginPassed := OperatorLoginEncoder.Length = UINT#92;
@@ -108,6 +119,7 @@ ParameterChangeRealPassed := ParameterChangeRealEncoder.Length = UINT#112;
 ParameterChangeIntPassed := ParameterChangeIntEncoder.Length = UINT#104;
 ParameterChangeBitsPassed := ParameterChangeBitsEncoder.Length = UINT#100;
 ParameterChangeStringPassed := ParameterChangeStringEncoder.Length = UINT#112;
+ESignaturePassed := ESignatureEncoder.Length = UINT#92;
 MismatchIndex := UINT#65535;
 
 IF OperatorActionPassed THEN
@@ -182,5 +194,14 @@ IF ParameterChangeStringPassed THEN
     END_FOR;
 END_IF;
 
-Passed := OperatorActionPassed AND OperatorLoginPassed AND OperatorLogoutPassed AND SecurityAccessFailurePassed AND ParameterChangeRealPassed AND ParameterChangeIntPassed AND ParameterChangeBitsPassed AND ParameterChangeStringPassed;
+IF ESignaturePassed THEN
+    FOR Index := UINT#0 TO UINT#91 DO
+        IF (ESignatureEncoder.Buffer[Index] <> ExpectedESignature[Index]) AND (MismatchIndex = UINT#65535) THEN
+            ESignaturePassed := FALSE;
+            MismatchIndex := Index;
+        END_IF;
+    END_FOR;
+END_IF;
+
+Passed := OperatorActionPassed AND OperatorLoginPassed AND OperatorLogoutPassed AND SecurityAccessFailurePassed AND ParameterChangeRealPassed AND ParameterChangeIntPassed AND ParameterChangeBitsPassed AND ParameterChangeStringPassed AND ESignaturePassed;
 END_FUNCTION_BLOCK

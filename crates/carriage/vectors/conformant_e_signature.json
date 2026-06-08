@@ -1,0 +1,31 @@
+{
+  "name": "conformant_e_signature",
+  "description": "definition-layer positive ESignature record",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "conformant_e_signature.hex",
+  "byteCount": 92,
+  "headerLength": 40,
+  "totalRecordLength": 92,
+  "flags": "0x0008",
+  "crc32c": "0x23939ABC",
+  "detail": {
+    "eventName": "ESignature",
+    "schemaExpected": "accept",
+    "fields": {
+      "sourceTime": 1000000390,
+      "runId": 1,
+      "seq": 40,
+      "sourceId": 66,
+      "eventTypeId": "0x0404"
+    },
+    "slots": [
+      { "key": "0x000A", "type": "UDInt", "name": "actionId", "value": 6002 },
+      { "key": "0x000B", "type": "String", "name": "actor", "value": "signer-a" },
+      { "key": "0x0022", "type": "UInt", "name": "signatureMeaning", "value": 2 },
+      { "key": "0x002F", "type": "ULInt", "name": "signedEventSeq", "value": 37 },
+      { "key": "0x0020", "type": "UInt", "name": "authResult", "value": 0 }
+    ]
+  }
+}
