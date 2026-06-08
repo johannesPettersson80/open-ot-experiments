@@ -1,0 +1,32 @@
+{
+  "name": "conformant_operator_action",
+  "description": "definition-layer positive OperatorAction record",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "conformant_operator_action.hex",
+  "byteCount": 108,
+  "headerLength": 40,
+  "totalRecordLength": 108,
+  "flags": "0x0008",
+  "crc32c": "0x49DFB126",
+  "detail": {
+    "eventName": "OperatorAction",
+    "schemaExpected": "accept",
+    "fields": {
+      "sourceTime": 1000000310,
+      "runId": 1,
+      "seq": 32,
+      "sourceId": 66,
+      "eventTypeId": "0x0400"
+    },
+    "slots": [
+      { "key": "0x000A", "type": "UDInt", "name": "actionId", "value": 6001 },
+      { "key": "0x000B", "type": "String", "name": "actor", "value": "operator-a" },
+      { "key": "0x000C", "type": "UDInt", "name": "contextRef", "value": 7001 },
+      { "key": "0x000C", "type": "UDInt", "name": "contextRef", "value": 7002 },
+      { "key": "0x0020", "type": "UInt", "name": "authResult", "value": 0 },
+      { "key": "0x0021", "type": "String", "name": "workstation", "value": "station-1" }
+    ]
+  }
+}

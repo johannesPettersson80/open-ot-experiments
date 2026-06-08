@@ -1,0 +1,98 @@
+FUNCTION_BLOCK OPENOT_TestConformantRegulated
+VAR_OUTPUT
+    Passed : BOOL;
+    OperatorActionPassed : BOOL;
+    OperatorLoginPassed : BOOL;
+    OperatorLogoutPassed : BOOL;
+    SecurityAccessFailurePassed : BOOL;
+    MismatchIndex : UINT;
+END_VAR
+VAR
+    OperatorActionEncoder : OPENOT_EncodeConformantOperatorAction;
+    OperatorLoginEncoder : OPENOT_EncodeConformantOperatorLogin;
+    OperatorLogoutEncoder : OPENOT_EncodeConformantOperatorLogout;
+    SecurityAccessFailureEncoder : OPENOT_EncodeConformantSecurityAccessFailure;
+    ExpectedOperatorAction : ARRAY[0..107] OF BYTE := [
+        BYTE#16#4F, BYTE#16#4F, BYTE#16#54, BYTE#16#32, BYTE#16#6C, BYTE#16#00, BYTE#16#08, BYTE#16#00, BYTE#16#36, BYTE#16#CB, BYTE#16#9A, BYTE#16#3B, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00,
+        BYTE#16#01, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#20, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00,
+        BYTE#16#42, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#04, BYTE#16#00, BYTE#16#00, BYTE#16#0A, BYTE#16#00, BYTE#16#05, BYTE#16#04, BYTE#16#71, BYTE#16#17, BYTE#16#00, BYTE#16#00,
+        BYTE#16#0B, BYTE#16#00, BYTE#16#0C, BYTE#16#0A, BYTE#16#6F, BYTE#16#70, BYTE#16#65, BYTE#16#72, BYTE#16#61, BYTE#16#74, BYTE#16#6F, BYTE#16#72, BYTE#16#2D, BYTE#16#61, BYTE#16#00, BYTE#16#00,
+        BYTE#16#0C, BYTE#16#00, BYTE#16#05, BYTE#16#04, BYTE#16#59, BYTE#16#1B, BYTE#16#00, BYTE#16#00, BYTE#16#0C, BYTE#16#00, BYTE#16#05, BYTE#16#04, BYTE#16#5A, BYTE#16#1B, BYTE#16#00, BYTE#16#00,
+        BYTE#16#20, BYTE#16#00, BYTE#16#03, BYTE#16#02, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#21, BYTE#16#00, BYTE#16#0C, BYTE#16#09, BYTE#16#73, BYTE#16#74, BYTE#16#61, BYTE#16#74,
+        BYTE#16#69, BYTE#16#6F, BYTE#16#6E, BYTE#16#2D, BYTE#16#31, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#26, BYTE#16#B1, BYTE#16#DF, BYTE#16#49
+    ];
+    ExpectedOperatorLogin : ARRAY[0..91] OF BYTE := [
+        BYTE#16#4F, BYTE#16#4F, BYTE#16#54, BYTE#16#32, BYTE#16#5C, BYTE#16#00, BYTE#16#08, BYTE#16#00, BYTE#16#40, BYTE#16#CB, BYTE#16#9A, BYTE#16#3B, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00,
+        BYTE#16#01, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#21, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00,
+        BYTE#16#42, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#01, BYTE#16#04, BYTE#16#00, BYTE#16#00, BYTE#16#0B, BYTE#16#00, BYTE#16#0C, BYTE#16#0A, BYTE#16#6F, BYTE#16#70, BYTE#16#65, BYTE#16#72,
+        BYTE#16#61, BYTE#16#74, BYTE#16#6F, BYTE#16#72, BYTE#16#2D, BYTE#16#61, BYTE#16#00, BYTE#16#00, BYTE#16#20, BYTE#16#00, BYTE#16#03, BYTE#16#02, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00,
+        BYTE#16#21, BYTE#16#00, BYTE#16#0C, BYTE#16#09, BYTE#16#73, BYTE#16#74, BYTE#16#61, BYTE#16#74, BYTE#16#69, BYTE#16#6F, BYTE#16#6E, BYTE#16#2D, BYTE#16#31, BYTE#16#00, BYTE#16#00, BYTE#16#00,
+        BYTE#16#33, BYTE#16#00, BYTE#16#03, BYTE#16#02, BYTE#16#03, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#74, BYTE#16#13, BYTE#16#41, BYTE#16#A8
+    ];
+    ExpectedOperatorLogout : ARRAY[0..75] OF BYTE := [
+        BYTE#16#4F, BYTE#16#4F, BYTE#16#54, BYTE#16#32, BYTE#16#4C, BYTE#16#00, BYTE#16#08, BYTE#16#00, BYTE#16#4A, BYTE#16#CB, BYTE#16#9A, BYTE#16#3B, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00,
+        BYTE#16#01, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#22, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00,
+        BYTE#16#42, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#02, BYTE#16#04, BYTE#16#00, BYTE#16#00, BYTE#16#0B, BYTE#16#00, BYTE#16#0C, BYTE#16#0A, BYTE#16#6F, BYTE#16#70, BYTE#16#65, BYTE#16#72,
+        BYTE#16#61, BYTE#16#74, BYTE#16#6F, BYTE#16#72, BYTE#16#2D, BYTE#16#61, BYTE#16#00, BYTE#16#00, BYTE#16#21, BYTE#16#00, BYTE#16#0C, BYTE#16#09, BYTE#16#73, BYTE#16#74, BYTE#16#61, BYTE#16#74,
+        BYTE#16#69, BYTE#16#6F, BYTE#16#6E, BYTE#16#2D, BYTE#16#31, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#14, BYTE#16#BF, BYTE#16#E7, BYTE#16#8C
+    ];
+    ExpectedSecurityAccessFailure : ARRAY[0..87] OF BYTE := [
+        BYTE#16#4F, BYTE#16#4F, BYTE#16#54, BYTE#16#32, BYTE#16#58, BYTE#16#00, BYTE#16#08, BYTE#16#00, BYTE#16#54, BYTE#16#CB, BYTE#16#9A, BYTE#16#3B, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00,
+        BYTE#16#01, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#23, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00,
+        BYTE#16#42, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#05, BYTE#16#04, BYTE#16#00, BYTE#16#00, BYTE#16#0B, BYTE#16#00, BYTE#16#0C, BYTE#16#0A, BYTE#16#6F, BYTE#16#70, BYTE#16#65, BYTE#16#72,
+        BYTE#16#61, BYTE#16#74, BYTE#16#6F, BYTE#16#72, BYTE#16#2D, BYTE#16#78, BYTE#16#00, BYTE#16#00, BYTE#16#21, BYTE#16#00, BYTE#16#0C, BYTE#16#09, BYTE#16#73, BYTE#16#74, BYTE#16#61, BYTE#16#74,
+        BYTE#16#69, BYTE#16#6F, BYTE#16#6E, BYTE#16#2D, BYTE#16#32, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#1F, BYTE#16#00, BYTE#16#0C, BYTE#16#06, BYTE#16#64, BYTE#16#65, BYTE#16#6E, BYTE#16#69,
+        BYTE#16#65, BYTE#16#64, BYTE#16#00, BYTE#16#00, BYTE#16#47, BYTE#16#D1, BYTE#16#30, BYTE#16#F7
+    ];
+    Index : UINT;
+END_VAR
+
+OperatorActionEncoder();
+OperatorLoginEncoder();
+OperatorLogoutEncoder();
+SecurityAccessFailureEncoder();
+
+OperatorActionPassed := OperatorActionEncoder.Length = UINT#108;
+OperatorLoginPassed := OperatorLoginEncoder.Length = UINT#92;
+OperatorLogoutPassed := OperatorLogoutEncoder.Length = UINT#76;
+SecurityAccessFailurePassed := SecurityAccessFailureEncoder.Length = UINT#88;
+MismatchIndex := UINT#65535;
+
+IF OperatorActionPassed THEN
+    FOR Index := UINT#0 TO UINT#107 DO
+        IF (OperatorActionEncoder.Buffer[Index] <> ExpectedOperatorAction[Index]) AND (MismatchIndex = UINT#65535) THEN
+            OperatorActionPassed := FALSE;
+            MismatchIndex := Index;
+        END_IF;
+    END_FOR;
+END_IF;
+
+IF OperatorLoginPassed THEN
+    FOR Index := UINT#0 TO UINT#91 DO
+        IF (OperatorLoginEncoder.Buffer[Index] <> ExpectedOperatorLogin[Index]) AND (MismatchIndex = UINT#65535) THEN
+            OperatorLoginPassed := FALSE;
+            MismatchIndex := Index;
+        END_IF;
+    END_FOR;
+END_IF;
+
+IF OperatorLogoutPassed THEN
+    FOR Index := UINT#0 TO UINT#75 DO
+        IF (OperatorLogoutEncoder.Buffer[Index] <> ExpectedOperatorLogout[Index]) AND (MismatchIndex = UINT#65535) THEN
+            OperatorLogoutPassed := FALSE;
+            MismatchIndex := Index;
+        END_IF;
+    END_FOR;
+END_IF;
+
+IF SecurityAccessFailurePassed THEN
+    FOR Index := UINT#0 TO UINT#87 DO
+        IF (SecurityAccessFailureEncoder.Buffer[Index] <> ExpectedSecurityAccessFailure[Index]) AND (MismatchIndex = UINT#65535) THEN
+            SecurityAccessFailurePassed := FALSE;
+            MismatchIndex := Index;
+        END_IF;
+    END_FOR;
+END_IF;
+
+Passed := OperatorActionPassed AND OperatorLoginPassed AND OperatorLogoutPassed AND SecurityAccessFailurePassed;
+END_FUNCTION_BLOCK

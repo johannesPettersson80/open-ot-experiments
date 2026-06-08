@@ -26,6 +26,7 @@ The conformance contract is byte-exact comparison against:
 - `crates/carriage/vectors/conformant_condition_{active,cleared}.hex`
 - `crates/carriage/vectors/conformant_condition_{acknowledged,confirmed,shelved,unshelved,suppressed,unsuppressed,out_of_service,in_service,commented,reset,priority_changed}.hex`
 - `crates/carriage/vectors/conformant_{recipe_loaded,recipe_approved,batch_event,material_addition}.hex`
+- `crates/carriage/vectors/conformant_{operator_action,operator_login,operator_logout,security_access_failure}.hex`
 - `crates/carriage/vectors/conformant_records_dropped.hex`
 - `crates/carriage/vectors/conformant_source_high_water.hex`
 - `crates/carriage/vectors/control_block.hex`
@@ -84,7 +85,8 @@ reading a `STRING` representation.
   encoders for acknowledge, confirm, shelve, unshelve, suppress, unsuppress,
   out-of-service, in-service, comment, reset, and priority-changed records, plus
   batch/recipe encoders for `RecipeLoaded`, `RecipeApproved`, `BatchEvent`, and
-  `MaterialAddition`.
+  `MaterialAddition`, and regulated encoders for `OperatorAction`,
+  `OperatorLogin`, `OperatorLogout`, and `SecurityAccessFailure`.
 - `src/openot_source_high_water.st` defines the parameterized `SourceHighWater`
   encoder used by producer checkpoints.
 - `src/openot_lifecycle.st` defines byte-exact encoders for system lifecycle
@@ -95,7 +97,8 @@ reading a `STRING` representation.
   `StateTransition`, `Op = 9` for active/cleared conditions, `Op = 10` for
   generic fixed-width values, `Op = 11` for bounded `STRING` values, and
   `Op = 12` for producer-internal condition lifecycle commands, and `Op = 13`
-  for batch/recipe command records),
+  for batch/recipe command records, and `Op = 14` for operator/regulated command
+  records),
   generalized pre-encoded staging (`Op = 5`), per-scan record-list outputs, and
   the cold/warm epoch transition state machine.
 - `captures/openot_s4a_capture.st` defines the S4a scenario drivers
@@ -139,7 +142,9 @@ for a `DINT`, `Op = 8` emits a `StateTransition`, `Op = 9` emits
   fixed-width value payloads, `Op = 11` emits bounded `STRING` values, and
   `Op = 12` emits condition lifecycle commands for a parent alarm. `Op = 13`
   emits `RecipeLoaded`, `RecipeApproved`, `BatchEvent`, and `MaterialAddition`
-  records from bound recipe/batch/material fields. These ops track
+  records from bound recipe/batch/material fields. `Op = 14` emits
+  `OperatorAction`, `OperatorLogin`, `OperatorLogout`, and
+  `SecurityAccessFailure` records from bound operator/security fields. These ops track
   last value/state/condition inside the producer and emit only on
   change/deadband/edge. For `Op = 12`, activation-scoped commands such as
   `ConditionAcknowledged`, `ConditionConfirmed`, `ConditionShelved`,
@@ -152,9 +157,9 @@ for a `DINT`, `Op = 8` emits a `StateTransition`, `Op = 9` emits
   `correlationId`. Comment and priority-changed required fields are checked
   before the lifecycle encoder writes the fixed 256-byte record buffer; missing
   required fields or an oversized comment record fail closed.
-For `Op = 13`, recipe version and actor strings are `STRING[96]` producer
-inputs; the compiler rejects wider bound string declarations to avoid silent
-truncation. Runtime size guards increment `DroppedCommandCount` with
+For `Op = 13` and `Op = 14`, string fields are `STRING[96]` producer inputs; the
+compiler rejects wider bound string declarations to avoid silent truncation.
+Runtime size guards increment `DroppedCommandCount` with
 `LastCommandError` if a command cannot be encoded into the fixed 256-byte record
 buffer.
 If `SourceId` is omitted or zero, the producer uses source `1`; the generated

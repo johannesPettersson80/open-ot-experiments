@@ -1,0 +1,28 @@
+{
+  "name": "conformant_operator_logout",
+  "description": "definition-layer positive OperatorLogout record",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "conformant_operator_logout.hex",
+  "byteCount": 76,
+  "headerLength": 40,
+  "totalRecordLength": 76,
+  "flags": "0x0008",
+  "crc32c": "0x8CE7BF14",
+  "detail": {
+    "eventName": "OperatorLogout",
+    "schemaExpected": "accept",
+    "fields": {
+      "sourceTime": 1000000330,
+      "runId": 1,
+      "seq": 34,
+      "sourceId": 66,
+      "eventTypeId": "0x0402"
+    },
+    "slots": [
+      { "key": "0x000B", "type": "String", "name": "actor", "value": "operator-a" },
+      { "key": "0x0021", "type": "String", "name": "workstation", "value": "station-1" }
+    ]
+  }
+}

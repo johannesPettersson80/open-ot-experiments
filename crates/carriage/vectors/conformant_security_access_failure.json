@@ -1,0 +1,29 @@
+{
+  "name": "conformant_security_access_failure",
+  "description": "definition-layer positive SecurityAccessFailure record",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "conformant_security_access_failure.hex",
+  "byteCount": 88,
+  "headerLength": 40,
+  "totalRecordLength": 88,
+  "flags": "0x0008",
+  "crc32c": "0xF730D147",
+  "detail": {
+    "eventName": "SecurityAccessFailure",
+    "schemaExpected": "accept",
+    "fields": {
+      "sourceTime": 1000000340,
+      "runId": 1,
+      "seq": 35,
+      "sourceId": 66,
+      "eventTypeId": "0x0405"
+    },
+    "slots": [
+      { "key": "0x000B", "type": "String", "name": "actor", "value": "operator-x" },
+      { "key": "0x0021", "type": "String", "name": "workstation", "value": "station-2" },
+      { "key": "0x001F", "type": "String", "name": "reason", "value": "denied" }
+    ]
+  }
+}

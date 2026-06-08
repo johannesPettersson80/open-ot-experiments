@@ -782,6 +782,18 @@ mod tests {
                 "../../carriage/vectors/conformant_material_addition.hex"
             )),
             hex_bytes(include_str!(
+                "../../carriage/vectors/conformant_operator_action.hex"
+            )),
+            hex_bytes(include_str!(
+                "../../carriage/vectors/conformant_operator_login.hex"
+            )),
+            hex_bytes(include_str!(
+                "../../carriage/vectors/conformant_operator_logout.hex"
+            )),
+            hex_bytes(include_str!(
+                "../../carriage/vectors/conformant_security_access_failure.hex"
+            )),
+            hex_bytes(include_str!(
                 "../../carriage/vectors/conformant_records_dropped.hex"
             )),
             hex_bytes(include_str!(

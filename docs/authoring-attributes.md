@@ -32,6 +32,10 @@ The pragma attaches to the `VAR` declaration so it survives rename/refactor.
 | `'recipe-loaded'` | a recipe-load command/event | `RecipeLoaded` (0x0301) | the BOOL goes TRUE |
 | `'recipe-approved'` | a recipe-approval command/event | `RecipeApproved` (0x0302) | the BOOL goes TRUE |
 | `'material-addition'` | a material addition command/event | `MaterialAddition` (0x0304) | the BOOL goes TRUE |
+| `'operator-action'` | an operator action against equipment or an object | `OperatorAction` (0x0400) | the BOOL goes TRUE |
+| `'operator-login'` | an operator login attempt/result | `OperatorLogin` (0x0401) | the BOOL goes TRUE |
+| `'operator-logout'` | an operator logout | `OperatorLogout` (0x0402) | the BOOL goes TRUE |
+| `'security-failure'` | a denied or failed security/access attempt | `SecurityAccessFailure` (0x0405) | the BOOL goes TRUE |
 
 ---
 
@@ -232,7 +236,7 @@ numeric ids, and name resolution tables are a follow-up.
 | Kind | Keys |
 |---|---|
 | `recipe-loaded` | `recipe` required `UDINT`, `version` required `STRING[<=96]`, optional `batch` `UDINT` |
-| `recipe-approved` | `recipe` required `UDINT`, `version` required `STRING[<=96]`, optional `auth` `UINT`, optional `by` `STRING[<=96]` |
+| `recipe-approved` | `recipe` required `UDINT`, `version` required `STRING[<=96]`, optional `auth` (`Granted`, `Denied`, `NotRequired`, `Pending`, `Expired`, `0`..`4`, or a `UINT` variable), optional `by` `STRING[<=96]` |
 
 `effectiveTime` is an optional schema slot, but it is not accepted by the
 authoring layer yet. It is rejected rather than accepted and ignored.
@@ -268,6 +272,43 @@ MaterialId : UDINT := UDINT#5001;
 Quantity : LREAL := LREAL#12.25;
 
 Addition : BOOL {attribute 'oot' := 'material-addition', 'batch' := BatchId, 'material' := MaterialId, 'quantity' := Quantity, 'unit' := 'kg'};
+```
+
+## Operator and security events
+
+These are edge-triggered BOOL declarations for the first §7.5
+operator/regulated records. The operator definition table is intentionally empty
+in this slice; records carry raw ids and strings. `ProgramDownload` is not a
+program-authored event in this workbench and is rejected as an authoring kind.
+
+| Kind | Keys |
+|---|---|
+| `operator-action` | `action` required `UDINT`, `actor` required `STRING[<=96]`, optional `context1`..`context4` `UDINT`, optional `auth`, optional `workstation` `STRING[<=96]` |
+| `operator-login` | `actor` required `STRING[<=96]`, `auth` required, optional `workstation` `STRING[<=96]`, optional `role` `UINT` |
+| `operator-logout` | `actor` required `STRING[<=96]`, optional `workstation` `STRING[<=96]` |
+| `security-failure` | `actor` required `STRING[<=96]`, optional `workstation` `STRING[<=96]`, optional `reason` `STRING[<=96]` |
+
+`auth` emits the `authResult` `UINT` slot. It accepts the canonical symbols
+`Granted`, `Denied`, `NotRequired`, `Pending`, `Expired`, numeric `0`..`4`, or a
+bound `UINT` variable. `role` is a raw `UINT` variable because the draft does not
+define a canonical role enum set.
+
+`context1`..`context4` are a bounded authoring surface for the repeatable
+`contextRef` slot. They are emitted before `authResult` and `workstation`.
+
+```iecst
+ActionId : UDINT := UDINT#6001;
+ContextA : UDINT := UDINT#7001;
+ContextB : UDINT := UDINT#7002;
+OperatorName : STRING[32] := 'operator-a';
+Workstation : STRING[32] := 'station-1';
+Role : UINT := UINT#3;
+ReasonText : STRING[32] := 'denied';
+
+Action : BOOL {attribute 'oot' := 'operator-action', 'action' := ActionId, 'actor' := OperatorName, 'context1' := ContextA, 'context2' := ContextB, 'auth' := 'Granted', 'workstation' := Workstation};
+Login : BOOL {attribute 'oot' := 'operator-login', 'actor' := OperatorName, 'auth' := 'Granted', 'workstation' := Workstation, 'role' := Role};
+Logout : BOOL {attribute 'oot' := 'operator-logout', 'actor' := OperatorName, 'workstation' := Workstation};
+Denied : BOOL {attribute 'oot' := 'security-failure', 'actor' := OperatorName, 'workstation' := Workstation, 'reason' := ReasonText};
 ```
 
 ## `'message'` — a human-readable event
@@ -330,6 +371,20 @@ prefer to state them explicitly rather than rely on the default.
 | `material-addition` | `material` | none | required |
 | `material-addition` | `quantity` | none | required `LREAL` |
 | `material-addition` | `unit` | none | no `unit` slot |
+| `operator-action` | `action` | none | required |
+| `operator-action` | `actor` | none | required `STRING[<=96]` |
+| `operator-action` | `context1`..`context4` | none | no `contextRef` slots |
+| `operator-action` | `auth` | none | no `authResult` slot |
+| `operator-action` | `workstation` | none | no `workstation` slot |
+| `operator-login` | `actor` | none | required `STRING[<=96]` |
+| `operator-login` | `auth` | none | required |
+| `operator-login` | `workstation` | none | no `workstation` slot |
+| `operator-login` | `role` | none | no `role` slot |
+| `operator-logout` | `actor` | none | required `STRING[<=96]` |
+| `operator-logout` | `workstation` | none | no `workstation` slot |
+| `security-failure` | `actor` | none | required `STRING[<=96]` |
+| `security-failure` | `workstation` | none | no `workstation` slot |
+| `security-failure` | `reason` | none | no `reason` slot |
 | `message` | `template` | the **variable name** | an untemplated message still resolves to *something* |
 | `message` | `severity` | none | no message severity slot |
 | `message` | `arg1`…`arg4` | none | no typed argument slots |
@@ -349,10 +404,11 @@ assignment, so the **first** generated id is `value` 2001, `state` 7001, `alarm`
 the parent alarm's `conditionId` and `sourceId`; id/source pinning keys are compile
 errors on `oot := 'condition'`.
 
-`batch`, `recipe-loaded`, `recipe-approved`, and `material-addition` use bound
-field identities (`batchId`, `recipeId`, `materialId`) supplied by variables.
-They do not auto-generate recipe/batch/material definition tables in this slice;
-the consumer renders the raw numeric ids.
+`batch`, `recipe-loaded`, `recipe-approved`, `material-addition`, and the
+operator/regulated edge events use bound field identities (`batchId`, `recipeId`,
+`materialId`, `actionId`, `contextRef`) supplied by variables. They do not
+auto-generate recipe/batch/material/operator definition tables in this slice; the
+consumer renders the raw numeric ids.
 
 > ⚠️ **Stability caveat.** Because ids follow declaration order, inserting or reordering
 > tagged variables shifts ids and changes the definition hash — which spec §6.3 warns
@@ -377,10 +433,10 @@ batch states. That's how `ValueChanged valueId=2001 new=15.25` becomes
   `model`/`category` combinations, unsupported value types, non-REAL
   deadbands, and procedural enum states outside the named model are compile errors.
 - **Kinds covered:** `value`, `state`, `alarm`, `message`, the full condition
-  lifecycle command set through `priority-changed`, and the first §7.4
-  batch/recipe set: `batch`, `recipe-loaded`, `recipe-approved`, and
-  `material-addition`. Operator/regulated events are not yet exposed as
-  attributes.
+  lifecycle command set through `priority-changed`, the first §7.4 batch/recipe
+  set (`batch`, `recipe-loaded`, `recipe-approved`, `material-addition`), and
+  the simple §7.5 operator/regulated edge events (`operator-action`,
+  `operator-login`, `operator-logout`, `security-failure`).
 - **Deadband/sampling:** `REAL` deadband, periodic, and `REAL` hysteresis are
   implemented. Integer deadband and hysteresis for non-REAL values are not yet
   implemented.

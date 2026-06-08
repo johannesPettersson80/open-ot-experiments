@@ -12,9 +12,10 @@ use crate::schema::{
 };
 use open_ot_carriage::control::ControlBlockSnapshot;
 use open_ot_carriage::registry::{
-    CATEGORY_VALUES, FieldKind, KEY_CATEGORY, KEY_CAUSE_OPERAND, KEY_CONDITION_ID,
-    KEY_MESSAGE_TEMPLATE_ID, KEY_NEW_STATE, KEY_NEW_VALUE, KEY_PREVIOUS_STATE, KEY_PREVIOUS_VALUE,
-    KEY_STATE_MACHINE_ID, KEY_VALUE_ID, SeverityBand, field_spec, severity_band, tlv_type_spec,
+    AUTH_RESULT_VALUES, CATEGORY_VALUES, FieldKind, KEY_AUTH_RESULT, KEY_CATEGORY,
+    KEY_CAUSE_OPERAND, KEY_CONDITION_ID, KEY_MESSAGE_TEMPLATE_ID, KEY_NEW_STATE, KEY_NEW_VALUE,
+    KEY_PREVIOUS_STATE, KEY_PREVIOUS_VALUE, KEY_STATE_MACHINE_ID, KEY_VALUE_ID, SeverityBand,
+    field_spec, severity_band, tlv_type_spec,
 };
 use open_ot_carriage::wire::{Record, Slot};
 use std::fmt;
@@ -628,6 +629,7 @@ fn enum_label(
     let int_value = value.as_u16()?;
     match key {
         KEY_CATEGORY => enum_value_label(CATEGORY_VALUES, int_value),
+        KEY_AUTH_RESULT => enum_value_label(AUTH_RESULT_VALUES, int_value),
         KEY_PREVIOUS_STATE | KEY_NEW_STATE => {
             state_label(context.state_machine_id?, int_value, definition)
         }
@@ -824,9 +826,10 @@ mod tests {
     use crate::hash::compute_content_hash;
     use crate::model::{CauseOperandDefinition, ConditionDefinition, sample_definition};
     use open_ot_carriage::registry::{
-        EVENT_CONDITION_ACTIVE, KEY_ARG, KEY_CATEGORY, KEY_CAUSE_OPERAND, KEY_CONDITION_CLASS,
-        KEY_CONDITION_ID, KEY_CORRELATION_ID, KEY_MESSAGE_TEMPLATE_ID, KEY_NEW_STATE,
-        KEY_PREVIOUS_STATE, KEY_SEVERITY, KEY_STATE_MACHINE_ID, TY_STRING, TY_UDINT, TY_UINT,
+        EVENT_CONDITION_ACTIVE, KEY_ARG, KEY_AUTH_RESULT, KEY_CATEGORY, KEY_CAUSE_OPERAND,
+        KEY_CONDITION_CLASS, KEY_CONDITION_ID, KEY_CORRELATION_ID, KEY_MESSAGE_TEMPLATE_ID,
+        KEY_NEW_STATE, KEY_PREVIOUS_STATE, KEY_SEVERITY, KEY_STATE_MACHINE_ID, TY_STRING, TY_UDINT,
+        TY_UINT,
     };
     use open_ot_carriage::wire::{Record, Slot, decode};
 
@@ -949,6 +952,28 @@ mod tests {
         assert_eq!(
             field(&record, KEY_ARG).value,
             ResolvedValue::String("phase ready".to_string())
+        );
+    }
+
+    #[test]
+    fn conformant_operator_login_resolves_auth_result_label() {
+        let definition = sample_definition();
+        let hash = compute_content_hash(&definition).unwrap().carriage_hash;
+        let snapshot = snapshot(hash, [0; 8], 0);
+        let resolved = resolve_record(
+            &conformant_operator_login_record(),
+            0,
+            &snapshot,
+            &DefinitionSet::current(&definition),
+        );
+
+        let Resolution::Resolved(record) = resolved else {
+            panic!("expected resolved operator login");
+        };
+        assert_eq!(record.event_name, "OperatorLogin");
+        assert_eq!(
+            field(&record, KEY_AUTH_RESULT).enum_label.as_deref(),
+            Some("Granted")
         );
     }
 
@@ -1160,6 +1185,13 @@ mod tests {
     fn conformant_message_record() -> Record {
         let bytes = hex_bytes(include_str!(
             "../../carriage/vectors/conformant_message.hex"
+        ));
+        decode(&bytes).unwrap().record
+    }
+
+    fn conformant_operator_login_record() -> Record {
+        let bytes = hex_bytes(include_str!(
+            "../../carriage/vectors/conformant_operator_login.hex"
         ));
         decode(&bytes).unwrap().record
     }

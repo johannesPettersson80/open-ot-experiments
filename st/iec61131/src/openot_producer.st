@@ -215,6 +215,25 @@ VAR_INPUT
     ProcedureQuantity : LREAL;
     ProcedureHasUnit : BOOL;
     ProcedureUnitId : UINT;
+    RegulatedEventTypeId : UDINT;
+    RegulatedActionId : UDINT;
+    RegulatedActor : STRING[96];
+    RegulatedHasContext1 : BOOL;
+    RegulatedContext1 : UDINT;
+    RegulatedHasContext2 : BOOL;
+    RegulatedContext2 : UDINT;
+    RegulatedHasContext3 : BOOL;
+    RegulatedContext3 : UDINT;
+    RegulatedHasContext4 : BOOL;
+    RegulatedContext4 : UDINT;
+    RegulatedHasAuthResult : BOOL;
+    RegulatedAuthResult : UINT;
+    RegulatedHasWorkstation : BOOL;
+    RegulatedWorkstation : STRING[96];
+    RegulatedHasRole : BOOL;
+    RegulatedRole : UINT;
+    RegulatedHasReason : BOOL;
+    RegulatedReason : STRING[96];
     MessageTemplateId : UDINT;
     MessageHasSeverity : BOOL;
     MessageSeverity : UINT;
@@ -296,6 +315,7 @@ VAR
     ConditionEncoder : OPENOT_EncodeCondition;
     ConditionLifecycleEncoder : OPENOT_EncodeConditionLifecycle;
     BatchRecipeEncoder : OPENOT_EncodeBatchRecipe;
+    RegulatedEncoder : OPENOT_EncodeRegulated;
     HighWaterEncoder : OPENOT_EncodeSourceHighWater;
     StoppedEncoder : OPENOT_EncodeLoggerStopped;
     StartedEncoder : OPENOT_EncodeLoggerStarted;
@@ -365,6 +385,11 @@ VAR
     ProcedureAckByLength : UINT;
     ProcedureRecordLength : UINT;
     ProcedureShouldEmit : BOOL;
+    RegulatedActorLength : UINT;
+    RegulatedWorkstationLength : UINT;
+    RegulatedReasonLength : UINT;
+    RegulatedRecordLength : UINT;
+    RegulatedShouldEmit : BOOL;
 END_VAR
 
 IF NOT Initialized THEN
@@ -1652,6 +1677,214 @@ IF ExecuteEdge THEN
                 StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
                 IF EmissionCount < UINT#32 THEN
                     Emissions[EmissionCount].EventTypeId := ProcedureEventTypeId;
+                    Emissions[EmissionCount].RunId := StateRunId;
+                    Emissions[EmissionCount].SourceId := ActiveSourceId;
+                    Emissions[EmissionCount].Seq := AssignedSeq;
+                    EmissionCount := EmissionCount + UINT#1;
+                END_IF;
+                Done := TRUE;
+            ELSE
+                StateDroppedCommandCount := StateDroppedCommandCount + ULINT#1;
+                StateLastCommandError := UINT#5;
+                Error := TRUE;
+            END_IF;
+        END_IF;
+    ELSIF Op = UINT#14 THEN
+        ActiveSourceId := SourceId;
+        IF ActiveSourceId = UDINT#0 THEN
+            ActiveSourceId := UDINT#1;
+        END_IF;
+
+        RegulatedActorLength := INT_TO_UINT(LEN(RegulatedActor));
+        RegulatedWorkstationLength := INT_TO_UINT(LEN(RegulatedWorkstation));
+        RegulatedReasonLength := INT_TO_UINT(LEN(RegulatedReason));
+        IF RegulatedActorLength > UINT#96 THEN
+            RegulatedActorLength := UINT#96;
+        END_IF;
+        IF RegulatedWorkstationLength > UINT#96 THEN
+            RegulatedWorkstationLength := UINT#96;
+        END_IF;
+        IF RegulatedReasonLength > UINT#96 THEN
+            RegulatedReasonLength := UINT#96;
+        END_IF;
+
+        RegulatedShouldEmit := FALSE;
+        RegulatedRecordLength := UINT#0;
+
+        IF RegulatedEventTypeId = UDINT#16#0400 THEN
+            RegulatedRecordLength := UINT#52 + OPENOT_ValueSlotEncodedLength(PayloadLength := RegulatedActorLength);
+            IF RegulatedHasContext1 THEN
+                RegulatedRecordLength := RegulatedRecordLength + UINT#8;
+            END_IF;
+            IF RegulatedHasContext2 THEN
+                RegulatedRecordLength := RegulatedRecordLength + UINT#8;
+            END_IF;
+            IF RegulatedHasContext3 THEN
+                RegulatedRecordLength := RegulatedRecordLength + UINT#8;
+            END_IF;
+            IF RegulatedHasContext4 THEN
+                RegulatedRecordLength := RegulatedRecordLength + UINT#8;
+            END_IF;
+            IF RegulatedHasAuthResult THEN
+                RegulatedRecordLength := RegulatedRecordLength + UINT#8;
+            END_IF;
+            IF RegulatedHasWorkstation THEN
+                RegulatedRecordLength := RegulatedRecordLength + OPENOT_ValueSlotEncodedLength(PayloadLength := RegulatedWorkstationLength);
+            END_IF;
+            IF RegulatedActorLength = UINT#0 THEN
+                StateDroppedCommandCount := StateDroppedCommandCount + ULINT#1;
+                StateLastCommandError := UINT#2;
+                Error := TRUE;
+            ELSE
+                RegulatedShouldEmit := TRUE;
+            END_IF;
+        ELSIF RegulatedEventTypeId = UDINT#16#0401 THEN
+            RegulatedRecordLength := UINT#44 + OPENOT_ValueSlotEncodedLength(PayloadLength := RegulatedActorLength) + UINT#8;
+            IF RegulatedHasWorkstation THEN
+                RegulatedRecordLength := RegulatedRecordLength + OPENOT_ValueSlotEncodedLength(PayloadLength := RegulatedWorkstationLength);
+            END_IF;
+            IF RegulatedHasRole THEN
+                RegulatedRecordLength := RegulatedRecordLength + UINT#8;
+            END_IF;
+            IF (RegulatedActorLength = UINT#0) OR (NOT RegulatedHasAuthResult) THEN
+                StateDroppedCommandCount := StateDroppedCommandCount + ULINT#1;
+                StateLastCommandError := UINT#2;
+                Error := TRUE;
+            ELSE
+                RegulatedShouldEmit := TRUE;
+            END_IF;
+        ELSIF RegulatedEventTypeId = UDINT#16#0402 THEN
+            RegulatedRecordLength := UINT#44 + OPENOT_ValueSlotEncodedLength(PayloadLength := RegulatedActorLength);
+            IF RegulatedHasWorkstation THEN
+                RegulatedRecordLength := RegulatedRecordLength + OPENOT_ValueSlotEncodedLength(PayloadLength := RegulatedWorkstationLength);
+            END_IF;
+            IF RegulatedActorLength = UINT#0 THEN
+                StateDroppedCommandCount := StateDroppedCommandCount + ULINT#1;
+                StateLastCommandError := UINT#2;
+                Error := TRUE;
+            ELSE
+                RegulatedShouldEmit := TRUE;
+            END_IF;
+        ELSIF RegulatedEventTypeId = UDINT#16#0405 THEN
+            RegulatedRecordLength := UINT#44 + OPENOT_ValueSlotEncodedLength(PayloadLength := RegulatedActorLength);
+            IF RegulatedHasWorkstation THEN
+                RegulatedRecordLength := RegulatedRecordLength + OPENOT_ValueSlotEncodedLength(PayloadLength := RegulatedWorkstationLength);
+            END_IF;
+            IF RegulatedHasReason THEN
+                RegulatedRecordLength := RegulatedRecordLength + OPENOT_ValueSlotEncodedLength(PayloadLength := RegulatedReasonLength);
+            END_IF;
+            IF RegulatedActorLength = UINT#0 THEN
+                StateDroppedCommandCount := StateDroppedCommandCount + ULINT#1;
+                StateLastCommandError := UINT#2;
+                Error := TRUE;
+            ELSE
+                RegulatedShouldEmit := TRUE;
+            END_IF;
+        ELSE
+            StateDroppedCommandCount := StateDroppedCommandCount + ULINT#1;
+            StateLastCommandError := UINT#1;
+            Error := TRUE;
+        END_IF;
+
+        IF RegulatedShouldEmit AND (RegulatedRecordLength > UINT#256) THEN
+            StateDroppedCommandCount := StateDroppedCommandCount + ULINT#1;
+            StateLastCommandError := UINT#3;
+            RegulatedShouldEmit := FALSE;
+            Error := TRUE;
+        END_IF;
+
+        IF RegulatedShouldEmit THEN
+            Found := FALSE;
+            FreeFound := FALSE;
+            EntryIndex := UINT#0;
+
+            FOR Index := UINT#0 TO UINT#15 DO
+                IF Sources[Index].Used AND (Sources[Index].SourceId = ActiveSourceId) THEN
+                    IF NOT Found THEN
+                        EntryIndex := Index;
+                        Found := TRUE;
+                    END_IF;
+                END_IF;
+            END_FOR;
+
+            IF NOT Found THEN
+                FOR Index := UINT#0 TO UINT#15 DO
+                    IF (NOT Sources[Index].Used) AND (NOT FreeFound) THEN
+                        EntryIndex := Index;
+                        FreeFound := TRUE;
+                    END_IF;
+                END_FOR;
+
+                IF FreeFound THEN
+                    Sources[EntryIndex].Used := TRUE;
+                    Sources[EntryIndex].SourceId := ActiveSourceId;
+                    Sources[EntryIndex].NextSeq := ULINT#0;
+                ELSE
+                    SourceTableFull := TRUE;
+                    StateDroppedCommandCount := StateDroppedCommandCount + ULINT#1;
+                    StateLastCommandError := UINT#4;
+                    RegulatedShouldEmit := FALSE;
+                    Error := TRUE;
+                END_IF;
+            END_IF;
+        END_IF;
+
+        IF RegulatedShouldEmit THEN
+            AssignedSeq := Sources[EntryIndex].NextSeq;
+            EmitSourceTime := OPENOT_NextSourceTime(
+                UseSourceTimeInput := UseSourceTimeInput,
+                SourceTimeInput := SourceTimeInput,
+                StateSourceTime := StateSourceTime);
+            RegulatedEncoder(
+                SourceId := ActiveSourceId,
+                RunId := StateRunId,
+                Seq := AssignedSeq,
+                SourceTime := EmitSourceTime,
+                EventTypeId := RegulatedEventTypeId,
+                ActionId := RegulatedActionId,
+                Actor := RegulatedActor,
+                HasContext1 := RegulatedHasContext1,
+                Context1 := RegulatedContext1,
+                HasContext2 := RegulatedHasContext2,
+                Context2 := RegulatedContext2,
+                HasContext3 := RegulatedHasContext3,
+                Context3 := RegulatedContext3,
+                HasContext4 := RegulatedHasContext4,
+                Context4 := RegulatedContext4,
+                HasAuthResult := RegulatedHasAuthResult,
+                AuthResult := RegulatedAuthResult,
+                HasWorkstation := RegulatedHasWorkstation,
+                Workstation := RegulatedWorkstation,
+                HasRole := RegulatedHasRole,
+                Role := RegulatedRole,
+                HasReason := RegulatedHasReason,
+                Reason := RegulatedReason);
+            RingProducer(
+                Execute := TRUE,
+                Record := RegulatedEncoder.Buffer,
+                Length := RegulatedEncoder.Length,
+                RunId := StateRunId,
+                SourceId := ActiveSourceId,
+                Seq := AssignedSeq);
+
+            IF RingProducer.Done AND (NOT RingProducer.Error) THEN
+                AppendOk := OPENOT_AppendScanRecord(
+                    Record := RegulatedEncoder.Buffer,
+                    Length := RegulatedEncoder.Length,
+                    ScanRecords := ScanRecords,
+                    ScanRecordOffsets := ScanRecordOffsets,
+                    ScanRecordLengths := ScanRecordLengths,
+                    ScanWritePos := ScanWritePos,
+                    ScanRecordCount := ScanRecordCount);
+            ELSE
+                AppendOk := FALSE;
+            END_IF;
+
+            IF AppendOk THEN
+                Sources[EntryIndex].NextSeq := AssignedSeq + ULINT#1;
+                StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
+                IF EmissionCount < UINT#32 THEN
+                    Emissions[EmissionCount].EventTypeId := RegulatedEventTypeId;
                     Emissions[EmissionCount].RunId := StateRunId;
                     Emissions[EmissionCount].SourceId := ActiveSourceId;
                     Emissions[EmissionCount].Seq := AssignedSeq;

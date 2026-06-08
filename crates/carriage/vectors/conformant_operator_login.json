@@ -1,0 +1,30 @@
+{
+  "name": "conformant_operator_login",
+  "description": "definition-layer positive OperatorLogin record",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "conformant_operator_login.hex",
+  "byteCount": 92,
+  "headerLength": 40,
+  "totalRecordLength": 92,
+  "flags": "0x0008",
+  "crc32c": "0xA8411374",
+  "detail": {
+    "eventName": "OperatorLogin",
+    "schemaExpected": "accept",
+    "fields": {
+      "sourceTime": 1000000320,
+      "runId": 1,
+      "seq": 33,
+      "sourceId": 66,
+      "eventTypeId": "0x0401"
+    },
+    "slots": [
+      { "key": "0x000B", "type": "String", "name": "actor", "value": "operator-a" },
+      { "key": "0x0020", "type": "UInt", "name": "authResult", "value": 0 },
+      { "key": "0x0021", "type": "String", "name": "workstation", "value": "station-1" },
+      { "key": "0x0033", "type": "UInt", "name": "role", "value": 3 }
+    ]
+  }
+}

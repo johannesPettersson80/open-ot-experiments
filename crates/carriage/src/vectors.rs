@@ -19,17 +19,18 @@ use crate::registry::{
     EVENT_CONDITION_RESET, EVENT_CONDITION_SHELVED, EVENT_CONDITION_SUPPRESSED,
     EVENT_CONDITION_UNSHELVED, EVENT_CONDITION_UNSUPPRESSED, EVENT_DEFINITION_CHANGED,
     EVENT_LOGGER_STARTED, EVENT_LOGGER_STOPPED, EVENT_MATERIAL_ADDITION, EVENT_MESSAGE,
-    EVENT_RECIPE_APPROVED, EVENT_RECIPE_LOADED, EVENT_SOURCE_HIGH_WATER, EVENT_STATE_TRANSITION,
-    EVENT_VALUE_CHANGED, KEY_ACK_BY, KEY_ARG, KEY_AUTH_RESULT, KEY_BATCH_ID, KEY_CATEGORY,
-    KEY_CAUSE_OPERAND, KEY_COLD_START, KEY_COMMENT, KEY_CONDITION_CLASS, KEY_CONDITION_ID,
-    KEY_CORRELATION_ID, KEY_DEF_HASH_NEW, KEY_DEF_HASH_OLD, KEY_DROPPED_COUNT, KEY_EPOCH_ID,
-    KEY_FIRST_LOST_SEQ, KEY_LAST_LOST_SEQ, KEY_MATERIAL_ID, KEY_MESSAGE_TEMPLATE_ID,
-    KEY_NEW_PRIORITY, KEY_NEW_STATE, KEY_NEW_VALUE, KEY_PREVIOUS_PRIORITY, KEY_PREVIOUS_STATE,
-    KEY_PREVIOUS_VALUE, KEY_QUALITY, KEY_QUANTITY, KEY_REASON, KEY_RECIPE_ID, KEY_RECIPE_VERSION,
-    KEY_SEVERITY, KEY_SHELVE_SECS, KEY_SOURCE_HIGH_WATER, KEY_STATE_MACHINE_ID, KEY_UNIT,
-    KEY_VALUE_ID, KEY_WINDOW_END, KEY_WINDOW_START, SYSTEM_SOURCE_ID, TY_BOOL, TY_BYTES,
-    TY_DATE_TIME, TY_DINT, TY_INT, TY_LINT, TY_LREAL, TY_REAL, TY_SINT, TY_STRING, TY_UDINT,
-    TY_UINT, TY_ULINT, TY_USINT,
+    EVENT_OPERATOR_ACTION, EVENT_OPERATOR_LOGIN, EVENT_OPERATOR_LOGOUT, EVENT_RECIPE_APPROVED,
+    EVENT_RECIPE_LOADED, EVENT_SECURITY_ACCESS_FAILURE, EVENT_SOURCE_HIGH_WATER,
+    EVENT_STATE_TRANSITION, EVENT_VALUE_CHANGED, KEY_ACK_BY, KEY_ACTION_ID, KEY_ACTOR, KEY_ARG,
+    KEY_AUTH_RESULT, KEY_BATCH_ID, KEY_CATEGORY, KEY_CAUSE_OPERAND, KEY_COLD_START, KEY_COMMENT,
+    KEY_CONDITION_CLASS, KEY_CONDITION_ID, KEY_CONTEXT_REF, KEY_CORRELATION_ID, KEY_DEF_HASH_NEW,
+    KEY_DEF_HASH_OLD, KEY_DROPPED_COUNT, KEY_EPOCH_ID, KEY_FIRST_LOST_SEQ, KEY_LAST_LOST_SEQ,
+    KEY_MATERIAL_ID, KEY_MESSAGE_TEMPLATE_ID, KEY_NEW_PRIORITY, KEY_NEW_STATE, KEY_NEW_VALUE,
+    KEY_PREVIOUS_PRIORITY, KEY_PREVIOUS_STATE, KEY_PREVIOUS_VALUE, KEY_QUALITY, KEY_QUANTITY,
+    KEY_REASON, KEY_RECIPE_ID, KEY_RECIPE_VERSION, KEY_ROLE, KEY_SEVERITY, KEY_SHELVE_SECS,
+    KEY_SOURCE_HIGH_WATER, KEY_STATE_MACHINE_ID, KEY_UNIT, KEY_VALUE_ID, KEY_WINDOW_END,
+    KEY_WINDOW_START, KEY_WORKSTATION, SYSTEM_SOURCE_ID, TY_BOOL, TY_BYTES, TY_DATE_TIME, TY_DINT,
+    TY_INT, TY_LINT, TY_LREAL, TY_REAL, TY_SINT, TY_STRING, TY_UDINT, TY_UINT, TY_ULINT, TY_USINT,
 };
 use crate::ring::{LossRange, RingBuffer};
 use crate::wire::{FLAG_HAS_CRC, HEADER_LEN, Record, SYNC, Slot, WireError, decode};
@@ -793,6 +794,101 @@ pub fn generate_files() -> Vec<VectorFile> {
     { "key": "0x0026", "type": "UDInt", "name": "materialId", "value": 5001 },
     { "key": "0x0027", "type": "LReal", "name": "quantity", "value": 12.25 },
     { "key": "0x0013", "type": "UInt", "name": "unit", "value": 8 }
+  ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
+        "conformant_operator_action",
+        "definition-layer positive OperatorAction record",
+        &conformant_operator_action_record(),
+        r#"{
+  "eventName": "OperatorAction",
+  "schemaExpected": "accept",
+  "fields": {
+    "sourceTime": 1000000310,
+    "runId": 1,
+    "seq": 32,
+    "sourceId": 66,
+    "eventTypeId": "0x0400"
+  },
+  "slots": [
+    { "key": "0x000A", "type": "UDInt", "name": "actionId", "value": 6001 },
+    { "key": "0x000B", "type": "String", "name": "actor", "value": "operator-a" },
+    { "key": "0x000C", "type": "UDInt", "name": "contextRef", "value": 7001 },
+    { "key": "0x000C", "type": "UDInt", "name": "contextRef", "value": 7002 },
+    { "key": "0x0020", "type": "UInt", "name": "authResult", "value": 0 },
+    { "key": "0x0021", "type": "String", "name": "workstation", "value": "station-1" }
+  ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
+        "conformant_operator_login",
+        "definition-layer positive OperatorLogin record",
+        &conformant_operator_login_record(),
+        r#"{
+  "eventName": "OperatorLogin",
+  "schemaExpected": "accept",
+  "fields": {
+    "sourceTime": 1000000320,
+    "runId": 1,
+    "seq": 33,
+    "sourceId": 66,
+    "eventTypeId": "0x0401"
+  },
+  "slots": [
+    { "key": "0x000B", "type": "String", "name": "actor", "value": "operator-a" },
+    { "key": "0x0020", "type": "UInt", "name": "authResult", "value": 0 },
+    { "key": "0x0021", "type": "String", "name": "workstation", "value": "station-1" },
+    { "key": "0x0033", "type": "UInt", "name": "role", "value": 3 }
+  ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
+        "conformant_operator_logout",
+        "definition-layer positive OperatorLogout record",
+        &conformant_operator_logout_record(),
+        r#"{
+  "eventName": "OperatorLogout",
+  "schemaExpected": "accept",
+  "fields": {
+    "sourceTime": 1000000330,
+    "runId": 1,
+    "seq": 34,
+    "sourceId": 66,
+    "eventTypeId": "0x0402"
+  },
+  "slots": [
+    { "key": "0x000B", "type": "String", "name": "actor", "value": "operator-a" },
+    { "key": "0x0021", "type": "String", "name": "workstation", "value": "station-1" }
+  ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
+        "conformant_security_access_failure",
+        "definition-layer positive SecurityAccessFailure record",
+        &conformant_security_access_failure_record(),
+        r#"{
+  "eventName": "SecurityAccessFailure",
+  "schemaExpected": "accept",
+  "fields": {
+    "sourceTime": 1000000340,
+    "runId": 1,
+    "seq": 35,
+    "sourceId": 66,
+    "eventTypeId": "0x0405"
+  },
+  "slots": [
+    { "key": "0x000B", "type": "String", "name": "actor", "value": "operator-x" },
+    { "key": "0x0021", "type": "String", "name": "workstation", "value": "station-2" },
+    { "key": "0x001F", "type": "String", "name": "reason", "value": "denied" }
   ]
 }"#,
     );
@@ -1813,6 +1909,71 @@ fn conformant_material_addition_record() -> Record {
     record
 }
 
+fn conformant_operator_action_record() -> Record {
+    let mut record = Record::new(1_000_000_310, 1, 32, 66, EVENT_OPERATOR_ACTION);
+    record
+        .slots
+        .push(Slot::new(KEY_ACTION_ID, TY_UDINT, 6001u32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_ACTOR, TY_STRING, b"operator-a"));
+    record
+        .slots
+        .push(Slot::new(KEY_CONTEXT_REF, TY_UDINT, 7001u32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_CONTEXT_REF, TY_UDINT, 7002u32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_AUTH_RESULT, TY_UINT, 0u16.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_WORKSTATION, TY_STRING, b"station-1"));
+    record
+}
+
+fn conformant_operator_login_record() -> Record {
+    let mut record = Record::new(1_000_000_320, 1, 33, 66, EVENT_OPERATOR_LOGIN);
+    record
+        .slots
+        .push(Slot::new(KEY_ACTOR, TY_STRING, b"operator-a"));
+    record
+        .slots
+        .push(Slot::new(KEY_AUTH_RESULT, TY_UINT, 0u16.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_WORKSTATION, TY_STRING, b"station-1"));
+    record
+        .slots
+        .push(Slot::new(KEY_ROLE, TY_UINT, 3u16.to_le_bytes()));
+    record
+}
+
+fn conformant_operator_logout_record() -> Record {
+    let mut record = Record::new(1_000_000_330, 1, 34, 66, EVENT_OPERATOR_LOGOUT);
+    record
+        .slots
+        .push(Slot::new(KEY_ACTOR, TY_STRING, b"operator-a"));
+    record
+        .slots
+        .push(Slot::new(KEY_WORKSTATION, TY_STRING, b"station-1"));
+    record
+}
+
+fn conformant_security_access_failure_record() -> Record {
+    let mut record = Record::new(1_000_000_340, 1, 35, 66, EVENT_SECURITY_ACCESS_FAILURE);
+    record
+        .slots
+        .push(Slot::new(KEY_ACTOR, TY_STRING, b"operator-x"));
+    record
+        .slots
+        .push(Slot::new(KEY_WORKSTATION, TY_STRING, b"station-2"));
+    record
+        .slots
+        .push(Slot::new(KEY_REASON, TY_STRING, b"denied"));
+    record
+}
+
 fn conformant_records_dropped_record() -> Record {
     let mut record = Record::new(0, 9, 100, 66, EVENT_RECORDS_DROPPED);
     record
@@ -1965,6 +2126,10 @@ fn hex_path(stem: &'static str) -> &'static str {
         "conformant_recipe_approved" => "conformant_recipe_approved.hex",
         "conformant_batch_event" => "conformant_batch_event.hex",
         "conformant_material_addition" => "conformant_material_addition.hex",
+        "conformant_operator_action" => "conformant_operator_action.hex",
+        "conformant_operator_login" => "conformant_operator_login.hex",
+        "conformant_operator_logout" => "conformant_operator_logout.hex",
+        "conformant_security_access_failure" => "conformant_security_access_failure.hex",
         "conformant_records_dropped" => "conformant_records_dropped.hex",
         "conformant_source_high_water" => "conformant_source_high_water.hex",
         "records_dropped" => "records_dropped.hex",
@@ -2012,6 +2177,10 @@ fn json_path(stem: &'static str) -> &'static str {
         "conformant_recipe_approved" => "conformant_recipe_approved.json",
         "conformant_batch_event" => "conformant_batch_event.json",
         "conformant_material_addition" => "conformant_material_addition.json",
+        "conformant_operator_action" => "conformant_operator_action.json",
+        "conformant_operator_login" => "conformant_operator_login.json",
+        "conformant_operator_logout" => "conformant_operator_logout.json",
+        "conformant_security_access_failure" => "conformant_security_access_failure.json",
         "conformant_records_dropped" => "conformant_records_dropped.json",
         "conformant_source_high_water" => "conformant_source_high_water.json",
         "records_dropped" => "records_dropped.json",
@@ -2273,6 +2442,41 @@ mod tests {
                 (KEY_MATERIAL_ID, TY_UDINT, 4),
                 (KEY_QUANTITY, TY_LREAL, 8),
                 (KEY_UNIT, TY_UINT, 2),
+            ],
+        );
+        assert_slots(
+            &conformant_operator_action_record(),
+            &[
+                (KEY_ACTION_ID, TY_UDINT, 4),
+                (KEY_ACTOR, TY_STRING, "operator-a".len()),
+                (KEY_CONTEXT_REF, TY_UDINT, 4),
+                (KEY_CONTEXT_REF, TY_UDINT, 4),
+                (KEY_AUTH_RESULT, TY_UINT, 2),
+                (KEY_WORKSTATION, TY_STRING, "station-1".len()),
+            ],
+        );
+        assert_slots(
+            &conformant_operator_login_record(),
+            &[
+                (KEY_ACTOR, TY_STRING, "operator-a".len()),
+                (KEY_AUTH_RESULT, TY_UINT, 2),
+                (KEY_WORKSTATION, TY_STRING, "station-1".len()),
+                (KEY_ROLE, TY_UINT, 2),
+            ],
+        );
+        assert_slots(
+            &conformant_operator_logout_record(),
+            &[
+                (KEY_ACTOR, TY_STRING, "operator-a".len()),
+                (KEY_WORKSTATION, TY_STRING, "station-1".len()),
+            ],
+        );
+        assert_slots(
+            &conformant_security_access_failure_record(),
+            &[
+                (KEY_ACTOR, TY_STRING, "operator-x".len()),
+                (KEY_WORKSTATION, TY_STRING, "station-2".len()),
+                (KEY_REASON, TY_STRING, "denied".len()),
             ],
         );
         assert_slots(
