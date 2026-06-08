@@ -1,0 +1,27 @@
+{
+  "name": "conformant_condition_unsuppressed",
+  "description": "definition-layer positive ConditionUnsuppressed record with no correlation",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "conformant_condition_unsuppressed.hex",
+  "byteCount": 52,
+  "headerLength": 40,
+  "totalRecordLength": 52,
+  "flags": "0x0008",
+  "crc32c": "0x764040B9",
+  "detail": {
+    "eventName": "ConditionUnsuppressed",
+    "schemaExpected": "accept",
+    "fields": {
+      "sourceTime": 1000000220,
+      "runId": 1,
+      "seq": 23,
+      "sourceId": 66,
+      "eventTypeId": "0x0207"
+    },
+    "slots": [
+      { "key": "0x0005", "type": "UDInt", "name": "conditionId", "value": 9001 }
+    ]
+  }
+}

@@ -1266,12 +1266,12 @@ IF ExecuteEdge THEN
         ConditionEventTypeId := ConditionLifecycleEventTypeId;
         ConditionCorrelationId := UDINT#0;
         LifecycleShouldEmit := FALSE;
-        LifecycleActivationScoped := (ConditionEventTypeId = UDINT#16#0202) OR (ConditionEventTypeId = UDINT#16#0204);
+        LifecycleActivationScoped := (ConditionEventTypeId = UDINT#16#0202) OR (ConditionEventTypeId = UDINT#16#0203) OR (ConditionEventTypeId = UDINT#16#0204) OR (ConditionEventTypeId = UDINT#16#0205) OR (ConditionEventTypeId = UDINT#16#020B);
 
         IF ConditionId = UDINT#0 THEN
             StateLastLifecycleError := UINT#2;
             Error := TRUE;
-        ELSIF (ConditionEventTypeId <> UDINT#16#0202) AND (ConditionEventTypeId <> UDINT#16#0204) AND (ConditionEventTypeId <> UDINT#16#0206) AND (ConditionEventTypeId <> UDINT#16#0208) THEN
+        ELSIF (ConditionEventTypeId <> UDINT#16#0202) AND (ConditionEventTypeId <> UDINT#16#0203) AND (ConditionEventTypeId <> UDINT#16#0204) AND (ConditionEventTypeId <> UDINT#16#0205) AND (ConditionEventTypeId <> UDINT#16#0206) AND (ConditionEventTypeId <> UDINT#16#0207) AND (ConditionEventTypeId <> UDINT#16#0208) AND (ConditionEventTypeId <> UDINT#16#0209) AND (ConditionEventTypeId <> UDINT#16#020B) THEN
             StateLastLifecycleError := UINT#3;
             Error := TRUE;
         ELSIF LifecycleActivationScoped THEN
@@ -1346,7 +1346,7 @@ IF ExecuteEdge THEN
                     EventTypeId := ConditionEventTypeId,
                     ConditionId := ConditionId,
                     CorrelationId := ConditionCorrelationId,
-                    HasAckBy := LifecycleHasAckBy AND ((ConditionEventTypeId = UDINT#16#0202) OR (ConditionEventTypeId = UDINT#16#0204) OR (ConditionEventTypeId = UDINT#16#0208)),
+                    HasAckBy := LifecycleHasAckBy AND ((ConditionEventTypeId = UDINT#16#0202) OR (ConditionEventTypeId = UDINT#16#0203) OR (ConditionEventTypeId = UDINT#16#0204) OR (ConditionEventTypeId = UDINT#16#0208) OR (ConditionEventTypeId = UDINT#16#020B)),
                     AckBy := LifecycleAckBy,
                     HasShelveSecs := LifecycleHasShelveSecs AND (ConditionEventTypeId = UDINT#16#0204),
                     ShelveSecs := LifecycleShelveSecs,

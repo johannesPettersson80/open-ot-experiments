@@ -1,0 +1,27 @@
+{
+  "name": "conformant_condition_in_service",
+  "description": "definition-layer positive ConditionInService record with no correlation",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "conformant_condition_in_service.hex",
+  "byteCount": 52,
+  "headerLength": 40,
+  "totalRecordLength": 52,
+  "flags": "0x0008",
+  "crc32c": "0xDC566DAB",
+  "detail": {
+    "eventName": "ConditionInService",
+    "schemaExpected": "accept",
+    "fields": {
+      "sourceTime": 1000000230,
+      "runId": 1,
+      "seq": 24,
+      "sourceId": 66,
+      "eventTypeId": "0x0209"
+    },
+    "slots": [
+      { "key": "0x0005", "type": "UDInt", "name": "conditionId", "value": 9001 }
+    ]
+  }
+}

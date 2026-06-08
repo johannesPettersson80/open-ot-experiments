@@ -14,13 +14,15 @@ use crate::control::{CONTROL_BLOCK_LEN, ControlBlockSnapshot};
 use crate::loss::{EVENT_RECORDS_DROPPED, records_dropped_record};
 use crate::registry::{
     EVENT_CONDITION_ACKNOWLEDGED, EVENT_CONDITION_ACTIVE, EVENT_CONDITION_CLEARED,
-    EVENT_CONDITION_OUT_OF_SERVICE, EVENT_CONDITION_SHELVED, EVENT_CONDITION_SUPPRESSED,
-    EVENT_DEFINITION_CHANGED, EVENT_LOGGER_STARTED, EVENT_LOGGER_STOPPED, EVENT_MESSAGE,
-    EVENT_SOURCE_HIGH_WATER, EVENT_STATE_TRANSITION, EVENT_VALUE_CHANGED, KEY_ACK_BY, KEY_ARG,
-    KEY_CATEGORY, KEY_CAUSE_OPERAND, KEY_COLD_START, KEY_CONDITION_CLASS, KEY_CONDITION_ID,
-    KEY_CORRELATION_ID, KEY_DEF_HASH_NEW, KEY_DEF_HASH_OLD, KEY_DROPPED_COUNT, KEY_EPOCH_ID,
-    KEY_FIRST_LOST_SEQ, KEY_LAST_LOST_SEQ, KEY_MESSAGE_TEMPLATE_ID, KEY_NEW_STATE, KEY_NEW_VALUE,
-    KEY_PREVIOUS_STATE, KEY_PREVIOUS_VALUE, KEY_QUALITY, KEY_REASON, KEY_SEVERITY, KEY_SHELVE_SECS,
+    EVENT_CONDITION_CONFIRMED, EVENT_CONDITION_IN_SERVICE, EVENT_CONDITION_OUT_OF_SERVICE,
+    EVENT_CONDITION_RESET, EVENT_CONDITION_SHELVED, EVENT_CONDITION_SUPPRESSED,
+    EVENT_CONDITION_UNSHELVED, EVENT_CONDITION_UNSUPPRESSED, EVENT_DEFINITION_CHANGED,
+    EVENT_LOGGER_STARTED, EVENT_LOGGER_STOPPED, EVENT_MESSAGE, EVENT_SOURCE_HIGH_WATER,
+    EVENT_STATE_TRANSITION, EVENT_VALUE_CHANGED, KEY_ACK_BY, KEY_ARG, KEY_CATEGORY,
+    KEY_CAUSE_OPERAND, KEY_COLD_START, KEY_CONDITION_CLASS, KEY_CONDITION_ID, KEY_CORRELATION_ID,
+    KEY_DEF_HASH_NEW, KEY_DEF_HASH_OLD, KEY_DROPPED_COUNT, KEY_EPOCH_ID, KEY_FIRST_LOST_SEQ,
+    KEY_LAST_LOST_SEQ, KEY_MESSAGE_TEMPLATE_ID, KEY_NEW_STATE, KEY_NEW_VALUE, KEY_PREVIOUS_STATE,
+    KEY_PREVIOUS_VALUE, KEY_QUALITY, KEY_REASON, KEY_SEVERITY, KEY_SHELVE_SECS,
     KEY_SOURCE_HIGH_WATER, KEY_STATE_MACHINE_ID, KEY_VALUE_ID, KEY_WINDOW_END, KEY_WINDOW_START,
     SYSTEM_SOURCE_ID, TY_BOOL, TY_BYTES, TY_DATE_TIME, TY_DINT, TY_INT, TY_LINT, TY_LREAL, TY_REAL,
     TY_SINT, TY_STRING, TY_UDINT, TY_UINT, TY_ULINT, TY_USINT,
@@ -473,6 +475,29 @@ pub fn generate_files() -> Vec<VectorFile> {
 
     push_record_vector(
         &mut files,
+        "conformant_condition_confirmed",
+        "definition-layer positive ConditionConfirmed record with ackBy",
+        &conformant_condition_confirmed_record(),
+        r#"{
+  "eventName": "ConditionConfirmed",
+  "schemaExpected": "accept",
+  "fields": {
+    "sourceTime": 1000000200,
+    "runId": 1,
+    "seq": 21,
+    "sourceId": 66,
+    "eventTypeId": "0x0203"
+  },
+  "slots": [
+    { "key": "0x0005", "type": "UDInt", "name": "conditionId", "value": 9001 },
+    { "key": "0x0007", "type": "UDInt", "name": "correlationId", "value": 77 },
+    { "key": "0x001D", "type": "String", "name": "ackBy", "value": "operator-a" }
+  ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
         "conformant_condition_shelved",
         "definition-layer positive ConditionShelved record with ackBy and shelveSecs",
         &conformant_condition_shelved_record(),
@@ -491,6 +516,28 @@ pub fn generate_files() -> Vec<VectorFile> {
     { "key": "0x0007", "type": "UDInt", "name": "correlationId", "value": 77 },
     { "key": "0x001D", "type": "String", "name": "ackBy", "value": "operator-a" },
     { "key": "0x001E", "type": "UDInt", "name": "shelveSecs", "value": 300 }
+  ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
+        "conformant_condition_unshelved",
+        "definition-layer positive ConditionUnshelved record with activation correlation",
+        &conformant_condition_unshelved_record(),
+        r#"{
+  "eventName": "ConditionUnshelved",
+  "schemaExpected": "accept",
+  "fields": {
+    "sourceTime": 1000000210,
+    "runId": 1,
+    "seq": 22,
+    "sourceId": 66,
+    "eventTypeId": "0x0205"
+  },
+  "slots": [
+    { "key": "0x0005", "type": "UDInt", "name": "conditionId", "value": 9001 },
+    { "key": "0x0007", "type": "UDInt", "name": "correlationId", "value": 77 }
   ]
 }"#,
     );
@@ -519,6 +566,27 @@ pub fn generate_files() -> Vec<VectorFile> {
 
     push_record_vector(
         &mut files,
+        "conformant_condition_unsuppressed",
+        "definition-layer positive ConditionUnsuppressed record with no correlation",
+        &conformant_condition_unsuppressed_record(),
+        r#"{
+  "eventName": "ConditionUnsuppressed",
+  "schemaExpected": "accept",
+  "fields": {
+    "sourceTime": 1000000220,
+    "runId": 1,
+    "seq": 23,
+    "sourceId": 66,
+    "eventTypeId": "0x0207"
+  },
+  "slots": [
+    { "key": "0x0005", "type": "UDInt", "name": "conditionId", "value": 9001 }
+  ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
         "conformant_condition_out_of_service",
         "definition-layer positive ConditionOutOfService record with ackBy and no correlation",
         &conformant_condition_out_of_service_record(),
@@ -534,6 +602,50 @@ pub fn generate_files() -> Vec<VectorFile> {
   },
   "slots": [
     { "key": "0x0005", "type": "UDInt", "name": "conditionId", "value": 9001 },
+    { "key": "0x001D", "type": "String", "name": "ackBy", "value": "operator-a" }
+  ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
+        "conformant_condition_in_service",
+        "definition-layer positive ConditionInService record with no correlation",
+        &conformant_condition_in_service_record(),
+        r#"{
+  "eventName": "ConditionInService",
+  "schemaExpected": "accept",
+  "fields": {
+    "sourceTime": 1000000230,
+    "runId": 1,
+    "seq": 24,
+    "sourceId": 66,
+    "eventTypeId": "0x0209"
+  },
+  "slots": [
+    { "key": "0x0005", "type": "UDInt", "name": "conditionId", "value": 9001 }
+  ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
+        "conformant_condition_reset",
+        "definition-layer positive ConditionReset record with ackBy",
+        &conformant_condition_reset_record(),
+        r#"{
+  "eventName": "ConditionReset",
+  "schemaExpected": "accept",
+  "fields": {
+    "sourceTime": 1000000240,
+    "runId": 1,
+    "seq": 25,
+    "sourceId": 66,
+    "eventTypeId": "0x020B"
+  },
+  "slots": [
+    { "key": "0x0005", "type": "UDInt", "name": "conditionId", "value": 9001 },
+    { "key": "0x0007", "type": "UDInt", "name": "correlationId", "value": 77 },
     { "key": "0x001D", "type": "String", "name": "ackBy", "value": "operator-a" }
   ]
 }"#,
@@ -1363,6 +1475,20 @@ fn conformant_condition_acknowledged_record() -> Record {
     record
 }
 
+fn conformant_condition_confirmed_record() -> Record {
+    let mut record = Record::new(1_000_000_200, 1, 21, 66, EVENT_CONDITION_CONFIRMED);
+    record
+        .slots
+        .push(Slot::new(KEY_CONDITION_ID, TY_UDINT, 9001u32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_CORRELATION_ID, TY_UDINT, 77u32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_ACK_BY, TY_STRING, b"operator-a"));
+    record
+}
+
 fn conformant_condition_shelved_record() -> Record {
     let mut record = Record::new(1_000_000_170, 1, 18, 66, EVENT_CONDITION_SHELVED);
     record
@@ -1380,6 +1506,17 @@ fn conformant_condition_shelved_record() -> Record {
     record
 }
 
+fn conformant_condition_unshelved_record() -> Record {
+    let mut record = Record::new(1_000_000_210, 1, 22, 66, EVENT_CONDITION_UNSHELVED);
+    record
+        .slots
+        .push(Slot::new(KEY_CONDITION_ID, TY_UDINT, 9001u32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_CORRELATION_ID, TY_UDINT, 77u32.to_le_bytes()));
+    record
+}
+
 fn conformant_condition_suppressed_record() -> Record {
     let mut record = Record::new(1_000_000_180, 1, 19, 66, EVENT_CONDITION_SUPPRESSED);
     record
@@ -1391,11 +1528,41 @@ fn conformant_condition_suppressed_record() -> Record {
     record
 }
 
+fn conformant_condition_unsuppressed_record() -> Record {
+    let mut record = Record::new(1_000_000_220, 1, 23, 66, EVENT_CONDITION_UNSUPPRESSED);
+    record
+        .slots
+        .push(Slot::new(KEY_CONDITION_ID, TY_UDINT, 9001u32.to_le_bytes()));
+    record
+}
+
 fn conformant_condition_out_of_service_record() -> Record {
     let mut record = Record::new(1_000_000_190, 1, 20, 66, EVENT_CONDITION_OUT_OF_SERVICE);
     record
         .slots
         .push(Slot::new(KEY_CONDITION_ID, TY_UDINT, 9001u32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_ACK_BY, TY_STRING, b"operator-a"));
+    record
+}
+
+fn conformant_condition_in_service_record() -> Record {
+    let mut record = Record::new(1_000_000_230, 1, 24, 66, EVENT_CONDITION_IN_SERVICE);
+    record
+        .slots
+        .push(Slot::new(KEY_CONDITION_ID, TY_UDINT, 9001u32.to_le_bytes()));
+    record
+}
+
+fn conformant_condition_reset_record() -> Record {
+    let mut record = Record::new(1_000_000_240, 1, 25, 66, EVENT_CONDITION_RESET);
+    record
+        .slots
+        .push(Slot::new(KEY_CONDITION_ID, TY_UDINT, 9001u32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_CORRELATION_ID, TY_UDINT, 77u32.to_le_bytes()));
     record
         .slots
         .push(Slot::new(KEY_ACK_BY, TY_STRING, b"operator-a"));
@@ -1540,9 +1707,14 @@ fn hex_path(stem: &'static str) -> &'static str {
         "conformant_condition_active" => "conformant_condition_active.hex",
         "conformant_condition_cleared" => "conformant_condition_cleared.hex",
         "conformant_condition_acknowledged" => "conformant_condition_acknowledged.hex",
+        "conformant_condition_confirmed" => "conformant_condition_confirmed.hex",
         "conformant_condition_shelved" => "conformant_condition_shelved.hex",
+        "conformant_condition_unshelved" => "conformant_condition_unshelved.hex",
         "conformant_condition_suppressed" => "conformant_condition_suppressed.hex",
+        "conformant_condition_unsuppressed" => "conformant_condition_unsuppressed.hex",
         "conformant_condition_out_of_service" => "conformant_condition_out_of_service.hex",
+        "conformant_condition_in_service" => "conformant_condition_in_service.hex",
+        "conformant_condition_reset" => "conformant_condition_reset.hex",
         "conformant_records_dropped" => "conformant_records_dropped.hex",
         "conformant_source_high_water" => "conformant_source_high_water.hex",
         "records_dropped" => "records_dropped.hex",
@@ -1576,9 +1748,14 @@ fn json_path(stem: &'static str) -> &'static str {
         "conformant_condition_active" => "conformant_condition_active.json",
         "conformant_condition_cleared" => "conformant_condition_cleared.json",
         "conformant_condition_acknowledged" => "conformant_condition_acknowledged.json",
+        "conformant_condition_confirmed" => "conformant_condition_confirmed.json",
         "conformant_condition_shelved" => "conformant_condition_shelved.json",
+        "conformant_condition_unshelved" => "conformant_condition_unshelved.json",
         "conformant_condition_suppressed" => "conformant_condition_suppressed.json",
+        "conformant_condition_unsuppressed" => "conformant_condition_unsuppressed.json",
         "conformant_condition_out_of_service" => "conformant_condition_out_of_service.json",
+        "conformant_condition_in_service" => "conformant_condition_in_service.json",
+        "conformant_condition_reset" => "conformant_condition_reset.json",
         "conformant_records_dropped" => "conformant_records_dropped.json",
         "conformant_source_high_water" => "conformant_source_high_water.json",
         "records_dropped" => "records_dropped.json",
@@ -1737,12 +1914,27 @@ mod tests {
             ],
         );
         assert_slots(
+            &conformant_condition_confirmed_record(),
+            &[
+                (KEY_CONDITION_ID, TY_UDINT, 4),
+                (KEY_CORRELATION_ID, TY_UDINT, 4),
+                (KEY_ACK_BY, TY_STRING, "operator-a".len()),
+            ],
+        );
+        assert_slots(
             &conformant_condition_shelved_record(),
             &[
                 (KEY_CONDITION_ID, TY_UDINT, 4),
                 (KEY_CORRELATION_ID, TY_UDINT, 4),
                 (KEY_ACK_BY, TY_STRING, "operator-a".len()),
                 (KEY_SHELVE_SECS, TY_UDINT, 4),
+            ],
+        );
+        assert_slots(
+            &conformant_condition_unshelved_record(),
+            &[
+                (KEY_CONDITION_ID, TY_UDINT, 4),
+                (KEY_CORRELATION_ID, TY_UDINT, 4),
             ],
         );
         assert_slots(
@@ -1753,9 +1945,25 @@ mod tests {
             ],
         );
         assert_slots(
+            &conformant_condition_unsuppressed_record(),
+            &[(KEY_CONDITION_ID, TY_UDINT, 4)],
+        );
+        assert_slots(
             &conformant_condition_out_of_service_record(),
             &[
                 (KEY_CONDITION_ID, TY_UDINT, 4),
+                (KEY_ACK_BY, TY_STRING, "operator-a".len()),
+            ],
+        );
+        assert_slots(
+            &conformant_condition_in_service_record(),
+            &[(KEY_CONDITION_ID, TY_UDINT, 4)],
+        );
+        assert_slots(
+            &conformant_condition_reset_record(),
+            &[
+                (KEY_CONDITION_ID, TY_UDINT, 4),
+                (KEY_CORRELATION_ID, TY_UDINT, 4),
                 (KEY_ACK_BY, TY_STRING, "operator-a".len()),
             ],
         );

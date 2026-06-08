@@ -105,7 +105,7 @@ IF ReasonLength > UINT#96 THEN
     ReasonLength := UINT#96;
 END_IF;
 
-IsActivationScoped := (EventTypeId = UDINT#16#0202) OR (EventTypeId = UDINT#16#0204);
+IsActivationScoped := (EventTypeId = UDINT#16#0202) OR (EventTypeId = UDINT#16#0203) OR (EventTypeId = UDINT#16#0204) OR (EventTypeId = UDINT#16#0205) OR (EventTypeId = UDINT#16#020B);
 TotalLength := UINT#52;
 IF IsActivationScoped THEN
     TotalLength := TotalLength + UINT#8;
@@ -270,6 +270,151 @@ Encoder(
     EventTypeId := UDINT#16#0208,
     ConditionId := UDINT#9001,
     CorrelationId := UDINT#0,
+    HasAckBy := TRUE,
+    AckBy := 'operator-a',
+    HasShelveSecs := FALSE,
+    ShelveSecs := UDINT#0,
+    HasReason := FALSE,
+    Reason := '',
+    HasRefreshId := FALSE,
+    RefreshId := UDINT#0);
+Buffer := Encoder.Buffer;
+Length := Encoder.Length;
+END_FUNCTION_BLOCK
+
+FUNCTION_BLOCK OPENOT_EncodeConformantConditionConfirmed
+VAR_OUTPUT
+    Buffer : OPENOT_BYTE_BUFFER;
+    Length : UINT;
+END_VAR
+VAR
+    Encoder : OPENOT_EncodeConditionLifecycle;
+END_VAR
+
+Encoder(
+    SourceId := UDINT#66,
+    RunId := ULINT#1,
+    Seq := ULINT#21,
+    SourceTime := ULINT#1000000200,
+    EventTypeId := UDINT#16#0203,
+    ConditionId := UDINT#9001,
+    CorrelationId := UDINT#77,
+    HasAckBy := TRUE,
+    AckBy := 'operator-a',
+    HasShelveSecs := FALSE,
+    ShelveSecs := UDINT#0,
+    HasReason := FALSE,
+    Reason := '',
+    HasRefreshId := FALSE,
+    RefreshId := UDINT#0);
+Buffer := Encoder.Buffer;
+Length := Encoder.Length;
+END_FUNCTION_BLOCK
+
+FUNCTION_BLOCK OPENOT_EncodeConformantConditionUnshelved
+VAR_OUTPUT
+    Buffer : OPENOT_BYTE_BUFFER;
+    Length : UINT;
+END_VAR
+VAR
+    Encoder : OPENOT_EncodeConditionLifecycle;
+END_VAR
+
+Encoder(
+    SourceId := UDINT#66,
+    RunId := ULINT#1,
+    Seq := ULINT#22,
+    SourceTime := ULINT#1000000210,
+    EventTypeId := UDINT#16#0205,
+    ConditionId := UDINT#9001,
+    CorrelationId := UDINT#77,
+    HasAckBy := FALSE,
+    AckBy := '',
+    HasShelveSecs := FALSE,
+    ShelveSecs := UDINT#0,
+    HasReason := FALSE,
+    Reason := '',
+    HasRefreshId := FALSE,
+    RefreshId := UDINT#0);
+Buffer := Encoder.Buffer;
+Length := Encoder.Length;
+END_FUNCTION_BLOCK
+
+FUNCTION_BLOCK OPENOT_EncodeConformantConditionUnsuppressed
+VAR_OUTPUT
+    Buffer : OPENOT_BYTE_BUFFER;
+    Length : UINT;
+END_VAR
+VAR
+    Encoder : OPENOT_EncodeConditionLifecycle;
+END_VAR
+
+Encoder(
+    SourceId := UDINT#66,
+    RunId := ULINT#1,
+    Seq := ULINT#23,
+    SourceTime := ULINT#1000000220,
+    EventTypeId := UDINT#16#0207,
+    ConditionId := UDINT#9001,
+    CorrelationId := UDINT#0,
+    HasAckBy := FALSE,
+    AckBy := '',
+    HasShelveSecs := FALSE,
+    ShelveSecs := UDINT#0,
+    HasReason := FALSE,
+    Reason := '',
+    HasRefreshId := FALSE,
+    RefreshId := UDINT#0);
+Buffer := Encoder.Buffer;
+Length := Encoder.Length;
+END_FUNCTION_BLOCK
+
+FUNCTION_BLOCK OPENOT_EncodeConformantConditionInService
+VAR_OUTPUT
+    Buffer : OPENOT_BYTE_BUFFER;
+    Length : UINT;
+END_VAR
+VAR
+    Encoder : OPENOT_EncodeConditionLifecycle;
+END_VAR
+
+Encoder(
+    SourceId := UDINT#66,
+    RunId := ULINT#1,
+    Seq := ULINT#24,
+    SourceTime := ULINT#1000000230,
+    EventTypeId := UDINT#16#0209,
+    ConditionId := UDINT#9001,
+    CorrelationId := UDINT#0,
+    HasAckBy := FALSE,
+    AckBy := '',
+    HasShelveSecs := FALSE,
+    ShelveSecs := UDINT#0,
+    HasReason := FALSE,
+    Reason := '',
+    HasRefreshId := FALSE,
+    RefreshId := UDINT#0);
+Buffer := Encoder.Buffer;
+Length := Encoder.Length;
+END_FUNCTION_BLOCK
+
+FUNCTION_BLOCK OPENOT_EncodeConformantConditionReset
+VAR_OUTPUT
+    Buffer : OPENOT_BYTE_BUFFER;
+    Length : UINT;
+END_VAR
+VAR
+    Encoder : OPENOT_EncodeConditionLifecycle;
+END_VAR
+
+Encoder(
+    SourceId := UDINT#66,
+    RunId := ULINT#1,
+    Seq := ULINT#25,
+    SourceTime := ULINT#1000000240,
+    EventTypeId := UDINT#16#020B,
+    ConditionId := UDINT#9001,
+    CorrelationId := UDINT#77,
     HasAckBy := TRUE,
     AckBy := 'operator-a',
     HasShelveSecs := FALSE,

@@ -1,0 +1,29 @@
+{
+  "name": "conformant_condition_confirmed",
+  "description": "definition-layer positive ConditionConfirmed record with ackBy",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "conformant_condition_confirmed.hex",
+  "byteCount": 76,
+  "headerLength": 40,
+  "totalRecordLength": 76,
+  "flags": "0x0008",
+  "crc32c": "0xD33C1296",
+  "detail": {
+    "eventName": "ConditionConfirmed",
+    "schemaExpected": "accept",
+    "fields": {
+      "sourceTime": 1000000200,
+      "runId": 1,
+      "seq": 21,
+      "sourceId": 66,
+      "eventTypeId": "0x0203"
+    },
+    "slots": [
+      { "key": "0x0005", "type": "UDInt", "name": "conditionId", "value": 9001 },
+      { "key": "0x0007", "type": "UDInt", "name": "correlationId", "value": 77 },
+      { "key": "0x001D", "type": "String", "name": "ackBy", "value": "operator-a" }
+    ]
+  }
+}

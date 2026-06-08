@@ -740,13 +740,28 @@ mod tests {
                 "../../carriage/vectors/conformant_condition_acknowledged.hex"
             )),
             hex_bytes(include_str!(
+                "../../carriage/vectors/conformant_condition_confirmed.hex"
+            )),
+            hex_bytes(include_str!(
                 "../../carriage/vectors/conformant_condition_shelved.hex"
+            )),
+            hex_bytes(include_str!(
+                "../../carriage/vectors/conformant_condition_unshelved.hex"
             )),
             hex_bytes(include_str!(
                 "../../carriage/vectors/conformant_condition_suppressed.hex"
             )),
             hex_bytes(include_str!(
+                "../../carriage/vectors/conformant_condition_unsuppressed.hex"
+            )),
+            hex_bytes(include_str!(
                 "../../carriage/vectors/conformant_condition_out_of_service.hex"
+            )),
+            hex_bytes(include_str!(
+                "../../carriage/vectors/conformant_condition_in_service.hex"
+            )),
+            hex_bytes(include_str!(
+                "../../carriage/vectors/conformant_condition_reset.hex"
             )),
             hex_bytes(include_str!(
                 "../../carriage/vectors/conformant_records_dropped.hex"

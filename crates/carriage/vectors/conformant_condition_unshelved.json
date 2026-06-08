@@ -1,0 +1,28 @@
+{
+  "name": "conformant_condition_unshelved",
+  "description": "definition-layer positive ConditionUnshelved record with activation correlation",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "conformant_condition_unshelved.hex",
+  "byteCount": 60,
+  "headerLength": 40,
+  "totalRecordLength": 60,
+  "flags": "0x0008",
+  "crc32c": "0x0ABE6311",
+  "detail": {
+    "eventName": "ConditionUnshelved",
+    "schemaExpected": "accept",
+    "fields": {
+      "sourceTime": 1000000210,
+      "runId": 1,
+      "seq": 22,
+      "sourceId": 66,
+      "eventTypeId": "0x0205"
+    },
+    "slots": [
+      { "key": "0x0005", "type": "UDInt", "name": "conditionId", "value": 9001 },
+      { "key": "0x0007", "type": "UDInt", "name": "correlationId", "value": 77 }
+    ]
+  }
+}

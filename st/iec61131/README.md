@@ -24,7 +24,7 @@ The conformance contract is byte-exact comparison against:
 - `crates/carriage/vectors/conformant_value_changed_{bool,sint,usint,int,uint,dint,udint,ulint,lint,real,lreal,string}.hex`
 - `crates/carriage/vectors/conformant_message.hex`
 - `crates/carriage/vectors/conformant_condition_{active,cleared}.hex`
-- `crates/carriage/vectors/conformant_condition_{acknowledged,shelved,suppressed,out_of_service}.hex`
+- `crates/carriage/vectors/conformant_condition_{acknowledged,confirmed,shelved,unshelved,suppressed,unsuppressed,out_of_service,in_service,reset}.hex`
 - `crates/carriage/vectors/conformant_records_dropped.hex`
 - `crates/carriage/vectors/conformant_source_high_water.hex`
 - `crates/carriage/vectors/control_block.hex`
@@ -135,11 +135,13 @@ for a `DINT`, `Op = 8` emits a `StateTransition`, `Op = 9` emits
   `Op = 12` emits condition lifecycle commands for a parent alarm. These ops track
   last value/state/condition inside the producer and emit only on
   change/deadband/edge. For `Op = 12`, activation-scoped commands such as
-  `ConditionAcknowledged` and `ConditionShelved` use the producer's stored live
+  `ConditionAcknowledged`, `ConditionConfirmed`, `ConditionShelved`,
+  `ConditionUnshelved`, and `ConditionReset` use the producer's stored live
   `correlationId`; if no activation is live the producer emits no record and
   increments `DroppedLifecycleCount` with `LastLifecycleError` set. Condition
-  scoped commands such as `ConditionSuppressed` and `ConditionOutOfService` emit
-  without a `correlationId`.
+  scoped commands such as `ConditionSuppressed`, `ConditionUnsuppressed`,
+  `ConditionOutOfService`, and `ConditionInService` emit without a
+  `correlationId`.
 If `SourceId` is omitted or zero, the producer uses source `1`; the generated
 call does not carry an `EventTypeId`.
 
