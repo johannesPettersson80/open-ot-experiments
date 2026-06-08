@@ -1,0 +1,30 @@
+{
+  "name": "conformant_condition_shelved",
+  "description": "definition-layer positive ConditionShelved record with ackBy and shelveSecs",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "conformant_condition_shelved.hex",
+  "byteCount": 84,
+  "headerLength": 40,
+  "totalRecordLength": 84,
+  "flags": "0x0008",
+  "crc32c": "0xBD923EE5",
+  "detail": {
+    "eventName": "ConditionShelved",
+    "schemaExpected": "accept",
+    "fields": {
+      "sourceTime": 1000000170,
+      "runId": 1,
+      "seq": 18,
+      "sourceId": 66,
+      "eventTypeId": "0x0204"
+    },
+    "slots": [
+      { "key": "0x0005", "type": "UDInt", "name": "conditionId", "value": 9001 },
+      { "key": "0x0007", "type": "UDInt", "name": "correlationId", "value": 77 },
+      { "key": "0x001D", "type": "String", "name": "ackBy", "value": "operator-a" },
+      { "key": "0x001E", "type": "UDInt", "name": "shelveSecs", "value": 300 }
+    ]
+  }
+}

@@ -65,6 +65,223 @@ Pos := OPENOT_WriteDWordLE(Offset := Pos, Value := Crc, Buffer := Buffer);
 Length := Pos;
 END_FUNCTION_BLOCK
 
+FUNCTION_BLOCK OPENOT_EncodeConditionLifecycle
+VAR_INPUT
+    SourceId : UDINT;
+    RunId : ULINT;
+    Seq : ULINT;
+    SourceTime : ULINT;
+    EventTypeId : UDINT;
+    ConditionId : UDINT;
+    CorrelationId : UDINT;
+    HasAckBy : BOOL;
+    AckBy : STRING[96];
+    HasShelveSecs : BOOL;
+    ShelveSecs : UDINT;
+    HasReason : BOOL;
+    Reason : STRING[96];
+    HasRefreshId : BOOL;
+    RefreshId : UDINT;
+END_VAR
+VAR_OUTPUT
+    Buffer : OPENOT_BYTE_BUFFER;
+    Length : UINT;
+END_VAR
+VAR
+    Pos : UINT;
+    TotalLength : UINT;
+    Crc : DWORD;
+    AckByLength : UINT;
+    ReasonLength : UINT;
+    IsActivationScoped : BOOL;
+END_VAR
+
+AckByLength := INT_TO_UINT(LEN(AckBy));
+ReasonLength := INT_TO_UINT(LEN(Reason));
+IF AckByLength > UINT#96 THEN
+    AckByLength := UINT#96;
+END_IF;
+IF ReasonLength > UINT#96 THEN
+    ReasonLength := UINT#96;
+END_IF;
+
+IsActivationScoped := (EventTypeId = UDINT#16#0202) OR (EventTypeId = UDINT#16#0204);
+TotalLength := UINT#52;
+IF IsActivationScoped THEN
+    TotalLength := TotalLength + UINT#8;
+END_IF;
+IF HasAckBy THEN
+    TotalLength := TotalLength + OPENOT_ValueSlotEncodedLength(PayloadLength := AckByLength);
+END_IF;
+IF HasShelveSecs THEN
+    TotalLength := TotalLength + UINT#8;
+END_IF;
+IF HasReason THEN
+    TotalLength := TotalLength + OPENOT_ValueSlotEncodedLength(PayloadLength := ReasonLength);
+END_IF;
+IF HasRefreshId THEN
+    TotalLength := TotalLength + UINT#8;
+END_IF;
+
+Pos := OPENOT_WriteHeader(
+    TotalLength := TotalLength,
+    Flags := UINT#16#0008,
+    SourceTime := SourceTime,
+    RunId := RunId,
+    Seq := Seq,
+    SourceId := SourceId,
+    EventTypeId := EventTypeId,
+    Buffer := Buffer);
+
+Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0005, TypeTag := BYTE#16#05, PayloadLength := BYTE#4, Buffer := Buffer);
+Pos := OPENOT_WriteU32LE(Offset := Pos, Value := ConditionId, Buffer := Buffer);
+
+IF IsActivationScoped THEN
+    Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0007, TypeTag := BYTE#16#05, PayloadLength := BYTE#4, Buffer := Buffer);
+    Pos := OPENOT_WriteU32LE(Offset := Pos, Value := CorrelationId, Buffer := Buffer);
+END_IF;
+
+IF HasAckBy THEN
+    Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#001D, TypeTag := BYTE#16#0C, PayloadLength := UINT_TO_BYTE(AckByLength), Buffer := Buffer);
+    Pos := OPENOT_WriteStringPayload(Offset := Pos, Value := AckBy, PayloadLength := AckByLength, Buffer := Buffer);
+END_IF;
+
+IF HasShelveSecs THEN
+    Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#001E, TypeTag := BYTE#16#05, PayloadLength := BYTE#4, Buffer := Buffer);
+    Pos := OPENOT_WriteU32LE(Offset := Pos, Value := ShelveSecs, Buffer := Buffer);
+END_IF;
+
+IF HasReason THEN
+    Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#001F, TypeTag := BYTE#16#0C, PayloadLength := UINT_TO_BYTE(ReasonLength), Buffer := Buffer);
+    Pos := OPENOT_WriteStringPayload(Offset := Pos, Value := Reason, PayloadLength := ReasonLength, Buffer := Buffer);
+END_IF;
+
+IF HasRefreshId THEN
+    Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0034, TypeTag := BYTE#16#05, PayloadLength := BYTE#4, Buffer := Buffer);
+    Pos := OPENOT_WriteU32LE(Offset := Pos, Value := RefreshId, Buffer := Buffer);
+END_IF;
+
+Crc := OPENOT_Crc32c(Data := Buffer, Length := Pos);
+Pos := OPENOT_WriteDWordLE(Offset := Pos, Value := Crc, Buffer := Buffer);
+Length := Pos;
+END_FUNCTION_BLOCK
+
+FUNCTION_BLOCK OPENOT_EncodeConformantConditionAcknowledged
+VAR_OUTPUT
+    Buffer : OPENOT_BYTE_BUFFER;
+    Length : UINT;
+END_VAR
+VAR
+    Encoder : OPENOT_EncodeConditionLifecycle;
+END_VAR
+
+Encoder(
+    SourceId := UDINT#66,
+    RunId := ULINT#1,
+    Seq := ULINT#17,
+    SourceTime := ULINT#1000000160,
+    EventTypeId := UDINT#16#0202,
+    ConditionId := UDINT#9001,
+    CorrelationId := UDINT#77,
+    HasAckBy := TRUE,
+    AckBy := 'operator-a',
+    HasShelveSecs := FALSE,
+    ShelveSecs := UDINT#0,
+    HasReason := FALSE,
+    Reason := '',
+    HasRefreshId := FALSE,
+    RefreshId := UDINT#0);
+Buffer := Encoder.Buffer;
+Length := Encoder.Length;
+END_FUNCTION_BLOCK
+
+FUNCTION_BLOCK OPENOT_EncodeConformantConditionShelved
+VAR_OUTPUT
+    Buffer : OPENOT_BYTE_BUFFER;
+    Length : UINT;
+END_VAR
+VAR
+    Encoder : OPENOT_EncodeConditionLifecycle;
+END_VAR
+
+Encoder(
+    SourceId := UDINT#66,
+    RunId := ULINT#1,
+    Seq := ULINT#18,
+    SourceTime := ULINT#1000000170,
+    EventTypeId := UDINT#16#0204,
+    ConditionId := UDINT#9001,
+    CorrelationId := UDINT#77,
+    HasAckBy := TRUE,
+    AckBy := 'operator-a',
+    HasShelveSecs := TRUE,
+    ShelveSecs := UDINT#300,
+    HasReason := FALSE,
+    Reason := '',
+    HasRefreshId := FALSE,
+    RefreshId := UDINT#0);
+Buffer := Encoder.Buffer;
+Length := Encoder.Length;
+END_FUNCTION_BLOCK
+
+FUNCTION_BLOCK OPENOT_EncodeConformantConditionSuppressed
+VAR_OUTPUT
+    Buffer : OPENOT_BYTE_BUFFER;
+    Length : UINT;
+END_VAR
+VAR
+    Encoder : OPENOT_EncodeConditionLifecycle;
+END_VAR
+
+Encoder(
+    SourceId := UDINT#66,
+    RunId := ULINT#1,
+    Seq := ULINT#19,
+    SourceTime := ULINT#1000000180,
+    EventTypeId := UDINT#16#0206,
+    ConditionId := UDINT#9001,
+    CorrelationId := UDINT#0,
+    HasAckBy := FALSE,
+    AckBy := '',
+    HasShelveSecs := FALSE,
+    ShelveSecs := UDINT#0,
+    HasReason := TRUE,
+    Reason := 'maintenance',
+    HasRefreshId := FALSE,
+    RefreshId := UDINT#0);
+Buffer := Encoder.Buffer;
+Length := Encoder.Length;
+END_FUNCTION_BLOCK
+
+FUNCTION_BLOCK OPENOT_EncodeConformantConditionOutOfService
+VAR_OUTPUT
+    Buffer : OPENOT_BYTE_BUFFER;
+    Length : UINT;
+END_VAR
+VAR
+    Encoder : OPENOT_EncodeConditionLifecycle;
+END_VAR
+
+Encoder(
+    SourceId := UDINT#66,
+    RunId := ULINT#1,
+    Seq := ULINT#20,
+    SourceTime := ULINT#1000000190,
+    EventTypeId := UDINT#16#0208,
+    ConditionId := UDINT#9001,
+    CorrelationId := UDINT#0,
+    HasAckBy := TRUE,
+    AckBy := 'operator-a',
+    HasShelveSecs := FALSE,
+    ShelveSecs := UDINT#0,
+    HasReason := FALSE,
+    Reason := '',
+    HasRefreshId := FALSE,
+    RefreshId := UDINT#0);
+Buffer := Encoder.Buffer;
+Length := Encoder.Length;
+END_FUNCTION_BLOCK
+
 FUNCTION_BLOCK OPENOT_EncodeValueChangedInt
 VAR_INPUT
     SourceId : UDINT;

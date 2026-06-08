@@ -1,0 +1,28 @@
+{
+  "name": "conformant_condition_out_of_service",
+  "description": "definition-layer positive ConditionOutOfService record with ackBy and no correlation",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "conformant_condition_out_of_service.hex",
+  "byteCount": 68,
+  "headerLength": 40,
+  "totalRecordLength": 68,
+  "flags": "0x0008",
+  "crc32c": "0x01A45C9D",
+  "detail": {
+    "eventName": "ConditionOutOfService",
+    "schemaExpected": "accept",
+    "fields": {
+      "sourceTime": 1000000190,
+      "runId": 1,
+      "seq": 20,
+      "sourceId": 66,
+      "eventTypeId": "0x0208"
+    },
+    "slots": [
+      { "key": "0x0005", "type": "UDInt", "name": "conditionId", "value": 9001 },
+      { "key": "0x001D", "type": "String", "name": "ackBy", "value": "operator-a" }
+    ]
+  }
+}

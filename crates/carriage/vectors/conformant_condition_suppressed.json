@@ -1,0 +1,28 @@
+{
+  "name": "conformant_condition_suppressed",
+  "description": "definition-layer positive ConditionSuppressed record with reason and no correlation",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "conformant_condition_suppressed.hex",
+  "byteCount": 68,
+  "headerLength": 40,
+  "totalRecordLength": 68,
+  "flags": "0x0008",
+  "crc32c": "0x634F3E17",
+  "detail": {
+    "eventName": "ConditionSuppressed",
+    "schemaExpected": "accept",
+    "fields": {
+      "sourceTime": 1000000180,
+      "runId": 1,
+      "seq": 19,
+      "sourceId": 66,
+      "eventTypeId": "0x0206"
+    },
+    "slots": [
+      { "key": "0x0005", "type": "UDInt", "name": "conditionId", "value": 9001 },
+      { "key": "0x001F", "type": "String", "name": "reason", "value": "maintenance" }
+    ]
+  }
+}
