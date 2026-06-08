@@ -24,7 +24,7 @@ The conformance contract is byte-exact comparison against:
 - `crates/carriage/vectors/conformant_value_changed_{bool,sint,usint,int,uint,dint,udint,ulint,lint,real,lreal,string}.hex`
 - `crates/carriage/vectors/conformant_message.hex`
 - `crates/carriage/vectors/conformant_condition_{active,cleared}.hex`
-- `crates/carriage/vectors/conformant_condition_{acknowledged,confirmed,shelved,unshelved,suppressed,unsuppressed,out_of_service,in_service,reset}.hex`
+- `crates/carriage/vectors/conformant_condition_{acknowledged,confirmed,shelved,unshelved,suppressed,unsuppressed,out_of_service,in_service,commented,reset,priority_changed}.hex`
 - `crates/carriage/vectors/conformant_records_dropped.hex`
 - `crates/carriage/vectors/conformant_source_high_water.hex`
 - `crates/carriage/vectors/control_block.hex`
@@ -80,7 +80,8 @@ reading a `STRING` representation.
   `DINT`, generic fixed-width value payloads (`BOOL`, integer widths, `LREAL`),
   bounded `STRING`, plus the parameterized `StateTransition` and
   `ConditionActive`/`ConditionCleared` encoders, and exact condition-lifecycle
-  encoders for acknowledge, shelve, suppress, and out-of-service records.
+  encoders for acknowledge, confirm, shelve, unshelve, suppress, unsuppress,
+  out-of-service, in-service, comment, reset, and priority-changed records.
 - `src/openot_source_high_water.st` defines the parameterized `SourceHighWater`
   encoder used by producer checkpoints.
 - `src/openot_lifecycle.st` defines byte-exact encoders for system lifecycle
@@ -136,12 +137,15 @@ for a `DINT`, `Op = 8` emits a `StateTransition`, `Op = 9` emits
   last value/state/condition inside the producer and emit only on
   change/deadband/edge. For `Op = 12`, activation-scoped commands such as
   `ConditionAcknowledged`, `ConditionConfirmed`, `ConditionShelved`,
-  `ConditionUnshelved`, and `ConditionReset` use the producer's stored live
-  `correlationId`; if no activation is live the producer emits no record and
-  increments `DroppedLifecycleCount` with `LastLifecycleError` set. Condition
-  scoped commands such as `ConditionSuppressed`, `ConditionUnsuppressed`,
-  `ConditionOutOfService`, and `ConditionInService` emit without a
-  `correlationId`.
+  `ConditionUnshelved`, `ConditionCommented`, and `ConditionReset` use the
+  producer's stored live `correlationId`; if no activation is live the producer
+  emits no record and increments `DroppedLifecycleCount` with
+  `LastLifecycleError` set. Condition scoped commands such as
+  `ConditionSuppressed`, `ConditionUnsuppressed`, `ConditionOutOfService`,
+  `ConditionInService`, and `ConditionPriorityChanged` emit without a
+  `correlationId`. Comment and priority-changed required fields are checked
+  before the lifecycle encoder writes the fixed 256-byte record buffer; missing
+  required fields or an oversized comment record fail closed.
 If `SourceId` is omitted or zero, the producer uses source `1`; the generated
 call does not carry an `EventTypeId`.
 

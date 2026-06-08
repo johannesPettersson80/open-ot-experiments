@@ -194,6 +194,12 @@ VAR_INPUT
     LifecycleShelveSecs : UDINT;
     LifecycleHasReason : BOOL;
     LifecycleReason : STRING[96];
+    LifecycleHasComment : BOOL;
+    LifecycleComment : STRING[96];
+    LifecycleHasPreviousPriority : BOOL;
+    LifecyclePreviousPriority : UINT;
+    LifecycleHasNewPriority : BOOL;
+    LifecycleNewPriority : UINT;
     MessageTemplateId : UDINT;
     MessageHasSeverity : BOOL;
     MessageSeverity : UINT;
@@ -325,6 +331,16 @@ VAR
     ConditionCorrelationId : UDINT;
     LifecycleShouldEmit : BOOL;
     LifecycleActivationScoped : BOOL;
+    LifecycleHasAllowedAckBy : BOOL;
+    LifecycleHasAllowedShelveSecs : BOOL;
+    LifecycleHasAllowedReason : BOOL;
+    LifecycleHasAllowedComment : BOOL;
+    LifecycleHasAllowedPreviousPriority : BOOL;
+    LifecycleHasAllowedNewPriority : BOOL;
+    LifecycleAckByLength : UINT;
+    LifecycleReasonLength : UINT;
+    LifecycleCommentLength : UINT;
+    LifecycleRecordLength : UINT;
 END_VAR
 
 IF NOT Initialized THEN
@@ -1266,12 +1282,30 @@ IF ExecuteEdge THEN
         ConditionEventTypeId := ConditionLifecycleEventTypeId;
         ConditionCorrelationId := UDINT#0;
         LifecycleShouldEmit := FALSE;
-        LifecycleActivationScoped := (ConditionEventTypeId = UDINT#16#0202) OR (ConditionEventTypeId = UDINT#16#0203) OR (ConditionEventTypeId = UDINT#16#0204) OR (ConditionEventTypeId = UDINT#16#0205) OR (ConditionEventTypeId = UDINT#16#020B);
+        LifecycleActivationScoped := (ConditionEventTypeId = UDINT#16#0202) OR (ConditionEventTypeId = UDINT#16#0203) OR (ConditionEventTypeId = UDINT#16#0204) OR (ConditionEventTypeId = UDINT#16#0205) OR (ConditionEventTypeId = UDINT#16#020A) OR (ConditionEventTypeId = UDINT#16#020B);
+        LifecycleHasAllowedAckBy := LifecycleHasAckBy AND ((ConditionEventTypeId = UDINT#16#0202) OR (ConditionEventTypeId = UDINT#16#0203) OR (ConditionEventTypeId = UDINT#16#0204) OR (ConditionEventTypeId = UDINT#16#0208) OR (ConditionEventTypeId = UDINT#16#020A) OR (ConditionEventTypeId = UDINT#16#020B) OR (ConditionEventTypeId = UDINT#16#020C));
+        LifecycleHasAllowedShelveSecs := LifecycleHasShelveSecs AND (ConditionEventTypeId = UDINT#16#0204);
+        LifecycleHasAllowedReason := LifecycleHasReason AND (ConditionEventTypeId = UDINT#16#0206);
+        LifecycleHasAllowedComment := LifecycleHasComment AND (ConditionEventTypeId = UDINT#16#020A);
+        LifecycleHasAllowedPreviousPriority := LifecycleHasPreviousPriority AND (ConditionEventTypeId = UDINT#16#020C);
+        LifecycleHasAllowedNewPriority := LifecycleHasNewPriority AND (ConditionEventTypeId = UDINT#16#020C);
+        LifecycleAckByLength := INT_TO_UINT(LEN(LifecycleAckBy));
+        LifecycleReasonLength := INT_TO_UINT(LEN(LifecycleReason));
+        LifecycleCommentLength := INT_TO_UINT(LEN(LifecycleComment));
+        IF LifecycleAckByLength > UINT#96 THEN
+            LifecycleAckByLength := UINT#96;
+        END_IF;
+        IF LifecycleReasonLength > UINT#96 THEN
+            LifecycleReasonLength := UINT#96;
+        END_IF;
+        IF LifecycleCommentLength > UINT#96 THEN
+            LifecycleCommentLength := UINT#96;
+        END_IF;
 
         IF ConditionId = UDINT#0 THEN
             StateLastLifecycleError := UINT#2;
             Error := TRUE;
-        ELSIF (ConditionEventTypeId <> UDINT#16#0202) AND (ConditionEventTypeId <> UDINT#16#0203) AND (ConditionEventTypeId <> UDINT#16#0204) AND (ConditionEventTypeId <> UDINT#16#0205) AND (ConditionEventTypeId <> UDINT#16#0206) AND (ConditionEventTypeId <> UDINT#16#0207) AND (ConditionEventTypeId <> UDINT#16#0208) AND (ConditionEventTypeId <> UDINT#16#0209) AND (ConditionEventTypeId <> UDINT#16#020B) THEN
+        ELSIF (ConditionEventTypeId <> UDINT#16#0202) AND (ConditionEventTypeId <> UDINT#16#0203) AND (ConditionEventTypeId <> UDINT#16#0204) AND (ConditionEventTypeId <> UDINT#16#0205) AND (ConditionEventTypeId <> UDINT#16#0206) AND (ConditionEventTypeId <> UDINT#16#0207) AND (ConditionEventTypeId <> UDINT#16#0208) AND (ConditionEventTypeId <> UDINT#16#0209) AND (ConditionEventTypeId <> UDINT#16#020A) AND (ConditionEventTypeId <> UDINT#16#020B) AND (ConditionEventTypeId <> UDINT#16#020C) THEN
             StateLastLifecycleError := UINT#3;
             Error := TRUE;
         ELSIF LifecycleActivationScoped THEN
@@ -1297,6 +1331,43 @@ IF ExecuteEdge THEN
             END_IF;
         ELSE
             LifecycleShouldEmit := TRUE;
+        END_IF;
+
+        IF LifecycleShouldEmit THEN
+            LifecycleRecordLength := UINT#52;
+            IF LifecycleActivationScoped THEN
+                LifecycleRecordLength := LifecycleRecordLength + UINT#8;
+            END_IF;
+            IF LifecycleHasAllowedComment THEN
+                LifecycleRecordLength := LifecycleRecordLength + OPENOT_ValueSlotEncodedLength(PayloadLength := LifecycleCommentLength);
+            END_IF;
+            IF LifecycleHasAllowedPreviousPriority THEN
+                LifecycleRecordLength := LifecycleRecordLength + UINT#8;
+            END_IF;
+            IF LifecycleHasAllowedNewPriority THEN
+                LifecycleRecordLength := LifecycleRecordLength + UINT#8;
+            END_IF;
+            IF LifecycleHasAllowedAckBy THEN
+                LifecycleRecordLength := LifecycleRecordLength + OPENOT_ValueSlotEncodedLength(PayloadLength := LifecycleAckByLength);
+            END_IF;
+            IF LifecycleHasAllowedShelveSecs THEN
+                LifecycleRecordLength := LifecycleRecordLength + UINT#8;
+            END_IF;
+            IF LifecycleHasAllowedReason THEN
+                LifecycleRecordLength := LifecycleRecordLength + OPENOT_ValueSlotEncodedLength(PayloadLength := LifecycleReasonLength);
+            END_IF;
+
+            IF ((ConditionEventTypeId = UDINT#16#020A) AND (NOT LifecycleHasAllowedComment)) OR ((ConditionEventTypeId = UDINT#16#020C) AND ((NOT LifecycleHasAllowedPreviousPriority) OR (NOT LifecycleHasAllowedNewPriority))) THEN
+                StateDroppedLifecycleCount := StateDroppedLifecycleCount + ULINT#1;
+                StateLastLifecycleError := UINT#5;
+                LifecycleShouldEmit := FALSE;
+                Error := TRUE;
+            ELSIF LifecycleRecordLength > UINT#256 THEN
+                StateDroppedLifecycleCount := StateDroppedLifecycleCount + ULINT#1;
+                StateLastLifecycleError := UINT#6;
+                LifecycleShouldEmit := FALSE;
+                Error := TRUE;
+            END_IF;
         END_IF;
 
         IF LifecycleShouldEmit THEN
@@ -1346,12 +1417,18 @@ IF ExecuteEdge THEN
                     EventTypeId := ConditionEventTypeId,
                     ConditionId := ConditionId,
                     CorrelationId := ConditionCorrelationId,
-                    HasAckBy := LifecycleHasAckBy AND ((ConditionEventTypeId = UDINT#16#0202) OR (ConditionEventTypeId = UDINT#16#0203) OR (ConditionEventTypeId = UDINT#16#0204) OR (ConditionEventTypeId = UDINT#16#0208) OR (ConditionEventTypeId = UDINT#16#020B)),
+                    HasAckBy := LifecycleHasAllowedAckBy,
                     AckBy := LifecycleAckBy,
-                    HasShelveSecs := LifecycleHasShelveSecs AND (ConditionEventTypeId = UDINT#16#0204),
+                    HasShelveSecs := LifecycleHasAllowedShelveSecs,
                     ShelveSecs := LifecycleShelveSecs,
-                    HasReason := LifecycleHasReason AND (ConditionEventTypeId = UDINT#16#0206),
+                    HasReason := LifecycleHasAllowedReason,
                     Reason := LifecycleReason,
+                    HasComment := LifecycleHasAllowedComment,
+                    Comment := LifecycleComment,
+                    HasPreviousPriority := LifecycleHasAllowedPreviousPriority,
+                    PreviousPriority := LifecyclePreviousPriority,
+                    HasNewPriority := LifecycleHasAllowedNewPriority,
+                    NewPriority := LifecycleNewPriority,
                     HasRefreshId := FALSE,
                     RefreshId := UDINT#0);
                 RingProducer(

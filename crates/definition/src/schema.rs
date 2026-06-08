@@ -764,6 +764,12 @@ mod tests {
                 "../../carriage/vectors/conformant_condition_reset.hex"
             )),
             hex_bytes(include_str!(
+                "../../carriage/vectors/conformant_condition_commented.hex"
+            )),
+            hex_bytes(include_str!(
+                "../../carriage/vectors/conformant_condition_priority_changed.hex"
+            )),
+            hex_bytes(include_str!(
                 "../../carriage/vectors/conformant_records_dropped.hex"
             )),
             hex_bytes(include_str!(

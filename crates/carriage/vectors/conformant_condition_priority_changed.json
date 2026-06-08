@@ -1,0 +1,30 @@
+{
+  "name": "conformant_condition_priority_changed",
+  "description": "definition-layer positive ConditionPriorityChanged record with required priority fields before ackBy",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "conformant_condition_priority_changed.hex",
+  "byteCount": 84,
+  "headerLength": 40,
+  "totalRecordLength": 84,
+  "flags": "0x0008",
+  "crc32c": "0x7FBF3ECB",
+  "detail": {
+    "eventName": "ConditionPriorityChanged",
+    "schemaExpected": "accept",
+    "fields": {
+      "sourceTime": 1000000260,
+      "runId": 1,
+      "seq": 27,
+      "sourceId": 66,
+      "eventTypeId": "0x020C"
+    },
+    "slots": [
+      { "key": "0x0005", "type": "UDInt", "name": "conditionId", "value": 9001 },
+      { "key": "0x002E", "type": "UInt", "name": "previousPriority", "value": 600 },
+      { "key": "0x002C", "type": "UInt", "name": "newPriority", "value": 900 },
+      { "key": "0x001D", "type": "String", "name": "ackBy", "value": "operator-a" }
+    ]
+  }
+}

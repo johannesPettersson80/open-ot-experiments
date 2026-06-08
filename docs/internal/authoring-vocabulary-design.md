@@ -176,7 +176,7 @@ OosHighPh    : BOOL {attribute 'oot' := 'condition', 'of' := HighPhAlarm, 'event
 | `unsuppress` | 0x0207 | condition |
 | `out-of-service` | 0x0208 | condition |
 | `in-service` | 0x0209 | condition |
-| `priority-changed` | 0x020C | condition (requires `priority`, `previous-priority`) |
+| `priority-changed` | 0x020C | condition (requires `new-priority`, `previous-priority`) |
 
 **correlationId handling**: the producer already stores the live `correlationId` per condition (set
 on `ConditionActive`, P2-c). Activation-scoped lifecycle events read that stored id; condition-scoped
@@ -186,7 +186,7 @@ emit a producer diagnostic/error and bump an explicit dropped-lifecycle counter;
 stale correlation id, never silently drop. The consumer then sees the diagnostic, not a gap.
 
 **Field bindings** → spec fields: `by`→`ackBy`(String), `seconds`→`shelveSecs`(UDInt),
-`reason`→`reason`(String), `comment`→`comment`(String), `priority`/`previous-priority`→`newPriority`/
+`reason`→`reason`(String), `comment`→`comment`(String), `new-priority`/`previous-priority`→`newPriority`/
 `previousPriority`(UInt). Validated per §6.2.1.
 
 *(Out of this design: `RefreshStart`/`RefreshEnd` (0x020D/E) are a consumer-reconnect stream-control

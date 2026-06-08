@@ -27,7 +27,7 @@ The pragma attaches to the `VAR` declaration so it survives rename/refactor.
 | `'state'` | the operating state of equipment/a procedure — a phase, a mode | `StateTransition` (0x0001) | the enum changes value |
 | `'alarm'` | an abnormal condition the operator must see — a high temp, a fault, a safety interlock | `ConditionActive` (0x0200) on trip / `ConditionCleared` (0x0201) on reset | the BOOL goes TRUE / FALSE |
 | `'message'` | a human-readable event or diagnostic line | `Message` (0x0003) | the BOOL goes TRUE |
-| `'condition'` | an operator/logic lifecycle command for an existing alarm | condition lifecycle events 0x0202..0x0209 and 0x020B, excluding `comment` and `priority-changed` for now | the command BOOL goes TRUE |
+| `'condition'` | an operator/logic lifecycle command for an existing alarm | condition lifecycle events 0x0202..0x020C | the command BOOL goes TRUE |
 
 ---
 
@@ -154,23 +154,33 @@ no ids on the command itself.
 | Key | Meaning |
 |---|---|
 | `of` | Required. The parent `alarm` variable name. Forward references within the same `PROGRAM` are accepted. |
-| `event` | Required. This slice supports `acknowledge`, `confirm`, `shelve`, `unshelve`, `suppress`, `unsuppress`, `out-of-service`, `in-service`, and `reset`. |
-| `by` | Optional `STRING` variable naming the operator/actor. Used as `ackBy` on `acknowledge`, `confirm`, `shelve`, `out-of-service`, and `reset`. |
+| `event` | Required. Supports `acknowledge`, `confirm`, `shelve`, `unshelve`, `suppress`, `unsuppress`, `out-of-service`, `in-service`, `comment`, `reset`, and `priority-changed`. |
+| `by` | Optional `STRING` variable naming the operator/actor. Used as `ackBy` on `acknowledge`, `confirm`, `shelve`, `out-of-service`, `comment`, `reset`, and `priority-changed`. |
 | `seconds` | Optional `UDINT` variable. Used as `shelveSecs` on `shelve`. |
 | `reason` | Optional `STRING` variable. Used as `reason` on `suppress`. |
+| `comment` | Required `STRING` variable for `event := 'comment'`. Emits the required `comment` slot. |
+| `previous-priority` | Required `UINT` variable for `event := 'priority-changed'`. Emits `previousPriority`. |
+| `new-priority` | Required `UINT` variable for `event := 'priority-changed'`. Emits `newPriority`. |
 
-`acknowledge`, `confirm`, `shelve`, `unshelve`, and `reset` are
+`acknowledge`, `confirm`, `shelve`, `unshelve`, `comment`, and `reset` are
 activation-scoped: the producer uses the live `correlationId` minted by
 `ConditionActive`. If there is no live activation, the producer emits no record
 and increments `DroppedLifecycleCount`; the runtime treats that as a fail-closed
 telemetry error. `suppress`, `unsuppress`, `out-of-service`, and `in-service`
-are condition-scoped: they carry no `correlationId` and can be emitted even if
-the alarm is not currently active.
+are condition-scoped, as is `priority-changed`: they carry no `correlationId`
+and can be emitted even if the alarm is not currently active.
+
+Keys are event-specific. For example, `reason` is valid on `suppress` only, and
+`comment` is valid on `comment` only. A key that would be silently ignored is a
+compile error instead.
 
 ```iecst
 OperatorName : STRING[32];
 ReasonText : STRING[32];
+CommentText : STRING[32];
 ShelveSecs : UDINT := UDINT#300;
+PreviousPriority : UINT := UINT#600;
+NewPriority : UINT := UINT#900;
 HighPhAlarm : BOOL {attribute 'oot' := 'alarm', 'class' := 'alarm', 'severity' := '900'};
 
 AckHighPh : BOOL {attribute 'oot' := 'condition', 'of' := HighPhAlarm, 'event' := 'acknowledge', 'by' := OperatorName};
@@ -181,7 +191,9 @@ SuppressHighPh : BOOL {attribute 'oot' := 'condition', 'of' := HighPhAlarm, 'eve
 UnsuppressHighPh : BOOL {attribute 'oot' := 'condition', 'of' := HighPhAlarm, 'event' := 'unsuppress'};
 OosHighPh : BOOL {attribute 'oot' := 'condition', 'of' := HighPhAlarm, 'event' := 'out-of-service', 'by' := OperatorName};
 InServiceHighPh : BOOL {attribute 'oot' := 'condition', 'of' := HighPhAlarm, 'event' := 'in-service'};
+CommentHighPh : BOOL {attribute 'oot' := 'condition', 'of' := HighPhAlarm, 'event' := 'comment', 'comment' := CommentText, 'by' := OperatorName};
 ResetHighPh : BOOL {attribute 'oot' := 'condition', 'of' := HighPhAlarm, 'event' := 'reset', 'by' := OperatorName};
+PriorityHighPh : BOOL {attribute 'oot' := 'condition', 'of' := HighPhAlarm, 'event' := 'priority-changed', 'previous-priority' := PreviousPriority, 'new-priority' := NewPriority, 'by' := OperatorName};
 ```
 
 ## `'message'` — a human-readable event
@@ -224,10 +236,13 @@ prefer to state them explicitly rather than rely on the default.
 | `alarm` | `severity` | `800` (high) | OPC-UA 1–1000 scale |
 | `alarm` | `cause` | none | no cause operand slot |
 | `condition` | `of` | none | required |
-| `condition` | `event` | none | required; `acknowledge`, `confirm`, `shelve`, `unshelve`, `suppress`, `unsuppress`, `out-of-service`, `in-service`, or `reset` in this slice |
+| `condition` | `event` | none | required; `acknowledge`, `confirm`, `shelve`, `unshelve`, `suppress`, `unsuppress`, `out-of-service`, `in-service`, `comment`, `reset`, or `priority-changed` |
 | `condition` | `by` | none | no `ackBy` slot |
 | `condition` | `seconds` | none | no `shelveSecs` slot |
 | `condition` | `reason` | none | no `reason` slot |
+| `condition` | `comment` | none | required for `event := 'comment'` |
+| `condition` | `previous-priority` | none | required for `event := 'priority-changed'` |
+| `condition` | `new-priority` | none | required for `event := 'priority-changed'` |
 | `message` | `template` | the **variable name** | an untemplated message still resolves to *something* |
 | `message` | `severity` | none | no message severity slot |
 | `message` | `arg1`…`arg4` | none | no typed argument slots |
@@ -269,10 +284,9 @@ batch states. That's how `ValueChanged valueId=2001 new=15.25` becomes
   (`category`, `class`, `model`), invalid severity ranges, invalid
   `model`/`category` combinations, unsupported value types, non-REAL
   deadbands, and procedural enum states outside the named model are compile errors.
-- **Kinds covered:** `value`, `state`, `alarm`, `message`, and the first
-  condition lifecycle commands (`acknowledge`, `suppress`). Batch/recipe,
-  operator/regulated, and the remaining condition lifecycle events are not yet
-  exposed as attributes.
+- **Kinds covered:** `value`, `state`, `alarm`, `message`, and the full
+  condition lifecycle command set through `priority-changed`. Batch/recipe and
+  operator/regulated events are not yet exposed as attributes.
 - **Deadband/sampling:** `REAL` deadband, periodic, and `REAL` hysteresis are
   implemented. Integer deadband and hysteresis for non-REAL values are not yet
   implemented.
@@ -280,9 +294,9 @@ batch states. That's how `ValueChanged valueId=2001 new=15.25` becomes
   braces inside an IEC pragma string are not portable through the current parser;
   use template prose and positional arg definitions until pragma escaping is
   settled.
-- **Alarm lifecycle:** active/cleared records are correlated; acknowledge and
-  suppress are implemented. Shelve, out-of-service, latch/return-to-normal, and
-  the remaining full lifecycle records are not yet implemented.
+- **Alarm lifecycle:** active/cleared records are correlated; activation-scoped
+  lifecycle commands fail closed when no activation is live, and condition-scoped
+  lifecycle commands emit without a correlation id.
 - **Ids are order-assigned** — see the stability caveat.
 
 ## See also

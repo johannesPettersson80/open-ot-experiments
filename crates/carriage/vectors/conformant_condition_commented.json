@@ -1,0 +1,30 @@
+{
+  "name": "conformant_condition_commented",
+  "description": "definition-layer positive ConditionCommented record with required comment before ackBy",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "conformant_condition_commented.hex",
+  "byteCount": 96,
+  "headerLength": 40,
+  "totalRecordLength": 96,
+  "flags": "0x0008",
+  "crc32c": "0x29FEC56B",
+  "detail": {
+    "eventName": "ConditionCommented",
+    "schemaExpected": "accept",
+    "fields": {
+      "sourceTime": 1000000250,
+      "runId": 1,
+      "seq": 26,
+      "sourceId": 66,
+      "eventTypeId": "0x020A"
+    },
+    "slots": [
+      { "key": "0x0005", "type": "UDInt", "name": "conditionId", "value": 9001 },
+      { "key": "0x0007", "type": "UDInt", "name": "correlationId", "value": 77 },
+      { "key": "0x0037", "type": "String", "name": "comment", "value": "operator comment" },
+      { "key": "0x001D", "type": "String", "name": "ackBy", "value": "operator-a" }
+    ]
+  }
+}

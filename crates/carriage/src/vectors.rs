@@ -14,15 +14,16 @@ use crate::control::{CONTROL_BLOCK_LEN, ControlBlockSnapshot};
 use crate::loss::{EVENT_RECORDS_DROPPED, records_dropped_record};
 use crate::registry::{
     EVENT_CONDITION_ACKNOWLEDGED, EVENT_CONDITION_ACTIVE, EVENT_CONDITION_CLEARED,
-    EVENT_CONDITION_CONFIRMED, EVENT_CONDITION_IN_SERVICE, EVENT_CONDITION_OUT_OF_SERVICE,
-    EVENT_CONDITION_RESET, EVENT_CONDITION_SHELVED, EVENT_CONDITION_SUPPRESSED,
-    EVENT_CONDITION_UNSHELVED, EVENT_CONDITION_UNSUPPRESSED, EVENT_DEFINITION_CHANGED,
-    EVENT_LOGGER_STARTED, EVENT_LOGGER_STOPPED, EVENT_MESSAGE, EVENT_SOURCE_HIGH_WATER,
-    EVENT_STATE_TRANSITION, EVENT_VALUE_CHANGED, KEY_ACK_BY, KEY_ARG, KEY_CATEGORY,
-    KEY_CAUSE_OPERAND, KEY_COLD_START, KEY_CONDITION_CLASS, KEY_CONDITION_ID, KEY_CORRELATION_ID,
-    KEY_DEF_HASH_NEW, KEY_DEF_HASH_OLD, KEY_DROPPED_COUNT, KEY_EPOCH_ID, KEY_FIRST_LOST_SEQ,
-    KEY_LAST_LOST_SEQ, KEY_MESSAGE_TEMPLATE_ID, KEY_NEW_STATE, KEY_NEW_VALUE, KEY_PREVIOUS_STATE,
-    KEY_PREVIOUS_VALUE, KEY_QUALITY, KEY_REASON, KEY_SEVERITY, KEY_SHELVE_SECS,
+    EVENT_CONDITION_COMMENTED, EVENT_CONDITION_CONFIRMED, EVENT_CONDITION_IN_SERVICE,
+    EVENT_CONDITION_OUT_OF_SERVICE, EVENT_CONDITION_PRIORITY_CHANGED, EVENT_CONDITION_RESET,
+    EVENT_CONDITION_SHELVED, EVENT_CONDITION_SUPPRESSED, EVENT_CONDITION_UNSHELVED,
+    EVENT_CONDITION_UNSUPPRESSED, EVENT_DEFINITION_CHANGED, EVENT_LOGGER_STARTED,
+    EVENT_LOGGER_STOPPED, EVENT_MESSAGE, EVENT_SOURCE_HIGH_WATER, EVENT_STATE_TRANSITION,
+    EVENT_VALUE_CHANGED, KEY_ACK_BY, KEY_ARG, KEY_CATEGORY, KEY_CAUSE_OPERAND, KEY_COLD_START,
+    KEY_COMMENT, KEY_CONDITION_CLASS, KEY_CONDITION_ID, KEY_CORRELATION_ID, KEY_DEF_HASH_NEW,
+    KEY_DEF_HASH_OLD, KEY_DROPPED_COUNT, KEY_EPOCH_ID, KEY_FIRST_LOST_SEQ, KEY_LAST_LOST_SEQ,
+    KEY_MESSAGE_TEMPLATE_ID, KEY_NEW_PRIORITY, KEY_NEW_STATE, KEY_NEW_VALUE, KEY_PREVIOUS_PRIORITY,
+    KEY_PREVIOUS_STATE, KEY_PREVIOUS_VALUE, KEY_QUALITY, KEY_REASON, KEY_SEVERITY, KEY_SHELVE_SECS,
     KEY_SOURCE_HIGH_WATER, KEY_STATE_MACHINE_ID, KEY_VALUE_ID, KEY_WINDOW_END, KEY_WINDOW_START,
     SYSTEM_SOURCE_ID, TY_BOOL, TY_BYTES, TY_DATE_TIME, TY_DINT, TY_INT, TY_LINT, TY_LREAL, TY_REAL,
     TY_SINT, TY_STRING, TY_UDINT, TY_UINT, TY_ULINT, TY_USINT,
@@ -646,6 +647,54 @@ pub fn generate_files() -> Vec<VectorFile> {
   "slots": [
     { "key": "0x0005", "type": "UDInt", "name": "conditionId", "value": 9001 },
     { "key": "0x0007", "type": "UDInt", "name": "correlationId", "value": 77 },
+    { "key": "0x001D", "type": "String", "name": "ackBy", "value": "operator-a" }
+  ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
+        "conformant_condition_commented",
+        "definition-layer positive ConditionCommented record with required comment before ackBy",
+        &conformant_condition_commented_record(),
+        r#"{
+  "eventName": "ConditionCommented",
+  "schemaExpected": "accept",
+  "fields": {
+    "sourceTime": 1000000250,
+    "runId": 1,
+    "seq": 26,
+    "sourceId": 66,
+    "eventTypeId": "0x020A"
+  },
+  "slots": [
+    { "key": "0x0005", "type": "UDInt", "name": "conditionId", "value": 9001 },
+    { "key": "0x0007", "type": "UDInt", "name": "correlationId", "value": 77 },
+    { "key": "0x0037", "type": "String", "name": "comment", "value": "operator comment" },
+    { "key": "0x001D", "type": "String", "name": "ackBy", "value": "operator-a" }
+  ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
+        "conformant_condition_priority_changed",
+        "definition-layer positive ConditionPriorityChanged record with required priority fields before ackBy",
+        &conformant_condition_priority_changed_record(),
+        r#"{
+  "eventName": "ConditionPriorityChanged",
+  "schemaExpected": "accept",
+  "fields": {
+    "sourceTime": 1000000260,
+    "runId": 1,
+    "seq": 27,
+    "sourceId": 66,
+    "eventTypeId": "0x020C"
+  },
+  "slots": [
+    { "key": "0x0005", "type": "UDInt", "name": "conditionId", "value": 9001 },
+    { "key": "0x002E", "type": "UInt", "name": "previousPriority", "value": 600 },
+    { "key": "0x002C", "type": "UInt", "name": "newPriority", "value": 900 },
     { "key": "0x001D", "type": "String", "name": "ackBy", "value": "operator-a" }
   ]
 }"#,
@@ -1569,6 +1618,42 @@ fn conformant_condition_reset_record() -> Record {
     record
 }
 
+fn conformant_condition_commented_record() -> Record {
+    let mut record = Record::new(1_000_000_250, 1, 26, 66, EVENT_CONDITION_COMMENTED);
+    record
+        .slots
+        .push(Slot::new(KEY_CONDITION_ID, TY_UDINT, 9001u32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_CORRELATION_ID, TY_UDINT, 77u32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_COMMENT, TY_STRING, b"operator comment"));
+    record
+        .slots
+        .push(Slot::new(KEY_ACK_BY, TY_STRING, b"operator-a"));
+    record
+}
+
+fn conformant_condition_priority_changed_record() -> Record {
+    let mut record = Record::new(1_000_000_260, 1, 27, 66, EVENT_CONDITION_PRIORITY_CHANGED);
+    record
+        .slots
+        .push(Slot::new(KEY_CONDITION_ID, TY_UDINT, 9001u32.to_le_bytes()));
+    record.slots.push(Slot::new(
+        KEY_PREVIOUS_PRIORITY,
+        TY_UINT,
+        600u16.to_le_bytes(),
+    ));
+    record
+        .slots
+        .push(Slot::new(KEY_NEW_PRIORITY, TY_UINT, 900u16.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_ACK_BY, TY_STRING, b"operator-a"));
+    record
+}
+
 fn conformant_records_dropped_record() -> Record {
     let mut record = Record::new(0, 9, 100, 66, EVENT_RECORDS_DROPPED);
     record
@@ -1715,6 +1800,8 @@ fn hex_path(stem: &'static str) -> &'static str {
         "conformant_condition_out_of_service" => "conformant_condition_out_of_service.hex",
         "conformant_condition_in_service" => "conformant_condition_in_service.hex",
         "conformant_condition_reset" => "conformant_condition_reset.hex",
+        "conformant_condition_commented" => "conformant_condition_commented.hex",
+        "conformant_condition_priority_changed" => "conformant_condition_priority_changed.hex",
         "conformant_records_dropped" => "conformant_records_dropped.hex",
         "conformant_source_high_water" => "conformant_source_high_water.hex",
         "records_dropped" => "records_dropped.hex",
@@ -1756,6 +1843,8 @@ fn json_path(stem: &'static str) -> &'static str {
         "conformant_condition_out_of_service" => "conformant_condition_out_of_service.json",
         "conformant_condition_in_service" => "conformant_condition_in_service.json",
         "conformant_condition_reset" => "conformant_condition_reset.json",
+        "conformant_condition_commented" => "conformant_condition_commented.json",
+        "conformant_condition_priority_changed" => "conformant_condition_priority_changed.json",
         "conformant_records_dropped" => "conformant_records_dropped.json",
         "conformant_source_high_water" => "conformant_source_high_water.json",
         "records_dropped" => "records_dropped.json",
@@ -1964,6 +2053,24 @@ mod tests {
             &[
                 (KEY_CONDITION_ID, TY_UDINT, 4),
                 (KEY_CORRELATION_ID, TY_UDINT, 4),
+                (KEY_ACK_BY, TY_STRING, "operator-a".len()),
+            ],
+        );
+        assert_slots(
+            &conformant_condition_commented_record(),
+            &[
+                (KEY_CONDITION_ID, TY_UDINT, 4),
+                (KEY_CORRELATION_ID, TY_UDINT, 4),
+                (KEY_COMMENT, TY_STRING, "operator comment".len()),
+                (KEY_ACK_BY, TY_STRING, "operator-a".len()),
+            ],
+        );
+        assert_slots(
+            &conformant_condition_priority_changed_record(),
+            &[
+                (KEY_CONDITION_ID, TY_UDINT, 4),
+                (KEY_PREVIOUS_PRIORITY, TY_UINT, 2),
+                (KEY_NEW_PRIORITY, TY_UINT, 2),
                 (KEY_ACK_BY, TY_STRING, "operator-a".len()),
             ],
         );

@@ -80,6 +80,12 @@ VAR_INPUT
     ShelveSecs : UDINT;
     HasReason : BOOL;
     Reason : STRING[96];
+    HasComment : BOOL;
+    Comment : STRING[96];
+    HasPreviousPriority : BOOL;
+    PreviousPriority : UINT;
+    HasNewPriority : BOOL;
+    NewPriority : UINT;
     HasRefreshId : BOOL;
     RefreshId : UDINT;
 END_VAR
@@ -93,22 +99,30 @@ VAR
     Crc : DWORD;
     AckByLength : UINT;
     ReasonLength : UINT;
+    CommentLength : UINT;
     IsActivationScoped : BOOL;
 END_VAR
 
 AckByLength := INT_TO_UINT(LEN(AckBy));
 ReasonLength := INT_TO_UINT(LEN(Reason));
+CommentLength := INT_TO_UINT(LEN(Comment));
 IF AckByLength > UINT#96 THEN
     AckByLength := UINT#96;
 END_IF;
 IF ReasonLength > UINT#96 THEN
     ReasonLength := UINT#96;
 END_IF;
+IF CommentLength > UINT#96 THEN
+    CommentLength := UINT#96;
+END_IF;
 
-IsActivationScoped := (EventTypeId = UDINT#16#0202) OR (EventTypeId = UDINT#16#0203) OR (EventTypeId = UDINT#16#0204) OR (EventTypeId = UDINT#16#0205) OR (EventTypeId = UDINT#16#020B);
+IsActivationScoped := (EventTypeId = UDINT#16#0202) OR (EventTypeId = UDINT#16#0203) OR (EventTypeId = UDINT#16#0204) OR (EventTypeId = UDINT#16#0205) OR (EventTypeId = UDINT#16#020A) OR (EventTypeId = UDINT#16#020B);
 TotalLength := UINT#52;
 IF IsActivationScoped THEN
     TotalLength := TotalLength + UINT#8;
+END_IF;
+IF HasComment THEN
+    TotalLength := TotalLength + OPENOT_ValueSlotEncodedLength(PayloadLength := CommentLength);
 END_IF;
 IF HasAckBy THEN
     TotalLength := TotalLength + OPENOT_ValueSlotEncodedLength(PayloadLength := AckByLength);
@@ -118,6 +132,12 @@ IF HasShelveSecs THEN
 END_IF;
 IF HasReason THEN
     TotalLength := TotalLength + OPENOT_ValueSlotEncodedLength(PayloadLength := ReasonLength);
+END_IF;
+IF HasPreviousPriority THEN
+    TotalLength := TotalLength + UINT#8;
+END_IF;
+IF HasNewPriority THEN
+    TotalLength := TotalLength + UINT#8;
 END_IF;
 IF HasRefreshId THEN
     TotalLength := TotalLength + UINT#8;
@@ -141,19 +161,50 @@ IF IsActivationScoped THEN
     Pos := OPENOT_WriteU32LE(Offset := Pos, Value := CorrelationId, Buffer := Buffer);
 END_IF;
 
-IF HasAckBy THEN
-    Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#001D, TypeTag := BYTE#16#0C, PayloadLength := UINT_TO_BYTE(AckByLength), Buffer := Buffer);
-    Pos := OPENOT_WriteStringPayload(Offset := Pos, Value := AckBy, PayloadLength := AckByLength, Buffer := Buffer);
-END_IF;
+IF EventTypeId = UDINT#16#020A THEN
+    IF HasComment THEN
+        Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0037, TypeTag := BYTE#16#0C, PayloadLength := UINT_TO_BYTE(CommentLength), Buffer := Buffer);
+        Pos := OPENOT_WriteStringPayload(Offset := Pos, Value := Comment, PayloadLength := CommentLength, Buffer := Buffer);
+    END_IF;
 
-IF HasShelveSecs THEN
-    Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#001E, TypeTag := BYTE#16#05, PayloadLength := BYTE#4, Buffer := Buffer);
-    Pos := OPENOT_WriteU32LE(Offset := Pos, Value := ShelveSecs, Buffer := Buffer);
-END_IF;
+    IF HasAckBy THEN
+        Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#001D, TypeTag := BYTE#16#0C, PayloadLength := UINT_TO_BYTE(AckByLength), Buffer := Buffer);
+        Pos := OPENOT_WriteStringPayload(Offset := Pos, Value := AckBy, PayloadLength := AckByLength, Buffer := Buffer);
+    END_IF;
+ELSIF EventTypeId = UDINT#16#020C THEN
+    IF HasPreviousPriority THEN
+        Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#002E, TypeTag := BYTE#16#03, PayloadLength := BYTE#2, Buffer := Buffer);
+        Pos := OPENOT_WriteU16LE(Offset := Pos, Value := PreviousPriority, Buffer := Buffer);
+        Pos := OPENOT_WriteByte(Offset := Pos, Value := BYTE#16#00, Buffer := Buffer);
+        Pos := OPENOT_WriteByte(Offset := Pos, Value := BYTE#16#00, Buffer := Buffer);
+    END_IF;
 
-IF HasReason THEN
-    Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#001F, TypeTag := BYTE#16#0C, PayloadLength := UINT_TO_BYTE(ReasonLength), Buffer := Buffer);
-    Pos := OPENOT_WriteStringPayload(Offset := Pos, Value := Reason, PayloadLength := ReasonLength, Buffer := Buffer);
+    IF HasNewPriority THEN
+        Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#002C, TypeTag := BYTE#16#03, PayloadLength := BYTE#2, Buffer := Buffer);
+        Pos := OPENOT_WriteU16LE(Offset := Pos, Value := NewPriority, Buffer := Buffer);
+        Pos := OPENOT_WriteByte(Offset := Pos, Value := BYTE#16#00, Buffer := Buffer);
+        Pos := OPENOT_WriteByte(Offset := Pos, Value := BYTE#16#00, Buffer := Buffer);
+    END_IF;
+
+    IF HasAckBy THEN
+        Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#001D, TypeTag := BYTE#16#0C, PayloadLength := UINT_TO_BYTE(AckByLength), Buffer := Buffer);
+        Pos := OPENOT_WriteStringPayload(Offset := Pos, Value := AckBy, PayloadLength := AckByLength, Buffer := Buffer);
+    END_IF;
+ELSE
+    IF HasAckBy THEN
+        Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#001D, TypeTag := BYTE#16#0C, PayloadLength := UINT_TO_BYTE(AckByLength), Buffer := Buffer);
+        Pos := OPENOT_WriteStringPayload(Offset := Pos, Value := AckBy, PayloadLength := AckByLength, Buffer := Buffer);
+    END_IF;
+
+    IF HasShelveSecs THEN
+        Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#001E, TypeTag := BYTE#16#05, PayloadLength := BYTE#4, Buffer := Buffer);
+        Pos := OPENOT_WriteU32LE(Offset := Pos, Value := ShelveSecs, Buffer := Buffer);
+    END_IF;
+
+    IF HasReason THEN
+        Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#001F, TypeTag := BYTE#16#0C, PayloadLength := UINT_TO_BYTE(ReasonLength), Buffer := Buffer);
+        Pos := OPENOT_WriteStringPayload(Offset := Pos, Value := Reason, PayloadLength := ReasonLength, Buffer := Buffer);
+    END_IF;
 END_IF;
 
 IF HasRefreshId THEN
@@ -189,6 +240,12 @@ Encoder(
     ShelveSecs := UDINT#0,
     HasReason := FALSE,
     Reason := '',
+    HasComment := FALSE,
+    Comment := '',
+    HasPreviousPriority := FALSE,
+    PreviousPriority := UINT#0,
+    HasNewPriority := FALSE,
+    NewPriority := UINT#0,
     HasRefreshId := FALSE,
     RefreshId := UDINT#0);
 Buffer := Encoder.Buffer;
@@ -218,6 +275,12 @@ Encoder(
     ShelveSecs := UDINT#300,
     HasReason := FALSE,
     Reason := '',
+    HasComment := FALSE,
+    Comment := '',
+    HasPreviousPriority := FALSE,
+    PreviousPriority := UINT#0,
+    HasNewPriority := FALSE,
+    NewPriority := UINT#0,
     HasRefreshId := FALSE,
     RefreshId := UDINT#0);
 Buffer := Encoder.Buffer;
@@ -247,6 +310,12 @@ Encoder(
     ShelveSecs := UDINT#0,
     HasReason := TRUE,
     Reason := 'maintenance',
+    HasComment := FALSE,
+    Comment := '',
+    HasPreviousPriority := FALSE,
+    PreviousPriority := UINT#0,
+    HasNewPriority := FALSE,
+    NewPriority := UINT#0,
     HasRefreshId := FALSE,
     RefreshId := UDINT#0);
 Buffer := Encoder.Buffer;
@@ -276,6 +345,12 @@ Encoder(
     ShelveSecs := UDINT#0,
     HasReason := FALSE,
     Reason := '',
+    HasComment := FALSE,
+    Comment := '',
+    HasPreviousPriority := FALSE,
+    PreviousPriority := UINT#0,
+    HasNewPriority := FALSE,
+    NewPriority := UINT#0,
     HasRefreshId := FALSE,
     RefreshId := UDINT#0);
 Buffer := Encoder.Buffer;
@@ -305,6 +380,12 @@ Encoder(
     ShelveSecs := UDINT#0,
     HasReason := FALSE,
     Reason := '',
+    HasComment := FALSE,
+    Comment := '',
+    HasPreviousPriority := FALSE,
+    PreviousPriority := UINT#0,
+    HasNewPriority := FALSE,
+    NewPriority := UINT#0,
     HasRefreshId := FALSE,
     RefreshId := UDINT#0);
 Buffer := Encoder.Buffer;
@@ -334,6 +415,12 @@ Encoder(
     ShelveSecs := UDINT#0,
     HasReason := FALSE,
     Reason := '',
+    HasComment := FALSE,
+    Comment := '',
+    HasPreviousPriority := FALSE,
+    PreviousPriority := UINT#0,
+    HasNewPriority := FALSE,
+    NewPriority := UINT#0,
     HasRefreshId := FALSE,
     RefreshId := UDINT#0);
 Buffer := Encoder.Buffer;
@@ -363,6 +450,12 @@ Encoder(
     ShelveSecs := UDINT#0,
     HasReason := FALSE,
     Reason := '',
+    HasComment := FALSE,
+    Comment := '',
+    HasPreviousPriority := FALSE,
+    PreviousPriority := UINT#0,
+    HasNewPriority := FALSE,
+    NewPriority := UINT#0,
     HasRefreshId := FALSE,
     RefreshId := UDINT#0);
 Buffer := Encoder.Buffer;
@@ -392,6 +485,12 @@ Encoder(
     ShelveSecs := UDINT#0,
     HasReason := FALSE,
     Reason := '',
+    HasComment := FALSE,
+    Comment := '',
+    HasPreviousPriority := FALSE,
+    PreviousPriority := UINT#0,
+    HasNewPriority := FALSE,
+    NewPriority := UINT#0,
     HasRefreshId := FALSE,
     RefreshId := UDINT#0);
 Buffer := Encoder.Buffer;
@@ -421,6 +520,82 @@ Encoder(
     ShelveSecs := UDINT#0,
     HasReason := FALSE,
     Reason := '',
+    HasComment := FALSE,
+    Comment := '',
+    HasPreviousPriority := FALSE,
+    PreviousPriority := UINT#0,
+    HasNewPriority := FALSE,
+    NewPriority := UINT#0,
+    HasRefreshId := FALSE,
+    RefreshId := UDINT#0);
+Buffer := Encoder.Buffer;
+Length := Encoder.Length;
+END_FUNCTION_BLOCK
+
+FUNCTION_BLOCK OPENOT_EncodeConformantConditionCommented
+VAR_OUTPUT
+    Buffer : OPENOT_BYTE_BUFFER;
+    Length : UINT;
+END_VAR
+VAR
+    Encoder : OPENOT_EncodeConditionLifecycle;
+END_VAR
+
+Encoder(
+    SourceId := UDINT#66,
+    RunId := ULINT#1,
+    Seq := ULINT#26,
+    SourceTime := ULINT#1000000250,
+    EventTypeId := UDINT#16#020A,
+    ConditionId := UDINT#9001,
+    CorrelationId := UDINT#77,
+    HasAckBy := TRUE,
+    AckBy := 'operator-a',
+    HasShelveSecs := FALSE,
+    ShelveSecs := UDINT#0,
+    HasReason := FALSE,
+    Reason := '',
+    HasComment := TRUE,
+    Comment := 'operator comment',
+    HasPreviousPriority := FALSE,
+    PreviousPriority := UINT#0,
+    HasNewPriority := FALSE,
+    NewPriority := UINT#0,
+    HasRefreshId := FALSE,
+    RefreshId := UDINT#0);
+Buffer := Encoder.Buffer;
+Length := Encoder.Length;
+END_FUNCTION_BLOCK
+
+FUNCTION_BLOCK OPENOT_EncodeConformantConditionPriorityChanged
+VAR_OUTPUT
+    Buffer : OPENOT_BYTE_BUFFER;
+    Length : UINT;
+END_VAR
+VAR
+    Encoder : OPENOT_EncodeConditionLifecycle;
+END_VAR
+
+Encoder(
+    SourceId := UDINT#66,
+    RunId := ULINT#1,
+    Seq := ULINT#27,
+    SourceTime := ULINT#1000000260,
+    EventTypeId := UDINT#16#020C,
+    ConditionId := UDINT#9001,
+    CorrelationId := UDINT#0,
+    HasAckBy := TRUE,
+    AckBy := 'operator-a',
+    HasShelveSecs := FALSE,
+    ShelveSecs := UDINT#0,
+    HasReason := FALSE,
+    Reason := '',
+    HasComment := FALSE,
+    Comment := '',
+    HasPreviousPriority := TRUE,
+    PreviousPriority := UINT#600,
+    HasNewPriority := TRUE,
+    NewPriority := UINT#900,
     HasRefreshId := FALSE,
     RefreshId := UDINT#0);
 Buffer := Encoder.Buffer;

@@ -10,6 +10,8 @@ VAR_OUTPUT
     OutOfServicePassed : BOOL;
     InServicePassed : BOOL;
     ResetPassed : BOOL;
+    CommentedPassed : BOOL;
+    PriorityChangedPassed : BOOL;
     MismatchIndex : UINT;
 END_VAR
 VAR
@@ -22,6 +24,8 @@ VAR
     OutOfServiceEncoder : OPENOT_EncodeConformantConditionOutOfService;
     InServiceEncoder : OPENOT_EncodeConformantConditionInService;
     ResetEncoder : OPENOT_EncodeConformantConditionReset;
+    CommentedEncoder : OPENOT_EncodeConformantConditionCommented;
+    PriorityChangedEncoder : OPENOT_EncodeConformantConditionPriorityChanged;
     ExpectedAck : ARRAY[0..75] OF BYTE := [
         BYTE#16#4F, BYTE#16#4F, BYTE#16#54, BYTE#16#32, BYTE#16#4C, BYTE#16#00, BYTE#16#08, BYTE#16#00,
         BYTE#16#A0, BYTE#16#CA, BYTE#16#9A, BYTE#16#3B, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00,
@@ -121,6 +125,33 @@ VAR
         BYTE#16#61, BYTE#16#74, BYTE#16#6F, BYTE#16#72, BYTE#16#2D, BYTE#16#61, BYTE#16#00, BYTE#16#00,
         BYTE#16#AD, BYTE#16#17, BYTE#16#A6, BYTE#16#9C
     ];
+    ExpectedCommented : ARRAY[0..95] OF BYTE := [
+        BYTE#16#4F, BYTE#16#4F, BYTE#16#54, BYTE#16#32, BYTE#16#60, BYTE#16#00, BYTE#16#08, BYTE#16#00,
+        BYTE#16#FA, BYTE#16#CA, BYTE#16#9A, BYTE#16#3B, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00,
+        BYTE#16#01, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00,
+        BYTE#16#1A, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00,
+        BYTE#16#42, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#0A, BYTE#16#02, BYTE#16#00, BYTE#16#00,
+        BYTE#16#05, BYTE#16#00, BYTE#16#05, BYTE#16#04, BYTE#16#29, BYTE#16#23, BYTE#16#00, BYTE#16#00,
+        BYTE#16#07, BYTE#16#00, BYTE#16#05, BYTE#16#04, BYTE#16#4D, BYTE#16#00, BYTE#16#00, BYTE#16#00,
+        BYTE#16#37, BYTE#16#00, BYTE#16#0C, BYTE#16#10, BYTE#16#6F, BYTE#16#70, BYTE#16#65, BYTE#16#72,
+        BYTE#16#61, BYTE#16#74, BYTE#16#6F, BYTE#16#72, BYTE#16#20, BYTE#16#63, BYTE#16#6F, BYTE#16#6D,
+        BYTE#16#6D, BYTE#16#65, BYTE#16#6E, BYTE#16#74, BYTE#16#1D, BYTE#16#00, BYTE#16#0C, BYTE#16#0A,
+        BYTE#16#6F, BYTE#16#70, BYTE#16#65, BYTE#16#72, BYTE#16#61, BYTE#16#74, BYTE#16#6F, BYTE#16#72,
+        BYTE#16#2D, BYTE#16#61, BYTE#16#00, BYTE#16#00, BYTE#16#6B, BYTE#16#C5, BYTE#16#FE, BYTE#16#29
+    ];
+    ExpectedPriorityChanged : ARRAY[0..83] OF BYTE := [
+        BYTE#16#4F, BYTE#16#4F, BYTE#16#54, BYTE#16#32, BYTE#16#54, BYTE#16#00, BYTE#16#08, BYTE#16#00,
+        BYTE#16#04, BYTE#16#CB, BYTE#16#9A, BYTE#16#3B, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00,
+        BYTE#16#01, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00,
+        BYTE#16#1B, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#00,
+        BYTE#16#42, BYTE#16#00, BYTE#16#00, BYTE#16#00, BYTE#16#0C, BYTE#16#02, BYTE#16#00, BYTE#16#00,
+        BYTE#16#05, BYTE#16#00, BYTE#16#05, BYTE#16#04, BYTE#16#29, BYTE#16#23, BYTE#16#00, BYTE#16#00,
+        BYTE#16#2E, BYTE#16#00, BYTE#16#03, BYTE#16#02, BYTE#16#58, BYTE#16#02, BYTE#16#00, BYTE#16#00,
+        BYTE#16#2C, BYTE#16#00, BYTE#16#03, BYTE#16#02, BYTE#16#84, BYTE#16#03, BYTE#16#00, BYTE#16#00,
+        BYTE#16#1D, BYTE#16#00, BYTE#16#0C, BYTE#16#0A, BYTE#16#6F, BYTE#16#70, BYTE#16#65, BYTE#16#72,
+        BYTE#16#61, BYTE#16#74, BYTE#16#6F, BYTE#16#72, BYTE#16#2D, BYTE#16#61, BYTE#16#00, BYTE#16#00,
+        BYTE#16#CB, BYTE#16#3E, BYTE#16#BF, BYTE#16#7F
+    ];
     Index : UINT;
 END_VAR
 
@@ -133,6 +164,8 @@ UnsuppressedEncoder();
 OutOfServiceEncoder();
 InServiceEncoder();
 ResetEncoder();
+CommentedEncoder();
+PriorityChangedEncoder();
 
 AckPassed := AckEncoder.Length = UINT#76;
 ConfirmedPassed := ConfirmedEncoder.Length = UINT#76;
@@ -143,6 +176,8 @@ UnsuppressedPassed := UnsuppressedEncoder.Length = UINT#52;
 OutOfServicePassed := OutOfServiceEncoder.Length = UINT#68;
 InServicePassed := InServiceEncoder.Length = UINT#52;
 ResetPassed := ResetEncoder.Length = UINT#76;
+CommentedPassed := CommentedEncoder.Length = UINT#96;
+PriorityChangedPassed := PriorityChangedEncoder.Length = UINT#84;
 MismatchIndex := UINT#65535;
 
 IF AckPassed THEN
@@ -226,5 +261,23 @@ IF ResetPassed THEN
     END_FOR;
 END_IF;
 
-Passed := AckPassed AND ConfirmedPassed AND ShelvedPassed AND UnshelvedPassed AND SuppressedPassed AND UnsuppressedPassed AND OutOfServicePassed AND InServicePassed AND ResetPassed;
+IF CommentedPassed THEN
+    FOR Index := UINT#0 TO UINT#95 DO
+        IF (CommentedEncoder.Buffer[Index] <> ExpectedCommented[Index]) AND (MismatchIndex = UINT#65535) THEN
+            CommentedPassed := FALSE;
+            MismatchIndex := Index;
+        END_IF;
+    END_FOR;
+END_IF;
+
+IF PriorityChangedPassed THEN
+    FOR Index := UINT#0 TO UINT#83 DO
+        IF (PriorityChangedEncoder.Buffer[Index] <> ExpectedPriorityChanged[Index]) AND (MismatchIndex = UINT#65535) THEN
+            PriorityChangedPassed := FALSE;
+            MismatchIndex := Index;
+        END_IF;
+    END_FOR;
+END_IF;
+
+Passed := AckPassed AND ConfirmedPassed AND ShelvedPassed AND UnshelvedPassed AND SuppressedPassed AND UnsuppressedPassed AND OutOfServicePassed AND InServicePassed AND ResetPassed AND CommentedPassed AND PriorityChangedPassed;
 END_FUNCTION_BLOCK
