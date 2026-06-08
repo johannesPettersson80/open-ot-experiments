@@ -217,6 +217,147 @@ Pos := OPENOT_WriteDWordLE(Offset := Pos, Value := Crc, Buffer := Buffer);
 Length := Pos;
 END_FUNCTION_BLOCK
 
+FUNCTION_BLOCK OPENOT_EncodeBatchRecipe
+VAR_INPUT
+    SourceId : UDINT;
+    RunId : ULINT;
+    Seq : ULINT;
+    SourceTime : ULINT;
+    EventTypeId : UDINT;
+    RecipeId : UDINT;
+    HasRecipeId : BOOL;
+    RecipeVersion : STRING[96];
+    HasBatchId : BOOL;
+    BatchId : UDINT;
+    HasAuthResult : BOOL;
+    AuthResult : UINT;
+    HasAckBy : BOOL;
+    AckBy : STRING[96];
+    NewState : UINT;
+    MaterialId : UDINT;
+    Quantity : LREAL;
+    HasUnit : BOOL;
+    UnitId : UINT;
+END_VAR
+VAR_OUTPUT
+    Buffer : OPENOT_BYTE_BUFFER;
+    Length : UINT;
+END_VAR
+VAR
+    Pos : UINT;
+    TotalLength : UINT;
+    Crc : DWORD;
+    RecipeVersionLength : UINT;
+    AckByLength : UINT;
+    QuantityBits : ULINT;
+END_VAR
+
+RecipeVersionLength := INT_TO_UINT(LEN(RecipeVersion));
+AckByLength := INT_TO_UINT(LEN(AckBy));
+IF RecipeVersionLength > UINT#96 THEN
+    RecipeVersionLength := UINT#96;
+END_IF;
+IF AckByLength > UINT#96 THEN
+    AckByLength := UINT#96;
+END_IF;
+
+IF EventTypeId = UDINT#16#0301 THEN
+    TotalLength := UINT#52 + OPENOT_ValueSlotEncodedLength(PayloadLength := RecipeVersionLength);
+    IF HasBatchId THEN
+        TotalLength := TotalLength + UINT#8;
+    END_IF;
+ELSIF EventTypeId = UDINT#16#0302 THEN
+    TotalLength := UINT#52 + OPENOT_ValueSlotEncodedLength(PayloadLength := RecipeVersionLength);
+    IF HasAuthResult THEN
+        TotalLength := TotalLength + UINT#8;
+    END_IF;
+    IF HasAckBy THEN
+        TotalLength := TotalLength + OPENOT_ValueSlotEncodedLength(PayloadLength := AckByLength);
+    END_IF;
+ELSIF EventTypeId = UDINT#16#0303 THEN
+    TotalLength := UINT#60;
+    IF HasRecipeId THEN
+        TotalLength := TotalLength + UINT#8;
+    END_IF;
+ELSIF EventTypeId = UDINT#16#0304 THEN
+    TotalLength := UINT#72;
+    IF HasUnit THEN
+        TotalLength := TotalLength + UINT#8;
+    END_IF;
+ELSE
+    TotalLength := UINT#0;
+END_IF;
+
+IF TotalLength > UINT#0 THEN
+    Pos := OPENOT_WriteHeader(
+        TotalLength := TotalLength,
+        Flags := UINT#16#0008,
+        SourceTime := SourceTime,
+        RunId := RunId,
+        Seq := Seq,
+        SourceId := SourceId,
+        EventTypeId := EventTypeId,
+        Buffer := Buffer);
+
+    IF EventTypeId = UDINT#16#0301 THEN
+        Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0023, TypeTag := BYTE#16#05, PayloadLength := BYTE#4, Buffer := Buffer);
+        Pos := OPENOT_WriteU32LE(Offset := Pos, Value := RecipeId, Buffer := Buffer);
+        Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0024, TypeTag := BYTE#16#0C, PayloadLength := UINT_TO_BYTE(RecipeVersionLength), Buffer := Buffer);
+        Pos := OPENOT_WriteStringPayload(Offset := Pos, Value := RecipeVersion, PayloadLength := RecipeVersionLength, Buffer := Buffer);
+        IF HasBatchId THEN
+            Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0025, TypeTag := BYTE#16#05, PayloadLength := BYTE#4, Buffer := Buffer);
+            Pos := OPENOT_WriteU32LE(Offset := Pos, Value := BatchId, Buffer := Buffer);
+        END_IF;
+    ELSIF EventTypeId = UDINT#16#0302 THEN
+        Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0023, TypeTag := BYTE#16#05, PayloadLength := BYTE#4, Buffer := Buffer);
+        Pos := OPENOT_WriteU32LE(Offset := Pos, Value := RecipeId, Buffer := Buffer);
+        Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0024, TypeTag := BYTE#16#0C, PayloadLength := UINT_TO_BYTE(RecipeVersionLength), Buffer := Buffer);
+        Pos := OPENOT_WriteStringPayload(Offset := Pos, Value := RecipeVersion, PayloadLength := RecipeVersionLength, Buffer := Buffer);
+        IF HasAuthResult THEN
+            Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0020, TypeTag := BYTE#16#03, PayloadLength := BYTE#2, Buffer := Buffer);
+            Pos := OPENOT_WriteU16LE(Offset := Pos, Value := AuthResult, Buffer := Buffer);
+            Pos := OPENOT_WriteByte(Offset := Pos, Value := BYTE#16#00, Buffer := Buffer);
+            Pos := OPENOT_WriteByte(Offset := Pos, Value := BYTE#16#00, Buffer := Buffer);
+        END_IF;
+        IF HasAckBy THEN
+            Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#001D, TypeTag := BYTE#16#0C, PayloadLength := UINT_TO_BYTE(AckByLength), Buffer := Buffer);
+            Pos := OPENOT_WriteStringPayload(Offset := Pos, Value := AckBy, PayloadLength := AckByLength, Buffer := Buffer);
+        END_IF;
+    ELSIF EventTypeId = UDINT#16#0303 THEN
+        Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0025, TypeTag := BYTE#16#05, PayloadLength := BYTE#4, Buffer := Buffer);
+        Pos := OPENOT_WriteU32LE(Offset := Pos, Value := BatchId, Buffer := Buffer);
+        Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0004, TypeTag := BYTE#16#03, PayloadLength := BYTE#2, Buffer := Buffer);
+        Pos := OPENOT_WriteU16LE(Offset := Pos, Value := NewState, Buffer := Buffer);
+        Pos := OPENOT_WriteByte(Offset := Pos, Value := BYTE#16#00, Buffer := Buffer);
+        Pos := OPENOT_WriteByte(Offset := Pos, Value := BYTE#16#00, Buffer := Buffer);
+        IF HasRecipeId THEN
+            Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0023, TypeTag := BYTE#16#05, PayloadLength := BYTE#4, Buffer := Buffer);
+            Pos := OPENOT_WriteU32LE(Offset := Pos, Value := RecipeId, Buffer := Buffer);
+        END_IF;
+    ELSIF EventTypeId = UDINT#16#0304 THEN
+        Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0025, TypeTag := BYTE#16#05, PayloadLength := BYTE#4, Buffer := Buffer);
+        Pos := OPENOT_WriteU32LE(Offset := Pos, Value := BatchId, Buffer := Buffer);
+        Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0026, TypeTag := BYTE#16#05, PayloadLength := BYTE#4, Buffer := Buffer);
+        Pos := OPENOT_WriteU32LE(Offset := Pos, Value := MaterialId, Buffer := Buffer);
+        QuantityBits := LWORD_TO_ULINT(LREAL_TO_LWORD(Quantity));
+        Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0027, TypeTag := BYTE#16#0A, PayloadLength := BYTE#8, Buffer := Buffer);
+        Pos := OPENOT_WriteU64LE(Offset := Pos, Value := QuantityBits, Buffer := Buffer);
+        IF HasUnit THEN
+            Pos := OPENOT_WriteSlotHeader(Offset := Pos, Key := UINT#16#0013, TypeTag := BYTE#16#03, PayloadLength := BYTE#2, Buffer := Buffer);
+            Pos := OPENOT_WriteU16LE(Offset := Pos, Value := UnitId, Buffer := Buffer);
+            Pos := OPENOT_WriteByte(Offset := Pos, Value := BYTE#16#00, Buffer := Buffer);
+            Pos := OPENOT_WriteByte(Offset := Pos, Value := BYTE#16#00, Buffer := Buffer);
+        END_IF;
+    END_IF;
+
+    Crc := OPENOT_Crc32c(Data := Buffer, Length := Pos);
+    Pos := OPENOT_WriteDWordLE(Offset := Pos, Value := Crc, Buffer := Buffer);
+    Length := Pos;
+ELSE
+    Length := UINT#0;
+END_IF;
+END_FUNCTION_BLOCK
+
 FUNCTION_BLOCK OPENOT_EncodeConformantConditionAcknowledged
 VAR_OUTPUT
     Buffer : OPENOT_BYTE_BUFFER;
@@ -598,6 +739,138 @@ Encoder(
     NewPriority := UINT#900,
     HasRefreshId := FALSE,
     RefreshId := UDINT#0);
+Buffer := Encoder.Buffer;
+Length := Encoder.Length;
+END_FUNCTION_BLOCK
+
+FUNCTION_BLOCK OPENOT_EncodeConformantRecipeLoaded
+VAR_OUTPUT
+    Buffer : OPENOT_BYTE_BUFFER;
+    Length : UINT;
+END_VAR
+VAR
+    Encoder : OPENOT_EncodeBatchRecipe;
+END_VAR
+
+Encoder(
+    SourceId := UDINT#66,
+    RunId := ULINT#1,
+    Seq := ULINT#28,
+    SourceTime := ULINT#1000000270,
+    EventTypeId := UDINT#16#0301,
+    RecipeId := UDINT#3001,
+    HasRecipeId := TRUE,
+    RecipeVersion := 'v1.2.3',
+    HasBatchId := TRUE,
+    BatchId := UDINT#4001,
+    HasAuthResult := FALSE,
+    AuthResult := UINT#0,
+    HasAckBy := FALSE,
+    AckBy := '',
+    NewState := UINT#0,
+    MaterialId := UDINT#0,
+    Quantity := LREAL#0.0,
+    HasUnit := FALSE,
+    UnitId := UINT#0);
+Buffer := Encoder.Buffer;
+Length := Encoder.Length;
+END_FUNCTION_BLOCK
+
+FUNCTION_BLOCK OPENOT_EncodeConformantRecipeApproved
+VAR_OUTPUT
+    Buffer : OPENOT_BYTE_BUFFER;
+    Length : UINT;
+END_VAR
+VAR
+    Encoder : OPENOT_EncodeBatchRecipe;
+END_VAR
+
+Encoder(
+    SourceId := UDINT#66,
+    RunId := ULINT#1,
+    Seq := ULINT#29,
+    SourceTime := ULINT#1000000280,
+    EventTypeId := UDINT#16#0302,
+    RecipeId := UDINT#3001,
+    HasRecipeId := TRUE,
+    RecipeVersion := 'v1.2.3',
+    HasBatchId := FALSE,
+    BatchId := UDINT#0,
+    HasAuthResult := TRUE,
+    AuthResult := UINT#1,
+    HasAckBy := TRUE,
+    AckBy := 'approver-a',
+    NewState := UINT#0,
+    MaterialId := UDINT#0,
+    Quantity := LREAL#0.0,
+    HasUnit := FALSE,
+    UnitId := UINT#0);
+Buffer := Encoder.Buffer;
+Length := Encoder.Length;
+END_FUNCTION_BLOCK
+
+FUNCTION_BLOCK OPENOT_EncodeConformantBatchEvent
+VAR_OUTPUT
+    Buffer : OPENOT_BYTE_BUFFER;
+    Length : UINT;
+END_VAR
+VAR
+    Encoder : OPENOT_EncodeBatchRecipe;
+END_VAR
+
+Encoder(
+    SourceId := UDINT#66,
+    RunId := ULINT#1,
+    Seq := ULINT#30,
+    SourceTime := ULINT#1000000290,
+    EventTypeId := UDINT#16#0303,
+    RecipeId := UDINT#3001,
+    HasRecipeId := TRUE,
+    RecipeVersion := '',
+    HasBatchId := TRUE,
+    BatchId := UDINT#4001,
+    HasAuthResult := FALSE,
+    AuthResult := UINT#0,
+    HasAckBy := FALSE,
+    AckBy := '',
+    NewState := UINT#2,
+    MaterialId := UDINT#0,
+    Quantity := LREAL#0.0,
+    HasUnit := FALSE,
+    UnitId := UINT#0);
+Buffer := Encoder.Buffer;
+Length := Encoder.Length;
+END_FUNCTION_BLOCK
+
+FUNCTION_BLOCK OPENOT_EncodeConformantMaterialAddition
+VAR_OUTPUT
+    Buffer : OPENOT_BYTE_BUFFER;
+    Length : UINT;
+END_VAR
+VAR
+    Encoder : OPENOT_EncodeBatchRecipe;
+END_VAR
+
+Encoder(
+    SourceId := UDINT#66,
+    RunId := ULINT#1,
+    Seq := ULINT#31,
+    SourceTime := ULINT#1000000300,
+    EventTypeId := UDINT#16#0304,
+    RecipeId := UDINT#0,
+    HasRecipeId := FALSE,
+    RecipeVersion := '',
+    HasBatchId := TRUE,
+    BatchId := UDINT#4001,
+    HasAuthResult := FALSE,
+    AuthResult := UINT#0,
+    HasAckBy := FALSE,
+    AckBy := '',
+    NewState := UINT#0,
+    MaterialId := UDINT#5001,
+    Quantity := LREAL#12.25,
+    HasUnit := TRUE,
+    UnitId := UINT#8);
 Buffer := Encoder.Buffer;
 Length := Encoder.Length;
 END_FUNCTION_BLOCK

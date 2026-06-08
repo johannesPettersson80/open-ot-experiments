@@ -1,0 +1,30 @@
+{
+  "name": "conformant_recipe_approved",
+  "description": "definition-layer positive RecipeApproved record",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "conformant_recipe_approved.hex",
+  "byteCount": 88,
+  "headerLength": 40,
+  "totalRecordLength": 88,
+  "flags": "0x0008",
+  "crc32c": "0x41BE1201",
+  "detail": {
+    "eventName": "RecipeApproved",
+    "schemaExpected": "accept",
+    "fields": {
+      "sourceTime": 1000000280,
+      "runId": 1,
+      "seq": 29,
+      "sourceId": 66,
+      "eventTypeId": "0x0302"
+    },
+    "slots": [
+      { "key": "0x0023", "type": "UDInt", "name": "recipeId", "value": 3001 },
+      { "key": "0x0024", "type": "String", "name": "recipeVersion", "value": "v1.2.3" },
+      { "key": "0x0020", "type": "UInt", "name": "authResult", "value": 1 },
+      { "key": "0x001D", "type": "String", "name": "ackBy", "value": "approver-a" }
+    ]
+  }
+}

@@ -200,6 +200,21 @@ VAR_INPUT
     LifecyclePreviousPriority : UINT;
     LifecycleHasNewPriority : BOOL;
     LifecycleNewPriority : UINT;
+    ProcedureEventTypeId : UDINT;
+    ProcedureRecipeId : UDINT;
+    ProcedureHasRecipeId : BOOL;
+    ProcedureRecipeVersion : STRING[96];
+    ProcedureHasBatchId : BOOL;
+    ProcedureBatchId : UDINT;
+    ProcedureHasAuthResult : BOOL;
+    ProcedureAuthResult : UINT;
+    ProcedureHasAckBy : BOOL;
+    ProcedureAckBy : STRING[96];
+    ProcedureNewState : UINT;
+    ProcedureMaterialId : UDINT;
+    ProcedureQuantity : LREAL;
+    ProcedureHasUnit : BOOL;
+    ProcedureUnitId : UINT;
     MessageTemplateId : UDINT;
     MessageHasSeverity : BOOL;
     MessageSeverity : UINT;
@@ -256,6 +271,8 @@ VAR_OUTPUT
     PublishedRecordCount : ULINT;
     DroppedLifecycleCount : ULINT;
     LastLifecycleError : UINT;
+    DroppedCommandCount : ULINT;
+    LastCommandError : UINT;
     ScanRecords : OPENOT_SCAN_RECORD_BUFFER;
     ScanRecordOffsets : OPENOT_SCAN_RECORD_UINT_TABLE;
     ScanRecordLengths : OPENOT_SCAN_RECORD_UINT_TABLE;
@@ -278,6 +295,7 @@ VAR
     StateTransitionEncoder : OPENOT_EncodeStateTransition;
     ConditionEncoder : OPENOT_EncodeCondition;
     ConditionLifecycleEncoder : OPENOT_EncodeConditionLifecycle;
+    BatchRecipeEncoder : OPENOT_EncodeBatchRecipe;
     HighWaterEncoder : OPENOT_EncodeSourceHighWater;
     StoppedEncoder : OPENOT_EncodeLoggerStopped;
     StartedEncoder : OPENOT_EncodeLoggerStarted;
@@ -299,6 +317,8 @@ VAR
     StateNextConditionCorrelationId : UDINT;
     StateDroppedLifecycleCount : ULINT;
     StateLastLifecycleError : UINT;
+    StateDroppedCommandCount : ULINT;
+    StateLastCommandError : UINT;
     StateDefinitionHash : OPENOT_HASH8;
     StatePrevDefinitionHash : OPENOT_HASH8;
     StatePublishedRecordCount : ULINT;
@@ -341,6 +361,10 @@ VAR
     LifecycleReasonLength : UINT;
     LifecycleCommentLength : UINT;
     LifecycleRecordLength : UINT;
+    ProcedureRecipeVersionLength : UINT;
+    ProcedureAckByLength : UINT;
+    ProcedureRecordLength : UINT;
+    ProcedureShouldEmit : BOOL;
 END_VAR
 
 IF NOT Initialized THEN
@@ -352,6 +376,8 @@ IF NOT Initialized THEN
     StateNextConditionCorrelationId := UDINT#1;
     StateDroppedLifecycleCount := ULINT#0;
     StateLastLifecycleError := UINT#0;
+    StateDroppedCommandCount := ULINT#0;
+    StateLastCommandError := UINT#0;
     StatePublishedRecordCount := ULINT#0;
     Initialized := TRUE;
 END_IF;
@@ -373,7 +399,7 @@ IF ResetScanRecords THEN
 END_IF;
 
 IF ExecuteEdge THEN
-    IF (NOT AccumulateScanRecords) AND (Op <> UINT#6) AND (Op <> UINT#7) AND (Op <> UINT#8) AND (Op <> UINT#9) AND (Op <> UINT#10) AND (Op <> UINT#11) AND (Op <> UINT#12) THEN
+    IF (NOT AccumulateScanRecords) AND (Op <> UINT#6) AND (Op <> UINT#7) AND (Op <> UINT#8) AND (Op <> UINT#9) AND (Op <> UINT#10) AND (Op <> UINT#11) AND (Op <> UINT#12) AND (Op <> UINT#13) THEN
         ResetOk := OPENOT_ResetScanRecordList(
             ScanRecordOffsets := ScanRecordOffsets,
             ScanRecordLengths := ScanRecordLengths,
@@ -1468,6 +1494,176 @@ IF ExecuteEdge THEN
                 END_IF;
             END_IF;
         END_IF;
+    ELSIF Op = UINT#13 THEN
+        ActiveSourceId := SourceId;
+        IF ActiveSourceId = UDINT#0 THEN
+            ActiveSourceId := UDINT#1;
+        END_IF;
+
+        ProcedureRecipeVersionLength := INT_TO_UINT(LEN(ProcedureRecipeVersion));
+        ProcedureAckByLength := INT_TO_UINT(LEN(ProcedureAckBy));
+        IF ProcedureRecipeVersionLength > UINT#96 THEN
+            ProcedureRecipeVersionLength := UINT#96;
+        END_IF;
+        IF ProcedureAckByLength > UINT#96 THEN
+            ProcedureAckByLength := UINT#96;
+        END_IF;
+
+        ProcedureShouldEmit := FALSE;
+        ProcedureRecordLength := UINT#0;
+
+        IF ProcedureEventTypeId = UDINT#16#0301 THEN
+            ProcedureRecordLength := UINT#52 + OPENOT_ValueSlotEncodedLength(PayloadLength := ProcedureRecipeVersionLength);
+            IF ProcedureHasBatchId THEN
+                ProcedureRecordLength := ProcedureRecordLength + UINT#8;
+            END_IF;
+            IF ProcedureRecipeVersionLength = UINT#0 THEN
+                StateDroppedCommandCount := StateDroppedCommandCount + ULINT#1;
+                StateLastCommandError := UINT#2;
+                Error := TRUE;
+            ELSE
+                ProcedureShouldEmit := TRUE;
+            END_IF;
+        ELSIF ProcedureEventTypeId = UDINT#16#0302 THEN
+            ProcedureRecordLength := UINT#52 + OPENOT_ValueSlotEncodedLength(PayloadLength := ProcedureRecipeVersionLength);
+            IF ProcedureHasAuthResult THEN
+                ProcedureRecordLength := ProcedureRecordLength + UINT#8;
+            END_IF;
+            IF ProcedureHasAckBy THEN
+                ProcedureRecordLength := ProcedureRecordLength + OPENOT_ValueSlotEncodedLength(PayloadLength := ProcedureAckByLength);
+            END_IF;
+            IF ProcedureRecipeVersionLength = UINT#0 THEN
+                StateDroppedCommandCount := StateDroppedCommandCount + ULINT#1;
+                StateLastCommandError := UINT#2;
+                Error := TRUE;
+            ELSE
+                ProcedureShouldEmit := TRUE;
+            END_IF;
+        ELSIF ProcedureEventTypeId = UDINT#16#0303 THEN
+            ProcedureRecordLength := UINT#60;
+            IF ProcedureHasRecipeId THEN
+                ProcedureRecordLength := ProcedureRecordLength + UINT#8;
+            END_IF;
+            ProcedureShouldEmit := TRUE;
+        ELSIF ProcedureEventTypeId = UDINT#16#0304 THEN
+            ProcedureRecordLength := UINT#72;
+            IF ProcedureHasUnit THEN
+                ProcedureRecordLength := ProcedureRecordLength + UINT#8;
+            END_IF;
+            ProcedureShouldEmit := TRUE;
+        ELSE
+            StateDroppedCommandCount := StateDroppedCommandCount + ULINT#1;
+            StateLastCommandError := UINT#1;
+            Error := TRUE;
+        END_IF;
+
+        IF ProcedureShouldEmit AND (ProcedureRecordLength > UINT#256) THEN
+            StateDroppedCommandCount := StateDroppedCommandCount + ULINT#1;
+            StateLastCommandError := UINT#3;
+            ProcedureShouldEmit := FALSE;
+            Error := TRUE;
+        END_IF;
+
+        IF ProcedureShouldEmit THEN
+            Found := FALSE;
+            FreeFound := FALSE;
+            EntryIndex := UINT#0;
+
+            FOR Index := UINT#0 TO UINT#15 DO
+                IF Sources[Index].Used AND (Sources[Index].SourceId = ActiveSourceId) THEN
+                    IF NOT Found THEN
+                        EntryIndex := Index;
+                        Found := TRUE;
+                    END_IF;
+                END_IF;
+            END_FOR;
+
+            IF NOT Found THEN
+                FOR Index := UINT#0 TO UINT#15 DO
+                    IF (NOT Sources[Index].Used) AND (NOT FreeFound) THEN
+                        EntryIndex := Index;
+                        FreeFound := TRUE;
+                    END_IF;
+                END_FOR;
+
+                IF FreeFound THEN
+                    Sources[EntryIndex].Used := TRUE;
+                    Sources[EntryIndex].SourceId := ActiveSourceId;
+                    Sources[EntryIndex].NextSeq := ULINT#0;
+                ELSE
+                    SourceTableFull := TRUE;
+                    StateDroppedCommandCount := StateDroppedCommandCount + ULINT#1;
+                    StateLastCommandError := UINT#4;
+                    ProcedureShouldEmit := FALSE;
+                    Error := TRUE;
+                END_IF;
+            END_IF;
+        END_IF;
+
+        IF ProcedureShouldEmit THEN
+            AssignedSeq := Sources[EntryIndex].NextSeq;
+            EmitSourceTime := OPENOT_NextSourceTime(
+                UseSourceTimeInput := UseSourceTimeInput,
+                SourceTimeInput := SourceTimeInput,
+                StateSourceTime := StateSourceTime);
+            BatchRecipeEncoder(
+                SourceId := ActiveSourceId,
+                RunId := StateRunId,
+                Seq := AssignedSeq,
+                SourceTime := EmitSourceTime,
+                EventTypeId := ProcedureEventTypeId,
+                RecipeId := ProcedureRecipeId,
+                HasRecipeId := ProcedureHasRecipeId,
+                RecipeVersion := ProcedureRecipeVersion,
+                HasBatchId := ProcedureHasBatchId,
+                BatchId := ProcedureBatchId,
+                HasAuthResult := ProcedureHasAuthResult,
+                AuthResult := ProcedureAuthResult,
+                HasAckBy := ProcedureHasAckBy,
+                AckBy := ProcedureAckBy,
+                NewState := ProcedureNewState,
+                MaterialId := ProcedureMaterialId,
+                Quantity := ProcedureQuantity,
+                HasUnit := ProcedureHasUnit,
+                UnitId := ProcedureUnitId);
+            RingProducer(
+                Execute := TRUE,
+                Record := BatchRecipeEncoder.Buffer,
+                Length := BatchRecipeEncoder.Length,
+                RunId := StateRunId,
+                SourceId := ActiveSourceId,
+                Seq := AssignedSeq);
+
+            IF RingProducer.Done AND (NOT RingProducer.Error) THEN
+                AppendOk := OPENOT_AppendScanRecord(
+                    Record := BatchRecipeEncoder.Buffer,
+                    Length := BatchRecipeEncoder.Length,
+                    ScanRecords := ScanRecords,
+                    ScanRecordOffsets := ScanRecordOffsets,
+                    ScanRecordLengths := ScanRecordLengths,
+                    ScanWritePos := ScanWritePos,
+                    ScanRecordCount := ScanRecordCount);
+            ELSE
+                AppendOk := FALSE;
+            END_IF;
+
+            IF AppendOk THEN
+                Sources[EntryIndex].NextSeq := AssignedSeq + ULINT#1;
+                StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
+                IF EmissionCount < UINT#32 THEN
+                    Emissions[EmissionCount].EventTypeId := ProcedureEventTypeId;
+                    Emissions[EmissionCount].RunId := StateRunId;
+                    Emissions[EmissionCount].SourceId := ActiveSourceId;
+                    Emissions[EmissionCount].Seq := AssignedSeq;
+                    EmissionCount := EmissionCount + UINT#1;
+                END_IF;
+                Done := TRUE;
+            ELSE
+                StateDroppedCommandCount := StateDroppedCommandCount + ULINT#1;
+                StateLastCommandError := UINT#5;
+                Error := TRUE;
+            END_IF;
+        END_IF;
     ELSIF Op = UINT#1 THEN
         IF PendingOpen THEN
             Error := TRUE;
@@ -1803,6 +1999,8 @@ SystemSeq := StateSystemSeq;
 PublishedRecordCount := StatePublishedRecordCount;
 DroppedLifecycleCount := StateDroppedLifecycleCount;
 LastLifecycleError := StateLastLifecycleError;
+DroppedCommandCount := StateDroppedCommandCount;
+LastCommandError := StateLastCommandError;
 EpochId := StateEpochId;
 EpochFirstAbs := StateEpochFirstAbs;
 TransitionOpen := PendingOpen;

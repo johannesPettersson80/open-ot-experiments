@@ -19,7 +19,7 @@ Name : TYPE {attribute 'oot' := '<kind>', '<key>' := '<value>', ...} := <init>;
 
 The pragma attaches to the `VAR` declaration so it survives rename/refactor.
 
-## The five kinds — what each means
+## The authoring kinds — what each means
 
 | `'oot' :=` | Use it for… | Emits | Fires when |
 |---|---|---|---|
@@ -28,6 +28,10 @@ The pragma attaches to the `VAR` declaration so it survives rename/refactor.
 | `'alarm'` | an abnormal condition the operator must see — a high temp, a fault, a safety interlock | `ConditionActive` (0x0200) on trip / `ConditionCleared` (0x0201) on reset | the BOOL goes TRUE / FALSE |
 | `'message'` | a human-readable event or diagnostic line | `Message` (0x0003) | the BOOL goes TRUE |
 | `'condition'` | an operator/logic lifecycle command for an existing alarm | condition lifecycle events 0x0202..0x020C | the command BOOL goes TRUE |
+| `'batch'` | a batch state enum | `BatchEvent` (0x0303) | the enum changes value |
+| `'recipe-loaded'` | a recipe-load command/event | `RecipeLoaded` (0x0301) | the BOOL goes TRUE |
+| `'recipe-approved'` | a recipe-approval command/event | `RecipeApproved` (0x0302) | the BOOL goes TRUE |
+| `'material-addition'` | a material addition command/event | `MaterialAddition` (0x0304) | the BOOL goes TRUE |
 
 ---
 
@@ -196,6 +200,76 @@ ResetHighPh : BOOL {attribute 'oot' := 'condition', 'of' := HighPhAlarm, 'event'
 PriorityHighPh : BOOL {attribute 'oot' := 'condition', 'of' := HighPhAlarm, 'event' := 'priority-changed', 'previous-priority' := PreviousPriority, 'new-priority' := NewPriority, 'by' := OperatorName};
 ```
 
+## `'batch'` — a batch state changed
+
+Logs a `BatchEvent` when a batch-state enum changes. This is separate from
+`state`: it emits the spec-defined batch event and writes the new batch state as
+`newState`, not a `StateTransition`.
+
+The enum must match the batch-state vocabulary exactly:
+`Started`, `Completed`, `Held`, `Resumed`, `Aborted`, `Paused` with values
+`0`..`5`.
+
+| Key | Meaning |
+|---|---|
+| `batchId` | Required `UDINT` variable. Emitted as the `batchId` slot. |
+| `recipe` | Optional `UDINT` variable. Emitted as the `recipeId` slot. |
+
+```iecst
+TYPE E_BatchState : (Started := 0, Completed := 1, Held := 2, Resumed := 3, Aborted := 4, Paused := 5) END_TYPE
+
+BatchId : UDINT := UDINT#4001;
+RecipeId : UDINT := UDINT#3001;
+BatchState : E_BatchState := Started {attribute 'oot' := 'batch', 'batchId' := BatchId, 'recipe' := RecipeId};
+```
+
+## `'recipe-loaded'` and `'recipe-approved'`
+
+These are edge-triggered BOOL declarations for the recipe events. The recipe and
+batch definition tables are intentionally empty in this slice; records carry raw
+numeric ids, and name resolution tables are a follow-up.
+
+| Kind | Keys |
+|---|---|
+| `recipe-loaded` | `recipe` required `UDINT`, `version` required `STRING[<=96]`, optional `batch` `UDINT` |
+| `recipe-approved` | `recipe` required `UDINT`, `version` required `STRING[<=96]`, optional `auth` `UINT`, optional `by` `STRING[<=96]` |
+
+`effectiveTime` is an optional schema slot, but it is not accepted by the
+authoring layer yet. It is rejected rather than accepted and ignored.
+
+```iecst
+RecipeId : UDINT := UDINT#3001;
+RecipeVersion : STRING[16] := 'v1.2.3';
+BatchId : UDINT := UDINT#4001;
+AuthResult : UINT := UINT#1;
+Approver : STRING[32] := 'approver-a';
+
+Loaded : BOOL {attribute 'oot' := 'recipe-loaded', 'recipe' := RecipeId, 'version' := RecipeVersion, 'batch' := BatchId};
+Approved : BOOL {attribute 'oot' := 'recipe-approved', 'recipe' := RecipeId, 'version' := RecipeVersion, 'auth' := AuthResult, 'by' := Approver};
+```
+
+## `'material-addition'` — material was added to a batch
+
+Logs `MaterialAddition` on a BOOL rising edge.
+
+| Key | Meaning |
+|---|---|
+| `batch` | Required `UDINT` variable. Emitted as `batchId`. |
+| `material` | Required `UDINT` variable. Emitted as `materialId`. |
+| `quantity` | Required `LREAL` variable. Emitted as the 8-byte `quantity` value. |
+| `unit` | Optional canonical unit symbol. Emitted on the wire as the `unit` `UINT` slot. |
+
+`correctionOf` is an optional schema slot, but it is not accepted by the
+authoring layer yet. It is rejected rather than accepted and ignored.
+
+```iecst
+BatchId : UDINT := UDINT#4001;
+MaterialId : UDINT := UDINT#5001;
+Quantity : LREAL := LREAL#12.25;
+
+Addition : BOOL {attribute 'oot' := 'material-addition', 'batch' := BatchId, 'material' := MaterialId, 'quantity' := Quantity, 'unit' := 'kg'};
+```
+
 ## `'message'` — a human-readable event
 
 Logs a `Message` keyed by a template id. The template **text stays in the
@@ -243,6 +317,19 @@ prefer to state them explicitly rather than rely on the default.
 | `condition` | `comment` | none | required for `event := 'comment'` |
 | `condition` | `previous-priority` | none | required for `event := 'priority-changed'` |
 | `condition` | `new-priority` | none | required for `event := 'priority-changed'` |
+| `batch` | `batchId` | none | required |
+| `batch` | `recipe` | none | no `recipeId` slot |
+| `recipe-loaded` | `recipe` | none | required |
+| `recipe-loaded` | `version` | none | required `STRING[<=96]` |
+| `recipe-loaded` | `batch` | none | no `batchId` slot |
+| `recipe-approved` | `recipe` | none | required |
+| `recipe-approved` | `version` | none | required `STRING[<=96]` |
+| `recipe-approved` | `auth` | none | no `authResult` slot |
+| `recipe-approved` | `by` | none | no `ackBy` slot |
+| `material-addition` | `batch` | none | required |
+| `material-addition` | `material` | none | required |
+| `material-addition` | `quantity` | none | required `LREAL` |
+| `material-addition` | `unit` | none | no `unit` slot |
 | `message` | `template` | the **variable name** | an untemplated message still resolves to *something* |
 | `message` | `severity` | none | no message severity slot |
 | `message` | `arg1`…`arg4` | none | no typed argument slots |
@@ -261,6 +348,11 @@ assignment, so the **first** generated id is `value` 2001, `state` 7001, `alarm`
 `condition` lifecycle command variables do not get their own ids. They inherit
 the parent alarm's `conditionId` and `sourceId`; id/source pinning keys are compile
 errors on `oot := 'condition'`.
+
+`batch`, `recipe-loaded`, `recipe-approved`, and `material-addition` use bound
+field identities (`batchId`, `recipeId`, `materialId`) supplied by variables.
+They do not auto-generate recipe/batch/material definition tables in this slice;
+the consumer renders the raw numeric ids.
 
 > ⚠️ **Stability caveat.** Because ids follow declaration order, inserting or reordering
 > tagged variables shifts ids and changes the definition hash — which spec §6.3 warns
@@ -284,9 +376,11 @@ batch states. That's how `ValueChanged valueId=2001 new=15.25` becomes
   (`category`, `class`, `model`), invalid severity ranges, invalid
   `model`/`category` combinations, unsupported value types, non-REAL
   deadbands, and procedural enum states outside the named model are compile errors.
-- **Kinds covered:** `value`, `state`, `alarm`, `message`, and the full
-  condition lifecycle command set through `priority-changed`. Batch/recipe and
-  operator/regulated events are not yet exposed as attributes.
+- **Kinds covered:** `value`, `state`, `alarm`, `message`, the full condition
+  lifecycle command set through `priority-changed`, and the first §7.4
+  batch/recipe set: `batch`, `recipe-loaded`, `recipe-approved`, and
+  `material-addition`. Operator/regulated events are not yet exposed as
+  attributes.
 - **Deadband/sampling:** `REAL` deadband, periodic, and `REAL` hysteresis are
   implemented. Integer deadband and hysteresis for non-REAL values are not yet
   implemented.
@@ -303,4 +397,4 @@ batch states. That's how `ValueChanged valueId=2001 new=15.25` becomes
 
 - [`carriage-contract.md`](carriage-contract.md) — the wire format these lower to.
 - `examples/reactor/openot-definition.json` — a generated definition file.
-- `examples/reactor/Reactor.st` — a worked program using the four base kinds.
+- `examples/reactor/Reactor.st` — a worked program using the base authoring kinds.

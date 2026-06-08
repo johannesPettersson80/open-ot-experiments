@@ -13,20 +13,23 @@ use crate::consumer::RawByteConsumer;
 use crate::control::{CONTROL_BLOCK_LEN, ControlBlockSnapshot};
 use crate::loss::{EVENT_RECORDS_DROPPED, records_dropped_record};
 use crate::registry::{
-    EVENT_CONDITION_ACKNOWLEDGED, EVENT_CONDITION_ACTIVE, EVENT_CONDITION_CLEARED,
-    EVENT_CONDITION_COMMENTED, EVENT_CONDITION_CONFIRMED, EVENT_CONDITION_IN_SERVICE,
-    EVENT_CONDITION_OUT_OF_SERVICE, EVENT_CONDITION_PRIORITY_CHANGED, EVENT_CONDITION_RESET,
-    EVENT_CONDITION_SHELVED, EVENT_CONDITION_SUPPRESSED, EVENT_CONDITION_UNSHELVED,
-    EVENT_CONDITION_UNSUPPRESSED, EVENT_DEFINITION_CHANGED, EVENT_LOGGER_STARTED,
-    EVENT_LOGGER_STOPPED, EVENT_MESSAGE, EVENT_SOURCE_HIGH_WATER, EVENT_STATE_TRANSITION,
-    EVENT_VALUE_CHANGED, KEY_ACK_BY, KEY_ARG, KEY_CATEGORY, KEY_CAUSE_OPERAND, KEY_COLD_START,
-    KEY_COMMENT, KEY_CONDITION_CLASS, KEY_CONDITION_ID, KEY_CORRELATION_ID, KEY_DEF_HASH_NEW,
-    KEY_DEF_HASH_OLD, KEY_DROPPED_COUNT, KEY_EPOCH_ID, KEY_FIRST_LOST_SEQ, KEY_LAST_LOST_SEQ,
-    KEY_MESSAGE_TEMPLATE_ID, KEY_NEW_PRIORITY, KEY_NEW_STATE, KEY_NEW_VALUE, KEY_PREVIOUS_PRIORITY,
-    KEY_PREVIOUS_STATE, KEY_PREVIOUS_VALUE, KEY_QUALITY, KEY_REASON, KEY_SEVERITY, KEY_SHELVE_SECS,
-    KEY_SOURCE_HIGH_WATER, KEY_STATE_MACHINE_ID, KEY_VALUE_ID, KEY_WINDOW_END, KEY_WINDOW_START,
-    SYSTEM_SOURCE_ID, TY_BOOL, TY_BYTES, TY_DATE_TIME, TY_DINT, TY_INT, TY_LINT, TY_LREAL, TY_REAL,
-    TY_SINT, TY_STRING, TY_UDINT, TY_UINT, TY_ULINT, TY_USINT,
+    EVENT_BATCH_EVENT, EVENT_CONDITION_ACKNOWLEDGED, EVENT_CONDITION_ACTIVE,
+    EVENT_CONDITION_CLEARED, EVENT_CONDITION_COMMENTED, EVENT_CONDITION_CONFIRMED,
+    EVENT_CONDITION_IN_SERVICE, EVENT_CONDITION_OUT_OF_SERVICE, EVENT_CONDITION_PRIORITY_CHANGED,
+    EVENT_CONDITION_RESET, EVENT_CONDITION_SHELVED, EVENT_CONDITION_SUPPRESSED,
+    EVENT_CONDITION_UNSHELVED, EVENT_CONDITION_UNSUPPRESSED, EVENT_DEFINITION_CHANGED,
+    EVENT_LOGGER_STARTED, EVENT_LOGGER_STOPPED, EVENT_MATERIAL_ADDITION, EVENT_MESSAGE,
+    EVENT_RECIPE_APPROVED, EVENT_RECIPE_LOADED, EVENT_SOURCE_HIGH_WATER, EVENT_STATE_TRANSITION,
+    EVENT_VALUE_CHANGED, KEY_ACK_BY, KEY_ARG, KEY_AUTH_RESULT, KEY_BATCH_ID, KEY_CATEGORY,
+    KEY_CAUSE_OPERAND, KEY_COLD_START, KEY_COMMENT, KEY_CONDITION_CLASS, KEY_CONDITION_ID,
+    KEY_CORRELATION_ID, KEY_DEF_HASH_NEW, KEY_DEF_HASH_OLD, KEY_DROPPED_COUNT, KEY_EPOCH_ID,
+    KEY_FIRST_LOST_SEQ, KEY_LAST_LOST_SEQ, KEY_MATERIAL_ID, KEY_MESSAGE_TEMPLATE_ID,
+    KEY_NEW_PRIORITY, KEY_NEW_STATE, KEY_NEW_VALUE, KEY_PREVIOUS_PRIORITY, KEY_PREVIOUS_STATE,
+    KEY_PREVIOUS_VALUE, KEY_QUALITY, KEY_QUANTITY, KEY_REASON, KEY_RECIPE_ID, KEY_RECIPE_VERSION,
+    KEY_SEVERITY, KEY_SHELVE_SECS, KEY_SOURCE_HIGH_WATER, KEY_STATE_MACHINE_ID, KEY_UNIT,
+    KEY_VALUE_ID, KEY_WINDOW_END, KEY_WINDOW_START, SYSTEM_SOURCE_ID, TY_BOOL, TY_BYTES,
+    TY_DATE_TIME, TY_DINT, TY_INT, TY_LINT, TY_LREAL, TY_REAL, TY_SINT, TY_STRING, TY_UDINT,
+    TY_UINT, TY_ULINT, TY_USINT,
 };
 use crate::ring::{LossRange, RingBuffer};
 use crate::wire::{FLAG_HAS_CRC, HEADER_LEN, Record, SYNC, Slot, WireError, decode};
@@ -696,6 +699,100 @@ pub fn generate_files() -> Vec<VectorFile> {
     { "key": "0x002E", "type": "UInt", "name": "previousPriority", "value": 600 },
     { "key": "0x002C", "type": "UInt", "name": "newPriority", "value": 900 },
     { "key": "0x001D", "type": "String", "name": "ackBy", "value": "operator-a" }
+  ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
+        "conformant_recipe_loaded",
+        "definition-layer positive RecipeLoaded record",
+        &conformant_recipe_loaded_record(),
+        r#"{
+  "eventName": "RecipeLoaded",
+  "schemaExpected": "accept",
+  "fields": {
+    "sourceTime": 1000000270,
+    "runId": 1,
+    "seq": 28,
+    "sourceId": 66,
+    "eventTypeId": "0x0301"
+  },
+  "slots": [
+    { "key": "0x0023", "type": "UDInt", "name": "recipeId", "value": 3001 },
+    { "key": "0x0024", "type": "String", "name": "recipeVersion", "value": "v1.2.3" },
+    { "key": "0x0025", "type": "UDInt", "name": "batchId", "value": 4001 }
+  ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
+        "conformant_recipe_approved",
+        "definition-layer positive RecipeApproved record",
+        &conformant_recipe_approved_record(),
+        r#"{
+  "eventName": "RecipeApproved",
+  "schemaExpected": "accept",
+  "fields": {
+    "sourceTime": 1000000280,
+    "runId": 1,
+    "seq": 29,
+    "sourceId": 66,
+    "eventTypeId": "0x0302"
+  },
+  "slots": [
+    { "key": "0x0023", "type": "UDInt", "name": "recipeId", "value": 3001 },
+    { "key": "0x0024", "type": "String", "name": "recipeVersion", "value": "v1.2.3" },
+    { "key": "0x0020", "type": "UInt", "name": "authResult", "value": 1 },
+    { "key": "0x001D", "type": "String", "name": "ackBy", "value": "approver-a" }
+  ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
+        "conformant_batch_event",
+        "definition-layer positive BatchEvent record",
+        &conformant_batch_event_record(),
+        r#"{
+  "eventName": "BatchEvent",
+  "schemaExpected": "accept",
+  "fields": {
+    "sourceTime": 1000000290,
+    "runId": 1,
+    "seq": 30,
+    "sourceId": 66,
+    "eventTypeId": "0x0303"
+  },
+  "slots": [
+    { "key": "0x0025", "type": "UDInt", "name": "batchId", "value": 4001 },
+    { "key": "0x0004", "type": "UInt", "name": "newState", "value": 2 },
+    { "key": "0x0023", "type": "UDInt", "name": "recipeId", "value": 3001 }
+  ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
+        "conformant_material_addition",
+        "definition-layer positive MaterialAddition record",
+        &conformant_material_addition_record(),
+        r#"{
+  "eventName": "MaterialAddition",
+  "schemaExpected": "accept",
+  "fields": {
+    "sourceTime": 1000000300,
+    "runId": 1,
+    "seq": 31,
+    "sourceId": 66,
+    "eventTypeId": "0x0304"
+  },
+  "slots": [
+    { "key": "0x0025", "type": "UDInt", "name": "batchId", "value": 4001 },
+    { "key": "0x0026", "type": "UDInt", "name": "materialId", "value": 5001 },
+    { "key": "0x0027", "type": "LReal", "name": "quantity", "value": 12.25 },
+    { "key": "0x0013", "type": "UInt", "name": "unit", "value": 8 }
   ]
 }"#,
     );
@@ -1654,6 +1751,68 @@ fn conformant_condition_priority_changed_record() -> Record {
     record
 }
 
+fn conformant_recipe_loaded_record() -> Record {
+    let mut record = Record::new(1_000_000_270, 1, 28, 66, EVENT_RECIPE_LOADED);
+    record
+        .slots
+        .push(Slot::new(KEY_RECIPE_ID, TY_UDINT, 3001u32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_RECIPE_VERSION, TY_STRING, b"v1.2.3"));
+    record
+        .slots
+        .push(Slot::new(KEY_BATCH_ID, TY_UDINT, 4001u32.to_le_bytes()));
+    record
+}
+
+fn conformant_recipe_approved_record() -> Record {
+    let mut record = Record::new(1_000_000_280, 1, 29, 66, EVENT_RECIPE_APPROVED);
+    record
+        .slots
+        .push(Slot::new(KEY_RECIPE_ID, TY_UDINT, 3001u32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_RECIPE_VERSION, TY_STRING, b"v1.2.3"));
+    record
+        .slots
+        .push(Slot::new(KEY_AUTH_RESULT, TY_UINT, 1u16.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_ACK_BY, TY_STRING, b"approver-a"));
+    record
+}
+
+fn conformant_batch_event_record() -> Record {
+    let mut record = Record::new(1_000_000_290, 1, 30, 66, EVENT_BATCH_EVENT);
+    record
+        .slots
+        .push(Slot::new(KEY_BATCH_ID, TY_UDINT, 4001u32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_NEW_STATE, TY_UINT, 2u16.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_RECIPE_ID, TY_UDINT, 3001u32.to_le_bytes()));
+    record
+}
+
+fn conformant_material_addition_record() -> Record {
+    let mut record = Record::new(1_000_000_300, 1, 31, 66, EVENT_MATERIAL_ADDITION);
+    record
+        .slots
+        .push(Slot::new(KEY_BATCH_ID, TY_UDINT, 4001u32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_MATERIAL_ID, TY_UDINT, 5001u32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_QUANTITY, TY_LREAL, 12.25f64.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_UNIT, TY_UINT, 8u16.to_le_bytes()));
+    record
+}
+
 fn conformant_records_dropped_record() -> Record {
     let mut record = Record::new(0, 9, 100, 66, EVENT_RECORDS_DROPPED);
     record
@@ -1802,6 +1961,10 @@ fn hex_path(stem: &'static str) -> &'static str {
         "conformant_condition_reset" => "conformant_condition_reset.hex",
         "conformant_condition_commented" => "conformant_condition_commented.hex",
         "conformant_condition_priority_changed" => "conformant_condition_priority_changed.hex",
+        "conformant_recipe_loaded" => "conformant_recipe_loaded.hex",
+        "conformant_recipe_approved" => "conformant_recipe_approved.hex",
+        "conformant_batch_event" => "conformant_batch_event.hex",
+        "conformant_material_addition" => "conformant_material_addition.hex",
         "conformant_records_dropped" => "conformant_records_dropped.hex",
         "conformant_source_high_water" => "conformant_source_high_water.hex",
         "records_dropped" => "records_dropped.hex",
@@ -1845,6 +2008,10 @@ fn json_path(stem: &'static str) -> &'static str {
         "conformant_condition_reset" => "conformant_condition_reset.json",
         "conformant_condition_commented" => "conformant_condition_commented.json",
         "conformant_condition_priority_changed" => "conformant_condition_priority_changed.json",
+        "conformant_recipe_loaded" => "conformant_recipe_loaded.json",
+        "conformant_recipe_approved" => "conformant_recipe_approved.json",
+        "conformant_batch_event" => "conformant_batch_event.json",
+        "conformant_material_addition" => "conformant_material_addition.json",
         "conformant_records_dropped" => "conformant_records_dropped.json",
         "conformant_source_high_water" => "conformant_source_high_water.json",
         "records_dropped" => "records_dropped.json",
@@ -2072,6 +2239,40 @@ mod tests {
                 (KEY_PREVIOUS_PRIORITY, TY_UINT, 2),
                 (KEY_NEW_PRIORITY, TY_UINT, 2),
                 (KEY_ACK_BY, TY_STRING, "operator-a".len()),
+            ],
+        );
+        assert_slots(
+            &conformant_recipe_loaded_record(),
+            &[
+                (KEY_RECIPE_ID, TY_UDINT, 4),
+                (KEY_RECIPE_VERSION, TY_STRING, "v1.2.3".len()),
+                (KEY_BATCH_ID, TY_UDINT, 4),
+            ],
+        );
+        assert_slots(
+            &conformant_recipe_approved_record(),
+            &[
+                (KEY_RECIPE_ID, TY_UDINT, 4),
+                (KEY_RECIPE_VERSION, TY_STRING, "v1.2.3".len()),
+                (KEY_AUTH_RESULT, TY_UINT, 2),
+                (KEY_ACK_BY, TY_STRING, "approver-a".len()),
+            ],
+        );
+        assert_slots(
+            &conformant_batch_event_record(),
+            &[
+                (KEY_BATCH_ID, TY_UDINT, 4),
+                (KEY_NEW_STATE, TY_UINT, 2),
+                (KEY_RECIPE_ID, TY_UDINT, 4),
+            ],
+        );
+        assert_slots(
+            &conformant_material_addition_record(),
+            &[
+                (KEY_BATCH_ID, TY_UDINT, 4),
+                (KEY_MATERIAL_ID, TY_UDINT, 4),
+                (KEY_QUANTITY, TY_LREAL, 8),
+                (KEY_UNIT, TY_UINT, 2),
             ],
         );
         assert_slots(

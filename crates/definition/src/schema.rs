@@ -770,6 +770,18 @@ mod tests {
                 "../../carriage/vectors/conformant_condition_priority_changed.hex"
             )),
             hex_bytes(include_str!(
+                "../../carriage/vectors/conformant_recipe_loaded.hex"
+            )),
+            hex_bytes(include_str!(
+                "../../carriage/vectors/conformant_recipe_approved.hex"
+            )),
+            hex_bytes(include_str!(
+                "../../carriage/vectors/conformant_batch_event.hex"
+            )),
+            hex_bytes(include_str!(
+                "../../carriage/vectors/conformant_material_addition.hex"
+            )),
+            hex_bytes(include_str!(
                 "../../carriage/vectors/conformant_records_dropped.hex"
             )),
             hex_bytes(include_str!(

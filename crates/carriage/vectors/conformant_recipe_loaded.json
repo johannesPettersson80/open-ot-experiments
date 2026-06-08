@@ -1,0 +1,29 @@
+{
+  "name": "conformant_recipe_loaded",
+  "description": "definition-layer positive RecipeLoaded record",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "conformant_recipe_loaded.hex",
+  "byteCount": 72,
+  "headerLength": 40,
+  "totalRecordLength": 72,
+  "flags": "0x0008",
+  "crc32c": "0x78CFFAD3",
+  "detail": {
+    "eventName": "RecipeLoaded",
+    "schemaExpected": "accept",
+    "fields": {
+      "sourceTime": 1000000270,
+      "runId": 1,
+      "seq": 28,
+      "sourceId": 66,
+      "eventTypeId": "0x0301"
+    },
+    "slots": [
+      { "key": "0x0023", "type": "UDInt", "name": "recipeId", "value": 3001 },
+      { "key": "0x0024", "type": "String", "name": "recipeVersion", "value": "v1.2.3" },
+      { "key": "0x0025", "type": "UDInt", "name": "batchId", "value": 4001 }
+    ]
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "name": "conformant_material_addition",
+  "description": "definition-layer positive MaterialAddition record",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "conformant_material_addition.hex",
+  "byteCount": 80,
+  "headerLength": 40,
+  "totalRecordLength": 80,
+  "flags": "0x0008",
+  "crc32c": "0x48C4A111",
+  "detail": {
+    "eventName": "MaterialAddition",
+    "schemaExpected": "accept",
+    "fields": {
+      "sourceTime": 1000000300,
+      "runId": 1,
+      "seq": 31,
+      "sourceId": 66,
+      "eventTypeId": "0x0304"
+    },
+    "slots": [
+      { "key": "0x0025", "type": "UDInt", "name": "batchId", "value": 4001 },
+      { "key": "0x0026", "type": "UDInt", "name": "materialId", "value": 5001 },
+      { "key": "0x0027", "type": "LReal", "name": "quantity", "value": 12.25 },
+      { "key": "0x0013", "type": "UInt", "name": "unit", "value": 8 }
+    ]
+  }
+}
