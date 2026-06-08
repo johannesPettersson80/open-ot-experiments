@@ -28,7 +28,7 @@ The prototype uses a registry module so record tests and fixture generation shar
 
 | Item | Id | Meaning |
 | --- | ---: | --- |
-| `EVENT_SOURCE_HIGH_WATER` | `0x80000108` | Per-source high-water checkpoint in the vendor event range. |
+| `EVENT_SOURCE_HIGH_WATER` | `0x0108` | Per-source high-water checkpoint in the system event range. |
 | `KEY_DROPPED_COUNT` | `0x0016` | Dropped record count. |
 | `KEY_FIRST_LOST_SEQ` | `0x0017` | First lost source-local sequence. |
 | `KEY_LAST_LOST_SEQ` | `0x0018` | Last lost source-local sequence. |

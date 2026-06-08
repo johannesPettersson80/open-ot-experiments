@@ -632,6 +632,12 @@ mod tests {
             let mut consumer = ConcurrentRawConsumer::new(consumer_ring);
             let mut accounting = LossAccountingConsumer::new();
             let mut delivered = 0u64;
+            let pressure_head_abs = ring_capacity_pressure_head_abs(consumer.store().capacity());
+
+            while !consumer_done.load(Ordering::Acquire) && consumer.head_abs() < pressure_head_abs
+            {
+                thread::yield_now();
+            }
 
             loop {
                 let batch = consumer.poll().unwrap();
@@ -671,6 +677,10 @@ mod tests {
                 "loss reconciliation failed for source {source}"
             );
         }
+    }
+
+    fn ring_capacity_pressure_head_abs(capacity: usize) -> u64 {
+        (capacity as u64) * 8
     }
 
     #[test]

@@ -23,6 +23,11 @@ Canonical JSON model lives in `crates/definition`.
   "enumSets":        [ … { name, members[] of { value, label } } … ],
   "units":           [ … unitId → symbol … ],
   "messageTemplates":[ … templateId → format text + arg types … ],
+  "recipeDefinitions":  [ … recipe id → meaning … ],
+  "batchDefinitions":   [ … batch id → meaning … ],
+  "materialDefinitions":[ … material id → meaning … ],
+  "operatorDefinitions":[ … operator id → meaning … ],
+  "eSignatureMeanings": [ … signature meaning enum … ],
   "severityScale":   { … band thresholds … }
 }
 ```
@@ -38,17 +43,20 @@ declaration, e.g. `Producer-Full`), `caps` (`crc`, `sourceHighWater`), `constrai
 **`eventTypes[]`** — `id → { name, profile, slots[] }`. Each slot is `{ key, minOccurs, maxOccurs,
 orderClass }` plus **either** a fixed `type` **or** `valuePayload: true` for a value-bearing slot
 (whose runtime type is carried in the record itself, not fixed by the schema) — the schema a consumer
-validates each record against (canonical order by `orderClass`). E.g. `2 → "ValueChanged"` with slots
-`valueId` (fixed type) / `previousValue?` (`valuePayload`) / `newValue` (`valuePayload`) / `quality?`.
+validates each record against (canonical order by `orderClass`). The generated file emits the full
+canonical registry schema from `crates/carriage/src/registry.rs`, including the event families not yet
+authored by the reactor example, so later records add content without editing the schema shape. E.g.
+`2 → "ValueChanged"` has slots `valueId` (fixed type) / `previousValue?` (`valuePayload`) / `newValue`
+(`valuePayload`) / `quality?`.
 
 **`values[]`** — `valueId → { name, dataType, unit, deadband, samplingPolicy, semanticRole }`.
 This is what turns `valueId 2001` into `"Level" (REAL, unit "L", deadband 0.5)`. `unit` is a *unit id*
 into `units[]`.
 
 **`sources[]`** — `sourceId → { name, path[], hierarchy[], dynamic }`. Resolves the emitting entity.
-The current authoring layer auto-names sources `source1`, `source2`, … (`sourceId 1 → "source1"`); a
-richer hierarchy/path is reserved in the schema but not yet derived from the program. System source 0
-is reserved.
+The truST authoring layer derives a source name/path from the source file stem and `PROGRAM` name
+(for example `Reactor.Main`, path `["Reactor", "Main"]`, hierarchy `["file", "program"]`). System
+source 0 is reserved.
 
 **`stateMachines[]`** — `stateMachineId → { name, category, proceduralModel, enumSet }`. Names the
 machine and points at the `enumSets[]` entry that holds its states.

@@ -2,8 +2,10 @@
 
 Why the logging system is built the way it is. The rest of the repo shows *what*
 was built; this records *why*, and what alternatives were rejected. Distilled from
-the phase log and four rounds of adversarial review. Numeric ids/enum values are
-provisional (working-group ballot); the *structure* is the decision.
+the phase log and four rounds of adversarial review. Numeric ids/enum values were
+provisional (working-group ballot); **D16 promotes them to final** inside this workbench — the
+*structure* was always the decision, and the registry now treats the assigned values as the
+reference catalog.
 
 Each entry: **Decision** · *Why* · *Rejected* · *Status*.
 
@@ -110,12 +112,12 @@ only after resolution.
 
 ## Time
 
-### D13 — `SourceTime` is host-injected (truST has no `CURRENT_DT`)
-truST exposes only a monotonic `TIME()`; there is **no wall-clock ST builtin**. The
-runtime feeds real Unix-ns into the producer's source-time input each scan. *Why:* this
-is exactly the standard's model — the platform glue (RTC/NTP) supplies the clock, which
-on a hosted build is the host clock. *Status:* a pure-ST `CURRENT_DT()` would need a new
-truST builtin (deferred).
+### D13 — `SourceTime` is host-injected, with `CURRENT_DT()` as a truST convenience
+The runtime feeds real Unix-ns into the producer's source-time input each scan. truST
+also exposes `CURRENT_DT()` as a wall-clock `DATE_AND_TIME` builtin for programs that
+need a pure-ST timestamp. *Why:* the standard's model is still platform glue (RTC/NTP)
+supplying the source clock; `CURRENT_DT()` is the hosted truST convenience for that
+clock, not a second carriage timestamp.
 
 ### D14 — Deterministic stamping for conformance vectors, real clock for the live example
 *Why:* byte-exact ST↔Rust vectors need a fixed clock to stay reproducible; the showcase
@@ -138,6 +140,30 @@ not weaken that proof. *Why:* prose can't guarantee every interleaving, and the 
 boundary must be stated honestly — the reference impl is the ratification evidence the
 proposal itself calls for.
 
+## Scope
+
+### D16 — Build the full OpenOT surface as final now (supersedes the "don't pre-build" stance)
+Implement the entire backlog — the full event vocabulary, the value-type matrix, conformance, and
+the WG-gated items — **as final**, promoting the strawman ids to final, per
+[`internal/execution-plan.md`](internal/execution-plan.md). *Why:* the goal is a complete reference
+the WG can ratify against, and a complete, internally-consistent implementation is stronger evidence
+than a partial one. *Rejected:* the earlier "keep WG items as a backlog until the ballot moves"
+stance (it never reaches "complete"). *Accepted risk:* a later ballot that renumbers ids re-cuts the
+byte vectors + definition content-hash; the plan pays that churn **once** via a Phase-0 schema freeze
+(definition fields **and** every event's `eventTypes[].slots` schema), not per slice. *Status:*
+active; the [`completeness.md`](internal/completeness.md) standing "don't pre-build" decision is
+superseded.
+
+### D17 — HIR/source instrumentation is the production lowering path for the supported subset
+The production authoring path is the truST source-instrumentation pass in
+`trust-runtime/src/openot_authoring.rs` for simple scalar declarations inside
+`PROGRAM ... VAR ... END_VAR`. It injects the hidden `OPENOT_Producer`, per-scan calls, and generated
+source-time inputs before bytecode execution. *Why:* it gives the compiler ownership of ids,
+definition generation, enum lowering, and the existing ST-FB telemetry handoff without requiring a
+native-backend rewrite before the reference is useful. *Out of scope for this reference:* lowering
+arbitrary declaration forms, FB-local/global authoring expansion, and a backend-native emitter. Those
+can replace the instrumentation later only if they preserve byte-exact records and definition hashes.
+
 ---
 
 ## Open items / known divergences
@@ -146,9 +172,10 @@ proposal itself calls for.
   rev-6 proposal draft** (BCB 88 vs 80; header layout; absolute-offset vs seq-space — D5).
   The impl is the ARM-proven one, so the intent is to update the *proposal* to match it —
   not yet reconciled. (D1, D5)
-- **`SourceHighWater`** is our reconciliation aid, **in the vendor id range** (off core
-  `0x0108`); propose it to the WG as a core addition or keep it vendor. (D4)
-- **No model/state conformance check** — `model := 'ISA-88'` is not verified to match the
-  canonical state set, and `unit` strings are not checked against a registry. (D10)
+- **`SourceHighWater`** is our reconciliation aid, allocated as core system event `0x0108`
+  in this reference; feed that allocation back to the WG. (D4)
+- **Unit strings are checked against the canonical unit registry.** Model/state conformance is
+  enforced for procedural state machines; future WG changes may still revise the registry contents.
+  (D10)
 - **Ids default to declaration order** (first id 2001/7001/9001/10001) → def-hash drift on
-  reorder; an explicit id can be pinned (provisional). (D11)
+  reorder; explicit id pinning is the chosen stability contract for this workbench. (D11)

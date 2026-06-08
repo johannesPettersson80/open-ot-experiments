@@ -37,8 +37,8 @@ renders through the `document` resolver — resolved names/units/enum labels + p
 authoring DX** (type-aware code actions, completions, inlay hints); and **strict attribute
 validation** (`InvalidOpenOtAttribute` rejects unknown kind/key/category/model/class/severity); the
 **Message `messageTemplateId`** slot (messages now resolve to their template); and the **value-typed
-ValueChanged schema** (`valuePayload` slots — non-REAL values validate). Id pinning keys
-(`id`/`valueid`/…) exist but are provisional.
+ValueChanged schema** (`valuePayload` slots — non-REAL values validate). Manual id pinning
+(`id`/`valueid`/…) is the chosen stability contract for this workbench.
 
 ## Principle
 

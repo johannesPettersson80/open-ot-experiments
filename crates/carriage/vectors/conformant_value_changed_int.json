@@ -1,0 +1,28 @@
+{
+  "name": "conformant_value_changed_int",
+  "description": "definition-layer positive ValueChanged record carrying an INT newValue",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "conformant_value_changed_int.hex",
+  "byteCount": 60,
+  "headerLength": 40,
+  "totalRecordLength": 60,
+  "flags": "0x0008",
+  "crc32c": "0x329A0117",
+  "detail": {
+    "eventName": "ValueChanged",
+    "schemaExpected": "accept",
+    "fields": {
+      "sourceTime": 1000000070,
+      "runId": 1,
+      "seq": 8,
+      "sourceId": 66,
+      "eventTypeId": "0x0002"
+    },
+    "slots": [
+      { "key": "0x000D", "type": "UDInt", "name": "valueId", "value": 2006 },
+      { "key": "0x0010", "type": "Int", "name": "newValue", "value": -1234 }
+    ]
+  }
+}

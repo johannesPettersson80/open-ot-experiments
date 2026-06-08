@@ -1,0 +1,28 @@
+{
+  "name": "conformant_value_changed_bool",
+  "description": "definition-layer positive ValueChanged record carrying a BOOL newValue",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "conformant_value_changed_bool.hex",
+  "byteCount": 60,
+  "headerLength": 40,
+  "totalRecordLength": 60,
+  "flags": "0x0008",
+  "crc32c": "0x19DCBD43",
+  "detail": {
+    "eventName": "ValueChanged",
+    "schemaExpected": "accept",
+    "fields": {
+      "sourceTime": 1000000040,
+      "runId": 1,
+      "seq": 5,
+      "sourceId": 66,
+      "eventTypeId": "0x0002"
+    },
+    "slots": [
+      { "key": "0x000D", "type": "UDInt", "name": "valueId", "value": 2003 },
+      { "key": "0x0010", "type": "Bool", "name": "newValue", "value": true }
+    ]
+  }
+}

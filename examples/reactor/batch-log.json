@@ -8,14 +8,28 @@
         "key": 20,
         "name": "messageTemplate",
         "type": "MessageTemplateRef",
-        "value": "batch started"
+        "value": "batch started count"
+      },
+      {
+        "enumLabel": null,
+        "key": 21,
+        "name": "arg",
+        "type": "DInt",
+        "value": 1
+      },
+      {
+        "enumLabel": "Low",
+        "key": 8,
+        "name": "severity",
+        "type": "UInt",
+        "value": 100
       }
     ],
     "kind": "event",
     "provenance": {
       "bufferId": 1,
       "epoch": {
-        "definitionHash": "22defc7cc0998f93",
+        "definitionHash": "165ffb3c4795905c",
         "id": 1,
         "relation": "current",
         "semanticVersion": "1.0.0"
@@ -25,17 +39,22 @@
         "syntheticRecord": false,
         "timeUnsynced": false
       },
-      "receiveTimeNs": 1780821307535101592,
+      "receiveTimeNs": 1780878284110928699,
       "runId": 1,
       "source": {
         "dynamic": false,
+        "hierarchy": [
+          "file",
+          "program"
+        ],
         "id": 1,
-        "name": "source1",
+        "name": "Reactor.Main",
         "path": [
-          "source1"
+          "Reactor",
+          "Main"
         ]
       },
-      "sourceTimeNs": 1780821307535101592
+      "sourceTimeNs": 1780878284110928699
     },
     "seq": 0
   },
@@ -76,7 +95,7 @@
     "provenance": {
       "bufferId": 1,
       "epoch": {
-        "definitionHash": "22defc7cc0998f93",
+        "definitionHash": "165ffb3c4795905c",
         "id": 1,
         "relation": "current",
         "semanticVersion": "1.0.0"
@@ -86,17 +105,22 @@
         "syntheticRecord": false,
         "timeUnsynced": false
       },
-      "receiveTimeNs": 1780821307535101592,
+      "receiveTimeNs": 1780878284110928699,
       "runId": 1,
       "source": {
         "dynamic": false,
+        "hierarchy": [
+          "file",
+          "program"
+        ],
         "id": 1,
-        "name": "source1",
+        "name": "Reactor.Main",
         "path": [
-          "source1"
+          "Reactor",
+          "Main"
         ]
       },
-      "sourceTimeNs": 1780821307535101592
+      "sourceTimeNs": 1780878284110928699
     },
     "seq": 1
   },
@@ -124,7 +148,7 @@
     "provenance": {
       "bufferId": 1,
       "epoch": {
-        "definitionHash": "22defc7cc0998f93",
+        "definitionHash": "165ffb3c4795905c",
         "id": 1,
         "relation": "current",
         "semanticVersion": "1.0.0"
@@ -134,17 +158,22 @@
         "syntheticRecord": false,
         "timeUnsynced": false
       },
-      "receiveTimeNs": 1780821307535101592,
+      "receiveTimeNs": 1780878284110928699,
       "runId": 1,
       "source": {
         "dynamic": false,
+        "hierarchy": [
+          "file",
+          "program"
+        ],
         "id": 1,
-        "name": "source1",
+        "name": "Reactor.Main",
         "path": [
-          "source1"
+          "Reactor",
+          "Main"
         ]
       },
-      "sourceTimeNs": 1780821307535101592
+      "sourceTimeNs": 1780878284110928699
     },
     "seq": 2
   },
@@ -171,7 +200,7 @@
     "provenance": {
       "bufferId": 1,
       "epoch": {
-        "definitionHash": "22defc7cc0998f93",
+        "definitionHash": "165ffb3c4795905c",
         "id": 1,
         "relation": "current",
         "semanticVersion": "1.0.0"
@@ -181,17 +210,22 @@
         "syntheticRecord": false,
         "timeUnsynced": false
       },
-      "receiveTimeNs": 1780821307535101592,
+      "receiveTimeNs": 1780878284110928699,
       "runId": 1,
       "source": {
         "dynamic": false,
+        "hierarchy": [
+          "file",
+          "program"
+        ],
         "id": 1,
-        "name": "source1",
+        "name": "Reactor.Main",
         "path": [
-          "source1"
+          "Reactor",
+          "Main"
         ]
       },
-      "sourceTimeNs": 1780821307535101592
+      "sourceTimeNs": 1780878284110928699
     },
     "seq": 3
   },
@@ -227,7 +261,7 @@
     "provenance": {
       "bufferId": 1,
       "epoch": {
-        "definitionHash": "22defc7cc0998f93",
+        "definitionHash": "165ffb3c4795905c",
         "id": 1,
         "relation": "current",
         "semanticVersion": "1.0.0"
@@ -237,17 +271,22 @@
         "syntheticRecord": false,
         "timeUnsynced": false
       },
-      "receiveTimeNs": 1780821313159892638,
+      "receiveTimeNs": 1780878286252431203,
       "runId": 1,
       "source": {
         "dynamic": false,
+        "hierarchy": [
+          "file",
+          "program"
+        ],
         "id": 1,
-        "name": "source1",
+        "name": "Reactor.Main",
         "path": [
-          "source1"
+          "Reactor",
+          "Main"
         ]
       },
-      "sourceTimeNs": 1780821313159892638
+      "sourceTimeNs": 1780878286252431203
     },
     "seq": 4
   },
@@ -288,7 +327,7 @@
     "provenance": {
       "bufferId": 1,
       "epoch": {
-        "definitionHash": "22defc7cc0998f93",
+        "definitionHash": "165ffb3c4795905c",
         "id": 1,
         "relation": "current",
         "semanticVersion": "1.0.0"
@@ -298,17 +337,22 @@
         "syntheticRecord": false,
         "timeUnsynced": false
       },
-      "receiveTimeNs": 1780821315652031977,
+      "receiveTimeNs": 1780878287226615454,
       "runId": 1,
       "source": {
         "dynamic": false,
+        "hierarchy": [
+          "file",
+          "program"
+        ],
         "id": 1,
-        "name": "source1",
+        "name": "Reactor.Main",
         "path": [
-          "source1"
+          "Reactor",
+          "Main"
         ]
       },
-      "sourceTimeNs": 1780821315652031977
+      "sourceTimeNs": 1780878287226615454
     },
     "seq": 5
   },
@@ -344,7 +388,7 @@
     "provenance": {
       "bufferId": 1,
       "epoch": {
-        "definitionHash": "22defc7cc0998f93",
+        "definitionHash": "165ffb3c4795905c",
         "id": 1,
         "relation": "current",
         "semanticVersion": "1.0.0"
@@ -354,17 +398,22 @@
         "syntheticRecord": false,
         "timeUnsynced": false
       },
-      "receiveTimeNs": 1780821315652031977,
+      "receiveTimeNs": 1780878287226615454,
       "runId": 1,
       "source": {
         "dynamic": false,
+        "hierarchy": [
+          "file",
+          "program"
+        ],
         "id": 1,
-        "name": "source1",
+        "name": "Reactor.Main",
         "path": [
-          "source1"
+          "Reactor",
+          "Main"
         ]
       },
-      "sourceTimeNs": 1780821315652031977
+      "sourceTimeNs": 1780878287226615454
     },
     "seq": 6
   },
@@ -400,7 +449,7 @@
     "provenance": {
       "bufferId": 1,
       "epoch": {
-        "definitionHash": "22defc7cc0998f93",
+        "definitionHash": "165ffb3c4795905c",
         "id": 1,
         "relation": "current",
         "semanticVersion": "1.0.0"
@@ -410,17 +459,22 @@
         "syntheticRecord": false,
         "timeUnsynced": false
       },
-      "receiveTimeNs": 1780821319871142191,
+      "receiveTimeNs": 1780878288712562299,
       "runId": 1,
       "source": {
         "dynamic": false,
+        "hierarchy": [
+          "file",
+          "program"
+        ],
         "id": 1,
-        "name": "source1",
+        "name": "Reactor.Main",
         "path": [
-          "source1"
+          "Reactor",
+          "Main"
         ]
       },
-      "sourceTimeNs": 1780821319871142191
+      "sourceTimeNs": 1780878288712562299
     },
     "seq": 7
   },
@@ -461,7 +515,7 @@
     "provenance": {
       "bufferId": 1,
       "epoch": {
-        "definitionHash": "22defc7cc0998f93",
+        "definitionHash": "165ffb3c4795905c",
         "id": 1,
         "relation": "current",
         "semanticVersion": "1.0.0"
@@ -471,17 +525,22 @@
         "syntheticRecord": false,
         "timeUnsynced": false
       },
-      "receiveTimeNs": 1780821321956189854,
+      "receiveTimeNs": 1780878289703242413,
       "runId": 1,
       "source": {
         "dynamic": false,
+        "hierarchy": [
+          "file",
+          "program"
+        ],
         "id": 1,
-        "name": "source1",
+        "name": "Reactor.Main",
         "path": [
-          "source1"
+          "Reactor",
+          "Main"
         ]
       },
-      "sourceTimeNs": 1780821321956189854
+      "sourceTimeNs": 1780878289703242413
     },
     "seq": 8
   },
@@ -517,7 +576,7 @@
     "provenance": {
       "bufferId": 1,
       "epoch": {
-        "definitionHash": "22defc7cc0998f93",
+        "definitionHash": "165ffb3c4795905c",
         "id": 1,
         "relation": "current",
         "semanticVersion": "1.0.0"
@@ -527,17 +586,22 @@
         "syntheticRecord": false,
         "timeUnsynced": false
       },
-      "receiveTimeNs": 1780821321956189854,
+      "receiveTimeNs": 1780878289703242413,
       "runId": 1,
       "source": {
         "dynamic": false,
+        "hierarchy": [
+          "file",
+          "program"
+        ],
         "id": 1,
-        "name": "source1",
+        "name": "Reactor.Main",
         "path": [
-          "source1"
+          "Reactor",
+          "Main"
         ]
       },
-      "sourceTimeNs": 1780821321956189854
+      "sourceTimeNs": 1780878289703242413
     },
     "seq": 9
   },
@@ -565,13 +629,27 @@
         "name": "severity",
         "type": "UInt",
         "value": 900
+      },
+      {
+        "enumLabel": null,
+        "key": 7,
+        "name": "correlationId",
+        "type": "UDInt",
+        "value": 1
+      },
+      {
+        "enumLabel": null,
+        "key": 9,
+        "name": "causeOperand",
+        "type": "CauseOperandRef",
+        "value": "Level"
       }
     ],
     "kind": "event",
     "provenance": {
       "bufferId": 1,
       "epoch": {
-        "definitionHash": "22defc7cc0998f93",
+        "definitionHash": "165ffb3c4795905c",
         "id": 1,
         "relation": "current",
         "semanticVersion": "1.0.0"
@@ -581,17 +659,22 @@
         "syntheticRecord": false,
         "timeUnsynced": false
       },
-      "receiveTimeNs": 1780821321956189854,
+      "receiveTimeNs": 1780878289703242413,
       "runId": 1,
       "source": {
         "dynamic": false,
+        "hierarchy": [
+          "file",
+          "program"
+        ],
         "id": 1,
-        "name": "source1",
+        "name": "Reactor.Main",
         "path": [
-          "source1"
+          "Reactor",
+          "Main"
         ]
       },
-      "sourceTimeNs": 1780821321956189854
+      "sourceTimeNs": 1780878289703242413
     },
     "seq": 10
   },
@@ -627,7 +710,7 @@
     "provenance": {
       "bufferId": 1,
       "epoch": {
-        "definitionHash": "22defc7cc0998f93",
+        "definitionHash": "165ffb3c4795905c",
         "id": 1,
         "relation": "current",
         "semanticVersion": "1.0.0"
@@ -637,17 +720,22 @@
         "syntheticRecord": false,
         "timeUnsynced": false
       },
-      "receiveTimeNs": 1780821326186235894,
+      "receiveTimeNs": 1780878291721026817,
       "runId": 1,
       "source": {
         "dynamic": false,
+        "hierarchy": [
+          "file",
+          "program"
+        ],
         "id": 1,
-        "name": "source1",
+        "name": "Reactor.Main",
         "path": [
-          "source1"
+          "Reactor",
+          "Main"
         ]
       },
-      "sourceTimeNs": 1780821326186235894
+      "sourceTimeNs": 1780878291721026817
     },
     "seq": 11
   },
@@ -688,7 +776,7 @@
     "provenance": {
       "bufferId": 1,
       "epoch": {
-        "definitionHash": "22defc7cc0998f93",
+        "definitionHash": "165ffb3c4795905c",
         "id": 1,
         "relation": "current",
         "semanticVersion": "1.0.0"
@@ -698,17 +786,22 @@
         "syntheticRecord": false,
         "timeUnsynced": false
       },
-      "receiveTimeNs": 1780821328266430352,
+      "receiveTimeNs": 1780878292711168541,
       "runId": 1,
       "source": {
         "dynamic": false,
+        "hierarchy": [
+          "file",
+          "program"
+        ],
         "id": 1,
-        "name": "source1",
+        "name": "Reactor.Main",
         "path": [
-          "source1"
+          "Reactor",
+          "Main"
         ]
       },
-      "sourceTimeNs": 1780821328266430352
+      "sourceTimeNs": 1780878292711168541
     },
     "seq": 12
   },
@@ -744,7 +837,7 @@
     "provenance": {
       "bufferId": 1,
       "epoch": {
-        "definitionHash": "22defc7cc0998f93",
+        "definitionHash": "165ffb3c4795905c",
         "id": 1,
         "relation": "current",
         "semanticVersion": "1.0.0"
@@ -754,17 +847,22 @@
         "syntheticRecord": false,
         "timeUnsynced": false
       },
-      "receiveTimeNs": 1780821328266430352,
+      "receiveTimeNs": 1780878292711168541,
       "runId": 1,
       "source": {
         "dynamic": false,
+        "hierarchy": [
+          "file",
+          "program"
+        ],
         "id": 1,
-        "name": "source1",
+        "name": "Reactor.Main",
         "path": [
-          "source1"
+          "Reactor",
+          "Main"
         ]
       },
-      "sourceTimeNs": 1780821328266430352
+      "sourceTimeNs": 1780878292711168541
     },
     "seq": 13
   },
@@ -792,13 +890,27 @@
         "name": "severity",
         "type": "UInt",
         "value": 900
+      },
+      {
+        "enumLabel": null,
+        "key": 7,
+        "name": "correlationId",
+        "type": "UDInt",
+        "value": 1
+      },
+      {
+        "enumLabel": null,
+        "key": 9,
+        "name": "causeOperand",
+        "type": "CauseOperandRef",
+        "value": "Level"
       }
     ],
     "kind": "event",
     "provenance": {
       "bufferId": 1,
       "epoch": {
-        "definitionHash": "22defc7cc0998f93",
+        "definitionHash": "165ffb3c4795905c",
         "id": 1,
         "relation": "current",
         "semanticVersion": "1.0.0"
@@ -808,30 +920,35 @@
         "syntheticRecord": false,
         "timeUnsynced": false
       },
-      "receiveTimeNs": 1780821328266430352,
+      "receiveTimeNs": 1780878292711168541,
       "runId": 1,
       "source": {
         "dynamic": false,
+        "hierarchy": [
+          "file",
+          "program"
+        ],
         "id": 1,
-        "name": "source1",
+        "name": "Reactor.Main",
         "path": [
-          "source1"
+          "Reactor",
+          "Main"
         ]
       },
-      "sourceTimeNs": 1780821328266430352
+      "sourceTimeNs": 1780878292711168541
     },
     "seq": 14
   },
   {
     "basis": "inferred",
-    "count": 13,
+    "count": 14,
     "firstSeq": 0,
     "kind": "loss",
-    "lastSeq": 12,
+    "lastSeq": 13,
     "provenance": {
       "bufferId": 1,
       "epoch": {
-        "definitionHash": "22defc7cc0998f93",
+        "definitionHash": "165ffb3c4795905c",
         "id": 1,
         "relation": "current",
         "semanticVersion": "1.0.0"
@@ -841,7 +958,7 @@
         "syntheticRecord": false,
         "timeUnsynced": false
       },
-      "receiveTimeNs": 1780821362803122669,
+      "receiveTimeNs": 1780878310360348352,
       "runId": 1,
       "source": {
         "id": 1
@@ -851,10 +968,11 @@
   {
     "kind": "lossReconciliation",
     "lappedBatches": 1,
-    "retainedRecords": 2,
-    "shmLostCount": 13,
-    "source1Delivered": 2,
-    "source1Lost": 13,
-    "source1Reconciled": 15
+    "retainedRecords": 1,
+    "shmLostCount": 14,
+    "sourceDelivered": 1,
+    "sourceId": 1,
+    "sourceLost": 14,
+    "sourceReconciled": 15
   }
 ]

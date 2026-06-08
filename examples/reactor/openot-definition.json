@@ -17,7 +17,7 @@
       "overflowPolicy": "overwrite-oldest"
     },
     "epochStrategy": "retain",
-    "contentHash": "22defc7cc0998f93a0dabf64e06efed20a0f613c556a389790061692f7e72a57"
+    "contentHash": "165ffb3c4795905cc05c7bab6123c62dc6fe46517e479ae403ea4057b01ce429"
   },
   "eventTypes": [
     {
@@ -101,6 +101,200 @@
           "minOccurs": 1,
           "maxOccurs": 1,
           "orderClass": 1
+        },
+        {
+          "key": 21,
+          "valuePayload": true,
+          "minOccurs": 0,
+          "maxOccurs": "unbounded",
+          "orderClass": 2
+        },
+        {
+          "key": 8,
+          "type": 3,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 3
+        }
+      ]
+    },
+    {
+      "id": 256,
+      "name": "Heartbeat",
+      "profile": "Full",
+      "slots": [
+        {
+          "key": 42,
+          "type": 5,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 1
+        },
+        {
+          "key": 43,
+          "type": 7,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 2
+        }
+      ]
+    },
+    {
+      "id": 257,
+      "name": "LoggerStarted",
+      "profile": "Full",
+      "slots": [
+        {
+          "key": 59,
+          "type": 0,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 1
+        }
+      ]
+    },
+    {
+      "id": 258,
+      "name": "LoggerStopped",
+      "profile": "Full",
+      "slots": []
+    },
+    {
+      "id": 259,
+      "name": "BufferCleared",
+      "profile": "Full",
+      "slots": []
+    },
+    {
+      "id": 260,
+      "name": "RecordsDropped",
+      "profile": "Full",
+      "slots": [
+        {
+          "key": 22,
+          "type": 5,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 1
+        },
+        {
+          "key": 23,
+          "type": 7,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 2
+        },
+        {
+          "key": 24,
+          "type": 7,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 3
+        },
+        {
+          "key": 25,
+          "type": 11,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 4
+        },
+        {
+          "key": 26,
+          "type": 11,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 5
+        }
+      ]
+    },
+    {
+      "id": 261,
+      "name": "SourceRegistered",
+      "profile": "Full",
+      "slots": [
+        {
+          "key": 41,
+          "type": 5,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 1
+        },
+        {
+          "key": 27,
+          "type": 12,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 2
+        }
+      ]
+    },
+    {
+      "id": 262,
+      "name": "DefinitionChanged",
+      "profile": "Full",
+      "slots": [
+        {
+          "key": 57,
+          "type": 13,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 1
+        },
+        {
+          "key": 28,
+          "type": 13,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 2
+        },
+        {
+          "key": 58,
+          "type": 7,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 3
+        }
+      ]
+    },
+    {
+      "id": 263,
+      "name": "TimeSyncChanged",
+      "profile": "Full",
+      "slots": [
+        {
+          "key": 50,
+          "type": 3,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 1
+        },
+        {
+          "key": 25,
+          "type": 11,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 2
+        },
+        {
+          "key": 26,
+          "type": 11,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 3
+        }
+      ]
+    },
+    {
+      "id": 264,
+      "name": "SourceHighWater",
+      "profile": "Full",
+      "slots": [
+        {
+          "key": 56,
+          "type": 7,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 1
         }
       ]
     },
@@ -129,6 +323,20 @@
           "minOccurs": 1,
           "maxOccurs": 1,
           "orderClass": 3
+        },
+        {
+          "key": 7,
+          "type": 5,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 4
+        },
+        {
+          "key": 9,
+          "type": 5,
+          "minOccurs": 0,
+          "maxOccurs": "unbounded",
+          "orderClass": 5
         }
       ]
     },
@@ -157,20 +365,762 @@
           "minOccurs": 1,
           "maxOccurs": 1,
           "orderClass": 3
+        },
+        {
+          "key": 7,
+          "type": 5,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 4
+        },
+        {
+          "key": 9,
+          "type": 5,
+          "minOccurs": 0,
+          "maxOccurs": "unbounded",
+          "orderClass": 5
         }
       ]
     },
     {
-      "id": 2147483912,
-      "name": "SourceHighWater",
+      "id": 514,
+      "name": "ConditionAcknowledged",
       "profile": "Full",
       "slots": [
         {
-          "key": 56,
-          "type": 7,
+          "key": 5,
+          "type": 5,
           "minOccurs": 1,
           "maxOccurs": 1,
           "orderClass": 1
+        },
+        {
+          "key": 7,
+          "type": 5,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 2
+        },
+        {
+          "key": 29,
+          "type": 12,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 3
+        },
+        {
+          "key": 31,
+          "type": 12,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 4
+        }
+      ]
+    },
+    {
+      "id": 515,
+      "name": "ConditionConfirmed",
+      "profile": "Full",
+      "slots": [
+        {
+          "key": 5,
+          "type": 5,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 1
+        },
+        {
+          "key": 7,
+          "type": 5,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 2
+        },
+        {
+          "key": 29,
+          "type": 12,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 3
+        },
+        {
+          "key": 31,
+          "type": 12,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 4
+        }
+      ]
+    },
+    {
+      "id": 516,
+      "name": "ConditionShelved",
+      "profile": "Full",
+      "slots": [
+        {
+          "key": 5,
+          "type": 5,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 1
+        },
+        {
+          "key": 7,
+          "type": 5,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 2
+        },
+        {
+          "key": 30,
+          "type": 5,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 3
+        },
+        {
+          "key": 31,
+          "type": 12,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 4
+        }
+      ]
+    },
+    {
+      "id": 517,
+      "name": "ConditionUnshelved",
+      "profile": "Full",
+      "slots": [
+        {
+          "key": 5,
+          "type": 5,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 1
+        },
+        {
+          "key": 7,
+          "type": 5,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 2
+        },
+        {
+          "key": 30,
+          "type": 5,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 3
+        },
+        {
+          "key": 31,
+          "type": 12,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 4
+        }
+      ]
+    },
+    {
+      "id": 518,
+      "name": "ConditionSuppressed",
+      "profile": "Full",
+      "slots": [
+        {
+          "key": 5,
+          "type": 5,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 1
+        },
+        {
+          "key": 7,
+          "type": 5,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 2
+        },
+        {
+          "key": 31,
+          "type": 12,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 3
+        }
+      ]
+    },
+    {
+      "id": 519,
+      "name": "ConditionUnsuppressed",
+      "profile": "Full",
+      "slots": [
+        {
+          "key": 5,
+          "type": 5,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 1
+        },
+        {
+          "key": 7,
+          "type": 5,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 2
+        },
+        {
+          "key": 31,
+          "type": 12,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 3
+        }
+      ]
+    },
+    {
+      "id": 520,
+      "name": "ConditionOutOfService",
+      "profile": "Full",
+      "slots": [
+        {
+          "key": 5,
+          "type": 5,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 1
+        },
+        {
+          "key": 7,
+          "type": 5,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 2
+        },
+        {
+          "key": 31,
+          "type": 12,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 3
+        }
+      ]
+    },
+    {
+      "id": 521,
+      "name": "ConditionInService",
+      "profile": "Full",
+      "slots": [
+        {
+          "key": 5,
+          "type": 5,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 1
+        },
+        {
+          "key": 7,
+          "type": 5,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 2
+        },
+        {
+          "key": 31,
+          "type": 12,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 3
+        }
+      ]
+    },
+    {
+      "id": 522,
+      "name": "ConditionCommented",
+      "profile": "Full",
+      "slots": [
+        {
+          "key": 5,
+          "type": 5,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 1
+        },
+        {
+          "key": 7,
+          "type": 5,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 2
+        },
+        {
+          "key": 55,
+          "type": 12,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 3
+        }
+      ]
+    },
+    {
+      "id": 523,
+      "name": "ConditionReset",
+      "profile": "Full",
+      "slots": [
+        {
+          "key": 5,
+          "type": 5,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 1
+        },
+        {
+          "key": 7,
+          "type": 5,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 2
+        },
+        {
+          "key": 31,
+          "type": 12,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 3
+        }
+      ]
+    },
+    {
+      "id": 524,
+      "name": "ConditionPriorityChanged",
+      "profile": "Full",
+      "slots": [
+        {
+          "key": 5,
+          "type": 5,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 1
+        },
+        {
+          "key": 7,
+          "type": 5,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 2
+        },
+        {
+          "key": 46,
+          "type": 3,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 3
+        },
+        {
+          "key": 44,
+          "type": 3,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 4
+        }
+      ]
+    },
+    {
+      "id": 525,
+      "name": "RefreshStart",
+      "profile": "Full",
+      "slots": [
+        {
+          "key": 52,
+          "type": 5,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 1
+        },
+        {
+          "key": 53,
+          "type": 5,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 2
+        }
+      ]
+    },
+    {
+      "id": 526,
+      "name": "RefreshEnd",
+      "profile": "Full",
+      "slots": [
+        {
+          "key": 52,
+          "type": 5,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 1
+        },
+        {
+          "key": 53,
+          "type": 5,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 2
+        }
+      ]
+    },
+    {
+      "id": 769,
+      "name": "RecipeLoaded",
+      "profile": "Full",
+      "slots": [
+        {
+          "key": 35,
+          "type": 5,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 1
+        },
+        {
+          "key": 36,
+          "type": 12,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 2
+        },
+        {
+          "key": 11,
+          "type": 12,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 3
+        }
+      ]
+    },
+    {
+      "id": 770,
+      "name": "RecipeApproved",
+      "profile": "Full",
+      "slots": [
+        {
+          "key": 35,
+          "type": 5,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 1
+        },
+        {
+          "key": 36,
+          "type": 12,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 2
+        },
+        {
+          "key": 11,
+          "type": 12,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 3
+        }
+      ]
+    },
+    {
+      "id": 771,
+      "name": "BatchEvent",
+      "profile": "Full",
+      "slots": [
+        {
+          "key": 37,
+          "type": 5,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 1
+        },
+        {
+          "key": 10,
+          "type": 5,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 2
+        },
+        {
+          "key": 31,
+          "type": 12,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 3
+        }
+      ]
+    },
+    {
+      "id": 772,
+      "name": "MaterialAddition",
+      "profile": "Full",
+      "slots": [
+        {
+          "key": 37,
+          "type": 5,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 1
+        },
+        {
+          "key": 38,
+          "type": 5,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 2
+        },
+        {
+          "key": 39,
+          "type": 10,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 3
+        },
+        {
+          "key": 19,
+          "type": 3,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 4
+        }
+      ]
+    },
+    {
+      "id": 1024,
+      "name": "OperatorAction",
+      "profile": "Full",
+      "slots": [
+        {
+          "key": 10,
+          "type": 5,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 1
+        },
+        {
+          "key": 11,
+          "type": 12,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 2
+        },
+        {
+          "key": 12,
+          "type": 5,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 3
+        },
+        {
+          "key": 33,
+          "type": 12,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 4
+        }
+      ]
+    },
+    {
+      "id": 1025,
+      "name": "OperatorLogin",
+      "profile": "Full",
+      "slots": [
+        {
+          "key": 11,
+          "type": 12,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 1
+        },
+        {
+          "key": 33,
+          "type": 12,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 2
+        }
+      ]
+    },
+    {
+      "id": 1026,
+      "name": "OperatorLogout",
+      "profile": "Full",
+      "slots": [
+        {
+          "key": 11,
+          "type": 12,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 1
+        },
+        {
+          "key": 33,
+          "type": 12,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 2
+        }
+      ]
+    },
+    {
+      "id": 1027,
+      "name": "ParameterChange",
+      "profile": "Full",
+      "slots": [
+        {
+          "key": 11,
+          "type": 12,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 1
+        },
+        {
+          "key": 12,
+          "type": 5,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 2
+        },
+        {
+          "key": 13,
+          "type": 5,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 3
+        },
+        {
+          "key": 15,
+          "valuePayload": true,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 4
+        },
+        {
+          "key": 16,
+          "valuePayload": true,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 5
+        },
+        {
+          "key": 31,
+          "type": 12,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 6
+        }
+      ]
+    },
+    {
+      "id": 1028,
+      "name": "ESignature",
+      "profile": "Full",
+      "slots": [
+        {
+          "key": 11,
+          "type": 12,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 1
+        },
+        {
+          "key": 34,
+          "type": 3,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 2
+        },
+        {
+          "key": 47,
+          "type": 7,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 3
+        },
+        {
+          "key": 48,
+          "type": 11,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 4
+        },
+        {
+          "key": 49,
+          "type": 7,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 5
+        },
+        {
+          "key": 33,
+          "type": 12,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 6
+        }
+      ]
+    },
+    {
+      "id": 1029,
+      "name": "SecurityAccessFailure",
+      "profile": "Full",
+      "slots": [
+        {
+          "key": 11,
+          "type": 12,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 1
+        },
+        {
+          "key": 32,
+          "type": 3,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 2
+        },
+        {
+          "key": 33,
+          "type": 12,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 3
+        },
+        {
+          "key": 31,
+          "type": 12,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 4
+        }
+      ]
+    },
+    {
+      "id": 1030,
+      "name": "ProgramDownload",
+      "profile": "Full",
+      "slots": [
+        {
+          "key": 40,
+          "type": 5,
+          "minOccurs": 1,
+          "maxOccurs": 1,
+          "orderClass": 1
+        },
+        {
+          "key": 11,
+          "type": 12,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 2
+        },
+        {
+          "key": 28,
+          "type": 13,
+          "minOccurs": 0,
+          "maxOccurs": 1,
+          "orderClass": 3
         }
       ]
     }
@@ -178,11 +1128,15 @@
   "sources": [
     {
       "sourceId": 1,
-      "name": "source1",
+      "name": "Reactor.Main",
       "path": [
-        "source1"
+        "Reactor",
+        "Main"
       ],
-      "hierarchy": [],
+      "hierarchy": [
+        "file",
+        "program"
+      ],
       "dynamic": false
     }
   ],
@@ -201,15 +1155,22 @@
       "name": "HighPhAlarm",
       "conditionClass": 0,
       "defaultSeverity": 900,
-      "causeOperands": []
+      "causeOperands": [
+        {
+          "operandId": 1,
+          "name": "Level"
+        }
+      ]
     }
   ],
   "messageTemplates": [
     {
       "messageTemplateId": 10001,
       "name": "BatchStarted",
-      "format": "batch started",
-      "argTypes": []
+      "format": "batch started count",
+      "argTypes": [
+        6
+      ]
     }
   ],
   "values": [
@@ -218,7 +1179,7 @@
       "name": "Level",
       "dataType": 9,
       "semanticRole": 0,
-      "unit": 1,
+      "unit": 2,
       "deadband": {
         "decimal": "0.5",
         "scaled": null
@@ -237,7 +1198,7 @@
   ],
   "units": [
     {
-      "unitId": 1,
+      "unitId": 2,
       "symbol": "L"
     }
   ],
@@ -266,6 +1227,36 @@
           "label": "Done"
         }
       ]
+    }
+  ],
+  "recipeDefinitions": [],
+  "batchDefinitions": [],
+  "materialDefinitions": [],
+  "operatorDefinitions": [],
+  "eSignatureMeanings": [
+    {
+      "meaning": 0,
+      "label": "Authored"
+    },
+    {
+      "meaning": 1,
+      "label": "Reviewed"
+    },
+    {
+      "meaning": 2,
+      "label": "Approved"
+    },
+    {
+      "meaning": 3,
+      "label": "Verified"
+    },
+    {
+      "meaning": 4,
+      "label": "Performed"
+    },
+    {
+      "meaning": 5,
+      "label": "Witnessed"
     }
   ],
   "severityScale": {

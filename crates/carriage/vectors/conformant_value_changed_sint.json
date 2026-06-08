@@ -1,0 +1,28 @@
+{
+  "name": "conformant_value_changed_sint",
+  "description": "definition-layer positive ValueChanged record carrying an SINT newValue",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "conformant_value_changed_sint.hex",
+  "byteCount": 60,
+  "headerLength": 40,
+  "totalRecordLength": 60,
+  "flags": "0x0008",
+  "crc32c": "0xB6518C07",
+  "detail": {
+    "eventName": "ValueChanged",
+    "schemaExpected": "accept",
+    "fields": {
+      "sourceTime": 1000000050,
+      "runId": 1,
+      "seq": 6,
+      "sourceId": 66,
+      "eventTypeId": "0x0002"
+    },
+    "slots": [
+      { "key": "0x000D", "type": "UDInt", "name": "valueId", "value": 2004 },
+      { "key": "0x0010", "type": "SInt", "name": "newValue", "value": -5 }
+    ]
+  }
+}

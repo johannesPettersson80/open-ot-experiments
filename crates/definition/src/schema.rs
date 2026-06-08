@@ -7,7 +7,8 @@
 
 use crate::model::{DefinitionFile, EventTypeDefinition, MaxOccurs, SlotDefinition};
 use open_ot_carriage::registry::{
-    FieldKind, TY_BYTES, TY_STRING, field_spec, is_core_key, is_vendor_key, tlv_type_spec,
+    FieldKind, KEY_NEW_VALUE, KEY_PREVIOUS_VALUE, KEY_VALUE_ID, PROCEDURAL_MODELS, TY_BYTES,
+    TY_STRING, field_spec, is_core_key, is_vendor_key, tlv_type_spec,
 };
 use open_ot_carriage::wire::{FLAG_HAS_CRC, Record, Slot, WireError};
 use std::collections::{BTreeMap, BTreeSet};
@@ -204,6 +205,31 @@ pub enum DefinitionSchemaViolation {
         /// Value key of the slot.
         key: u16,
     },
+    /// A procedural state machine names a model not in the registry.
+    UnknownProceduralModel {
+        /// State-machine id with the unknown model.
+        state_machine_id: u32,
+        /// Unknown procedural model label.
+        model: String,
+    },
+    /// A procedural state machine references an enum set missing from the definition.
+    MissingEnumSet {
+        /// State-machine id with the missing enum-set reference.
+        state_machine_id: u32,
+        /// Missing enum-set name.
+        enum_set: String,
+    },
+    /// A procedural state does not match the named model's canonical value/label pair.
+    ProceduralStateMismatch {
+        /// State-machine id with the mismatch.
+        state_machine_id: u32,
+        /// Procedural model label.
+        model: String,
+        /// Numeric state value in the enum set.
+        value: u16,
+        /// Label in the enum set.
+        label: String,
+    },
 }
 
 /// Validates definition event schemas independent of a record.
@@ -215,6 +241,7 @@ pub fn validate_definition(definition: &DefinitionFile) -> Result<(), Definition
         }
         validate_event_definition(event)?;
     }
+    validate_state_machine_models(definition)?;
     Ok(())
 }
 
@@ -259,10 +286,54 @@ pub fn validate_record(
         );
     };
 
-    match validate_record_slots(record, event) {
+    match validate_record_slots(record, event, definition) {
         Ok(extension_keys) => SchemaValidation::Valid { extension_keys },
         Err(reason) => placeholder(record, reason),
     }
+}
+
+fn validate_state_machine_models(
+    definition: &DefinitionFile,
+) -> Result<(), DefinitionSchemaViolation> {
+    for machine in &definition.state_machines {
+        let Some(model_name) = machine.procedural_model.as_deref() else {
+            continue;
+        };
+        let Some(model) = PROCEDURAL_MODELS
+            .iter()
+            .find(|model| model.name.eq_ignore_ascii_case(model_name))
+        else {
+            return Err(DefinitionSchemaViolation::UnknownProceduralModel {
+                state_machine_id: machine.state_machine_id,
+                model: model_name.to_string(),
+            });
+        };
+        let Some(enum_set) = definition
+            .enum_sets
+            .iter()
+            .find(|enum_set| enum_set.name == machine.enum_set)
+        else {
+            return Err(DefinitionSchemaViolation::MissingEnumSet {
+                state_machine_id: machine.state_machine_id,
+                enum_set: machine.enum_set.clone(),
+            });
+        };
+        for member in &enum_set.members {
+            if !model
+                .states
+                .iter()
+                .any(|state| state.value == member.value && state.label == member.label)
+            {
+                return Err(DefinitionSchemaViolation::ProceduralStateMismatch {
+                    state_machine_id: machine.state_machine_id,
+                    model: model.name.to_string(),
+                    value: member.value,
+                    label: member.label.clone(),
+                });
+            }
+        }
+    }
+    Ok(())
 }
 
 /// Computes encoded length using the record's CRC flag.
@@ -394,6 +465,7 @@ fn validate_slot_definition_type(
 fn validate_record_slots(
     record: &Record,
     event: &EventTypeDefinition,
+    definition: &DefinitionFile,
 ) -> Result<Vec<u16>, SchemaViolation> {
     let schema_by_key = event
         .slots
@@ -415,6 +487,7 @@ fn validate_record_slots(
             }
 
             validate_record_slot_type(slot, schema)?;
+            validate_value_payload_type(slot, record, definition)?;
             validate_payload_width(slot)?;
 
             known_order.push((schema.order_class, slot.key));
@@ -517,6 +590,43 @@ fn validate_record_slot_type(slot: &Slot, schema: &SlotDefinition) -> Result<(),
     }
 }
 
+fn validate_value_payload_type(
+    slot: &Slot,
+    record: &Record,
+    definition: &DefinitionFile,
+) -> Result<(), SchemaViolation> {
+    if !matches!(slot.key, KEY_PREVIOUS_VALUE | KEY_NEW_VALUE) {
+        return Ok(());
+    }
+    let Some(value_id) = record.slots.iter().find_map(|candidate| {
+        (candidate.key == KEY_VALUE_ID && candidate.payload.len() == 4).then(|| {
+            u32::from_le_bytes([
+                candidate.payload[0],
+                candidate.payload[1],
+                candidate.payload[2],
+                candidate.payload[3],
+            ])
+        })
+    }) else {
+        return Ok(());
+    };
+    let Some(value_def) = definition
+        .values
+        .iter()
+        .find(|value_def| value_def.value_id == value_id)
+    else {
+        return Ok(());
+    };
+    if slot.ty != value_def.data_type {
+        return Err(SchemaViolation::TypeMismatch {
+            key: slot.key,
+            actual: slot.ty,
+            expected: value_def.data_type,
+        });
+    }
+    Ok(())
+}
+
 fn validate_payload_width(slot: &Slot) -> Result<(), SchemaViolation> {
     let Some(spec) = tlv_type_spec(slot.ty) else {
         return Err(SchemaViolation::UnknownTlvType {
@@ -588,7 +698,43 @@ mod tests {
                 "../../carriage/vectors/conformant_value_changed_dint.hex"
             )),
             hex_bytes(include_str!(
+                "../../carriage/vectors/conformant_value_changed_bool.hex"
+            )),
+            hex_bytes(include_str!(
+                "../../carriage/vectors/conformant_value_changed_sint.hex"
+            )),
+            hex_bytes(include_str!(
+                "../../carriage/vectors/conformant_value_changed_usint.hex"
+            )),
+            hex_bytes(include_str!(
+                "../../carriage/vectors/conformant_value_changed_int.hex"
+            )),
+            hex_bytes(include_str!(
+                "../../carriage/vectors/conformant_value_changed_uint.hex"
+            )),
+            hex_bytes(include_str!(
+                "../../carriage/vectors/conformant_value_changed_udint.hex"
+            )),
+            hex_bytes(include_str!(
+                "../../carriage/vectors/conformant_value_changed_ulint.hex"
+            )),
+            hex_bytes(include_str!(
+                "../../carriage/vectors/conformant_value_changed_lint.hex"
+            )),
+            hex_bytes(include_str!(
+                "../../carriage/vectors/conformant_value_changed_lreal.hex"
+            )),
+            hex_bytes(include_str!(
+                "../../carriage/vectors/conformant_value_changed_string.hex"
+            )),
+            hex_bytes(include_str!(
                 "../../carriage/vectors/conformant_message.hex"
+            )),
+            hex_bytes(include_str!(
+                "../../carriage/vectors/conformant_condition_active.hex"
+            )),
+            hex_bytes(include_str!(
+                "../../carriage/vectors/conformant_condition_cleared.hex"
             )),
             hex_bytes(include_str!(
                 "../../carriage/vectors/conformant_records_dropped.hex"
@@ -807,6 +953,27 @@ mod tests {
     }
 
     #[test]
+    fn procedural_model_state_mismatch_rejects_definition() {
+        let mut definition = sample_definition();
+        let enum_set = definition
+            .enum_sets
+            .iter_mut()
+            .find(|enum_set| enum_set.name == "CoreProcedureStates")
+            .expect("sample ISA-88 enum set");
+        enum_set.members[1].label = "Filling".to_string();
+
+        assert_eq!(
+            validate_definition(&definition),
+            Err(DefinitionSchemaViolation::ProceduralStateMismatch {
+                state_machine_id: 7,
+                model: "ISA-88".to_string(),
+                value: 4,
+                label: "Filling".to_string(),
+            })
+        );
+    }
+
+    #[test]
     fn value_payload_slot_type_is_the_logged_data_type() {
         let mut record = conformant_value_changed_real_record();
         let slot = record
@@ -817,11 +984,13 @@ mod tests {
         slot.ty = TY_DINT;
         slot.payload = 12i32.to_le_bytes().to_vec();
 
-        assert_eq!(
+        assert_placeholder_reason(
             validate_owned_record(&record),
-            SchemaValidation::Valid {
-                extension_keys: Vec::new()
-            }
+            SchemaViolation::TypeMismatch {
+                key: KEY_NEW_VALUE,
+                actual: TY_DINT,
+                expected: TY_REAL,
+            },
         );
     }
 

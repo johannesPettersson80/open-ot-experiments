@@ -10,7 +10,7 @@ The current experiment uses one checkpoint record per affected source:
 
 ```text
 Envelope SourceId: affected source
-EventTypeId:       EVENT_SOURCE_HIGH_WATER = 0x80000108
+EventTypeId:       EVENT_SOURCE_HIGH_WATER = 0x0108
 Envelope Seq:      producedCount
 ValueKeyId:        KEY_SOURCE_HIGH_WATER = 0x0038
 Payload:           producedCount: u64 little-endian
@@ -18,12 +18,10 @@ Payload:           producedCount: u64 little-endian
 
 The payload is a scalar `ULInt`. There is no packed `{source_id, produced_count}` slot; the source comes from the record envelope.
 
-> **Vendor-range extension.** `EVENT_SOURCE_HIGH_WATER = 0x80000108` has bit 31 set, so it lives in
-> the **vendor id range**, not the core system range (`0x0100–0x01FF`). High-water is this
-> reference's reconciliation aid — proposed to the working group as a possible core addition, but
-> not part of the core allocation today. A consumer that doesn't recognize it skips it like any
-> unknown id; loss accounting still works from seq gaps + `RecordsDropped`, just without the
-> silent-tail proof.
+> **Core system event.** `EVENT_SOURCE_HIGH_WATER = 0x0108` lives in the system range
+> (`0x0100–0x01FF`). High-water is this reference's reconciliation aid for silent-source tails.
+> A consumer that doesn't recognize it skips it like any unknown id; loss accounting still works
+> from seq gaps + `RecordsDropped`, just without the silent-tail proof.
 
 ## Consumer Rule
 

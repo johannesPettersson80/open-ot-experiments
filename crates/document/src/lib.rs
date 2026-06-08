@@ -746,6 +746,37 @@ fn definition_schema_violation_document(reason: &DefinitionSchemaViolation) -> V
         DefinitionSchemaViolation::InvalidMaxOccurs { event_id, key } => {
             json!({ "invalidMaxOccurs": { "eventTypeId": event_id, "key": key } })
         }
+        DefinitionSchemaViolation::UnknownProceduralModel {
+            state_machine_id,
+            model,
+        } => json!({
+            "unknownProceduralModel": {
+                "stateMachineId": state_machine_id,
+                "model": model
+            }
+        }),
+        DefinitionSchemaViolation::MissingEnumSet {
+            state_machine_id,
+            enum_set,
+        } => json!({
+            "missingEnumSet": {
+                "stateMachineId": state_machine_id,
+                "enumSet": enum_set
+            }
+        }),
+        DefinitionSchemaViolation::ProceduralStateMismatch {
+            state_machine_id,
+            model,
+            value,
+            label,
+        } => json!({
+            "proceduralStateMismatch": {
+                "stateMachineId": state_machine_id,
+                "model": model,
+                "value": value,
+                "label": label
+            }
+        }),
     }
 }
 

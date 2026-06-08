@@ -1,7 +1,8 @@
 //! Canonical ids used by the carriage and definition prototypes.
 //!
-//! The concrete integer values are provisional experiment values, but this module keeps
-//! the crate on one append-only table so collisions are caught in tests.
+//! These integer values are the assigned OpenOT reference values for this workbench. A
+//! later WG ballot may still renumber them, but within this repository they are treated
+//! as final and collision-checked.
 
 /// Source id reserved for logger lifecycle records.
 pub const SYSTEM_SOURCE_ID: u32 = 0;
@@ -42,8 +43,8 @@ pub const EVENT_SOURCE_REGISTERED: u32 = 0x0105;
 pub const EVENT_DEFINITION_CHANGED: u32 = 0x0106;
 /// System event: time synchronization changed.
 pub const EVENT_TIME_SYNC_CHANGED: u32 = 0x0107;
-/// Vendor extension event: per-source produced-count checkpoint.
-pub const EVENT_SOURCE_HIGH_WATER: u32 = 0x8000_0108;
+/// System event: per-source produced-count checkpoint.
+pub const EVENT_SOURCE_HIGH_WATER: u32 = 0x0108;
 
 /// Condition event: active.
 pub const EVENT_CONDITION_ACTIVE: u32 = 0x0200;
@@ -311,6 +312,17 @@ pub struct TlvTypeSpec {
     pub name: &'static str,
     /// Fixed payload width in bytes, or `None` for variable-length types.
     pub fixed_width: Option<usize>,
+}
+
+/// Canonical engineering-unit registry entry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct UnitSpec {
+    /// Stable unit id used in generated definition files.
+    pub unit_id: u16,
+    /// UCUM-compatible display symbol.
+    pub symbol: &'static str,
+    /// Human-facing unit name.
+    pub name: &'static str,
 }
 
 /// Enum registry entry.
@@ -807,6 +819,20 @@ pub const TLV_TYPE_SPECS: &[TlvTypeSpec] = &[
     ty(TY_BYTES, "Bytes", None),
 ];
 
+/// Canonical unit table used by the truST authoring layer.
+pub const UNIT_SPECS: &[UnitSpec] = &[
+    unit(1, "1", "count"),
+    unit(2, "L", "litre"),
+    unit(3, "degC", "degree Celsius"),
+    unit(4, "bar", "bar"),
+    unit(5, "rpm", "revolutions per minute"),
+    unit(6, "s", "second"),
+    unit(7, "ms", "millisecond"),
+    unit(8, "kg", "kilogram"),
+    unit(9, "m", "metre"),
+    unit(10, "%", "percent"),
+];
+
 /// Category enum values.
 pub const CATEGORY_VALUES: &[EnumValue] =
     &[ev(0, "ProcessState"), ev(1, "Mode"), ev(2, "Procedural")];
@@ -941,6 +967,18 @@ pub fn tlv_type_spec(code: u8) -> Option<&'static TlvTypeSpec> {
     TLV_TYPE_SPECS.iter().find(|spec| spec.code == code)
 }
 
+/// Returns the canonical unit registry entry for `symbol`.
+pub fn unit_spec_by_symbol(symbol: &str) -> Option<&'static UnitSpec> {
+    UNIT_SPECS
+        .iter()
+        .find(|spec| spec.symbol.eq_ignore_ascii_case(symbol))
+}
+
+/// Returns the canonical unit registry entry for `unit_id`.
+pub fn unit_spec(unit_id: u16) -> Option<&'static UnitSpec> {
+    UNIT_SPECS.iter().find(|spec| spec.unit_id == unit_id)
+}
+
 /// True when the event id is in a core range.
 pub fn is_core_event_id(id: u32) -> bool {
     id & 0x8000_0000 == 0
@@ -988,6 +1026,14 @@ const fn ty(code: u8, name: &'static str, fixed_width: Option<usize>) -> TlvType
     }
 }
 
+const fn unit(unit_id: u16, symbol: &'static str, name: &'static str) -> UnitSpec {
+    UnitSpec {
+        unit_id,
+        symbol,
+        name,
+    }
+}
+
 const fn ev(value: u16, label: &'static str) -> EnumValue {
     EnumValue { value, label }
 }
@@ -1003,7 +1049,7 @@ mod tests {
         ids.dedup();
         assert_eq!(ids.len(), EVENT_SPECS.len());
         assert_eq!(EVENT_SPECS.len(), 38);
-        assert!(is_vendor_event_id(EVENT_SOURCE_HIGH_WATER));
+        assert!(is_core_event_id(EVENT_SOURCE_HIGH_WATER));
         assert_eq!(
             event_spec(EVENT_SOURCE_HIGH_WATER).unwrap().name,
             "SourceHighWater"
@@ -1107,5 +1153,18 @@ mod tests {
         assert_eq!(PROCEDURAL_MODELS.len(), 2);
         assert_eq!(PROCEDURAL_MODELS[0].states[11], ev(11, "Aborted"));
         assert_eq!(PROCEDURAL_MODELS[1].states[16], ev(16, "Resetting"));
+    }
+
+    #[test]
+    fn unit_specs_are_unique_and_lookup_by_symbol() {
+        let mut ids = UNIT_SPECS
+            .iter()
+            .map(|spec| spec.unit_id)
+            .collect::<Vec<_>>();
+        ids.sort_unstable();
+        ids.dedup();
+        assert_eq!(ids.len(), UNIT_SPECS.len());
+        assert_eq!(unit_spec_by_symbol("L").unwrap().unit_id, 2);
+        assert_eq!(unit_spec(3).unwrap().symbol, "degC");
     }
 }

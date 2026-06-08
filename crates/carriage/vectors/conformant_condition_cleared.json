@@ -1,0 +1,31 @@
+{
+  "name": "conformant_condition_cleared",
+  "description": "definition-layer positive ConditionCleared record echoing correlation and cause operand",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "conformant_condition_cleared.hex",
+  "byteCount": 84,
+  "headerLength": 40,
+  "totalRecordLength": 84,
+  "flags": "0x0008",
+  "crc32c": "0x599E157F",
+  "detail": {
+    "eventName": "ConditionCleared",
+    "schemaExpected": "accept",
+    "fields": {
+      "sourceTime": 1000000150,
+      "runId": 1,
+      "seq": 16,
+      "sourceId": 66,
+      "eventTypeId": "0x0201"
+    },
+    "slots": [
+      { "key": "0x0005", "type": "UDInt", "name": "conditionId", "value": 9001 },
+      { "key": "0x0006", "type": "UInt", "name": "conditionClass", "value": 0 },
+      { "key": "0x0008", "type": "UInt", "name": "severity", "value": 900 },
+      { "key": "0x0007", "type": "UDInt", "name": "correlationId", "value": 77 },
+      { "key": "0x0009", "type": "UDInt", "name": "causeOperand", "value": 1 }
+    ]
+  }
+}

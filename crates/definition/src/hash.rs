@@ -260,11 +260,11 @@ mod tests {
         assert!(hash.content_hash.chars().all(|ch| !ch.is_ascii_uppercase()));
         assert_eq!(
             hash.carriage_hash,
-            [0x61, 0x8d, 0xe7, 0x28, 0xeb, 0xeb, 0x6e, 0xf4]
+            [0x37, 0xd8, 0x51, 0x42, 0x00, 0x0b, 0x82, 0x6b]
         );
         assert_eq!(
             hash.content_hash,
-            "618de728ebeb6ef4e7a6819208e1369304d4254bd7a32ce3e9d73156f25b8d76"
+            "37d85142000b826b1914d403ace7fd9dc0dd7155e78c68261a745534bdb04592"
         );
     }
 
@@ -284,20 +284,20 @@ mod tests {
 
         let canonical =
             String::from_utf8(canonical_definition_bytes_for_hash(&definition).unwrap()).unwrap();
+        let hash = compute_content_hash(&definition).unwrap();
 
         assert_eq!(
             canonical,
-            "{\"conditions\":[],\"enumSets\":[],\"eventTypes\":[],\"header\":{\"caps\":{\"crc\":true,\"sourceHighWater\":true},\"conformanceLevel\":\"Producer-Core\",\"constraints\":{\"maxRecordSize\":128,\"maxSlots\":4,\"overflowPolicy\":\"overwrite-oldest\"},\"contentHash\":\"\",\"epochStrategy\":\"retain\",\"profiles\":[\"Core\"],\"semanticVersion\":\"1.0.0\",\"wireVersion\":2},\"messageTemplates\":[],\"severityScale\":{\"high\":{\"max\":1000,\"min\":667},\"low\":{\"max\":332,\"min\":1},\"medium\":{\"max\":666,\"min\":333},\"name\":\"baseline\"},\"sources\":[],\"stateMachines\":[],\"units\":[],\"values\":[{\"dataType\":9,\"deadband\":{\"decimal\":\"0.5\",\"scaled\":null},\"name\":\"Temperature\",\"samplingPolicy\":null,\"semanticRole\":0,\"unit\":null,\"valueId\":2001},{\"dataType\":6,\"deadband\":null,\"name\":\"BatchCount\",\"samplingPolicy\":\"on-change\",\"semanticRole\":3,\"unit\":null,\"valueId\":2002}]}"
+            "{\"batchDefinitions\":[],\"conditions\":[{\"causeOperands\":[{\"name\":\"Level\",\"operandId\":1}],\"conditionClass\":0,\"conditionId\":9001,\"defaultSeverity\":900,\"name\":\"HighPhAlarm\"}],\"eSignatureMeanings\":[{\"label\":\"Authored\",\"meaning\":0},{\"label\":\"Reviewed\",\"meaning\":1},{\"label\":\"Approved\",\"meaning\":2},{\"label\":\"Verified\",\"meaning\":3},{\"label\":\"Performed\",\"meaning\":4},{\"label\":\"Witnessed\",\"meaning\":5}],\"enumSets\":[],\"eventTypes\":[],\"header\":{\"caps\":{\"crc\":true,\"sourceHighWater\":true},\"conformanceLevel\":\"Producer-Core\",\"constraints\":{\"maxRecordSize\":128,\"maxSlots\":4,\"overflowPolicy\":\"overwrite-oldest\"},\"contentHash\":\"\",\"epochStrategy\":\"retain\",\"profiles\":[\"Core\"],\"semanticVersion\":\"1.0.0\",\"wireVersion\":2},\"materialDefinitions\":[],\"messageTemplates\":[],\"operatorDefinitions\":[],\"recipeDefinitions\":[],\"severityScale\":{\"high\":{\"max\":1000,\"min\":667},\"low\":{\"max\":332,\"min\":1},\"medium\":{\"max\":666,\"min\":333},\"name\":\"baseline\"},\"sources\":[],\"stateMachines\":[],\"units\":[],\"values\":[{\"dataType\":9,\"deadband\":{\"decimal\":\"0.5\",\"scaled\":null},\"name\":\"Temperature\",\"samplingPolicy\":null,\"semanticRole\":0,\"unit\":null,\"valueId\":2001},{\"dataType\":6,\"deadband\":null,\"name\":\"BatchCount\",\"samplingPolicy\":\"on-change\",\"semanticRole\":3,\"unit\":null,\"valueId\":2002},{\"dataType\":0,\"deadband\":null,\"name\":\"Enabled\",\"samplingPolicy\":\"on-change\",\"semanticRole\":0,\"unit\":null,\"valueId\":2003},{\"dataType\":1,\"deadband\":null,\"name\":\"SmallSigned\",\"samplingPolicy\":\"on-change\",\"semanticRole\":0,\"unit\":null,\"valueId\":2004},{\"dataType\":2,\"deadband\":null,\"name\":\"SmallUnsigned\",\"samplingPolicy\":\"on-change\",\"semanticRole\":0,\"unit\":null,\"valueId\":2005},{\"dataType\":4,\"deadband\":null,\"name\":\"SignedWord\",\"samplingPolicy\":\"on-change\",\"semanticRole\":0,\"unit\":null,\"valueId\":2006},{\"dataType\":3,\"deadband\":null,\"name\":\"UnsignedWord\",\"samplingPolicy\":\"on-change\",\"semanticRole\":0,\"unit\":null,\"valueId\":2007},{\"dataType\":5,\"deadband\":null,\"name\":\"UnsignedDoubleWord\",\"samplingPolicy\":\"on-change\",\"semanticRole\":0,\"unit\":null,\"valueId\":2008},{\"dataType\":7,\"deadband\":null,\"name\":\"UnsignedLong\",\"samplingPolicy\":\"on-change\",\"semanticRole\":0,\"unit\":null,\"valueId\":2009},{\"dataType\":8,\"deadband\":null,\"name\":\"SignedLong\",\"samplingPolicy\":\"on-change\",\"semanticRole\":0,\"unit\":null,\"valueId\":2010},{\"dataType\":10,\"deadband\":null,\"name\":\"HighPrecision\",\"samplingPolicy\":\"on-change\",\"semanticRole\":0,\"unit\":null,\"valueId\":2011},{\"dataType\":12,\"deadband\":null,\"name\":\"StatusText\",\"samplingPolicy\":\"on-change\",\"semanticRole\":5,\"unit\":null,\"valueId\":2012}]}"
         );
 
-        let hash = compute_content_hash(&definition).unwrap();
         assert_eq!(
             hash.content_hash,
-            "ecd25cd81846dc108f36c8355aa7296466cc50330bd4ea359909b20f816ee843"
+            "c0e981eae8ca6670a11ada4ef256a002ecc3041b50eea6e1fd0867e342277ac1"
         );
         assert_eq!(
             hash.carriage_hash,
-            [0xec, 0xd2, 0x5c, 0xd8, 0x18, 0x46, 0xdc, 0x10]
+            [0xc0, 0xe9, 0x81, 0xea, 0xe8, 0xca, 0x66, 0x70]
         );
     }
 }

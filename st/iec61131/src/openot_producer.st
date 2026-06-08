@@ -25,6 +25,20 @@ TYPE
         LastValue : DINT;
     END_STRUCT;
 
+    OPENOT_BITS_VALUE_STATE : STRUCT
+        Used : BOOL;
+        ValueId : UDINT;
+        HasLast : BOOL;
+        LastBits : ULINT;
+    END_STRUCT;
+
+    OPENOT_STRING_VALUE_STATE : STRUCT
+        Used : BOOL;
+        ValueId : UDINT;
+        HasLast : BOOL;
+        LastValue : STRING[96];
+    END_STRUCT;
+
     OPENOT_STATE_MACHINE_STATE : STRUCT
         Used : BOOL;
         StateMachineId : UDINT;
@@ -37,6 +51,7 @@ TYPE
         ConditionId : UDINT;
         HasLast : BOOL;
         LastActive : BOOL;
+        CorrelationId : UDINT;
     END_STRUCT;
 
     OPENOT_EMISSION_ENTRY : STRUCT
@@ -141,7 +156,12 @@ VAR_INPUT
     ValueId : UDINT;
     ValueReal : REAL;
     ValueInt : DINT;
+    ValueBits : ULINT;
+    ValueTypeTag : BYTE;
+    ValuePayloadLength : UINT;
+    ValueString : STRING[96];
     DeadbandReal : REAL;
+    SuppressPrevious : BOOL;
     HasQuality : BOOL;
     Quality : UINT;
     StateMachineId : UDINT;
@@ -152,7 +172,28 @@ VAR_INPUT
     ConditionClass : UINT;
     Severity : UINT;
     ConditionActive : BOOL;
+    HasCauseOperand : BOOL;
+    CauseOperand : UDINT;
     MessageTemplateId : UDINT;
+    MessageHasSeverity : BOOL;
+    MessageSeverity : UINT;
+    MessageArgCount : UINT;
+    MessageArg1TypeTag : BYTE;
+    MessageArg1PayloadLength : UINT;
+    MessageArg1Bits : ULINT;
+    MessageArg1String : STRING[96];
+    MessageArg2TypeTag : BYTE;
+    MessageArg2PayloadLength : UINT;
+    MessageArg2Bits : ULINT;
+    MessageArg2String : STRING[96];
+    MessageArg3TypeTag : BYTE;
+    MessageArg3PayloadLength : UINT;
+    MessageArg3Bits : ULINT;
+    MessageArg3String : STRING[96];
+    MessageArg4TypeTag : BYTE;
+    MessageArg4PayloadLength : UINT;
+    MessageArg4Bits : ULINT;
+    MessageArg4String : STRING[96];
 END_VAR
 VAR_OUTPUT
     AssignedSeq : ULINT;
@@ -196,12 +237,16 @@ VAR
     Sources : ARRAY[0..15] OF OPENOT_SOURCE_ENTRY;
     RealValueStates : ARRAY[0..15] OF OPENOT_REAL_VALUE_STATE;
     IntValueStates : ARRAY[0..15] OF OPENOT_INT_VALUE_STATE;
+    BitsValueStates : ARRAY[0..15] OF OPENOT_BITS_VALUE_STATE;
+    StringValueStates : ARRAY[0..15] OF OPENOT_STRING_VALUE_STATE;
     StateMachineStates : ARRAY[0..15] OF OPENOT_STATE_MACHINE_STATE;
     ConditionStates : ARRAY[0..15] OF OPENOT_CONDITION_STATE;
     RingProducer : OPENOT_Ring256Producer;
     Encoder : OPENOT_EncodeMinimalMessage;
     ValueRealEncoder : OPENOT_EncodeValueChangedReal;
     ValueIntEncoder : OPENOT_EncodeValueChangedInt;
+    ValueBitsEncoder : OPENOT_EncodeValueChangedBits;
+    ValueStringEncoder : OPENOT_EncodeValueChangedString;
     StateTransitionEncoder : OPENOT_EncodeStateTransition;
     ConditionEncoder : OPENOT_EncodeCondition;
     HighWaterEncoder : OPENOT_EncodeSourceHighWater;
@@ -222,6 +267,7 @@ VAR
     StateSystemSeq : ULINT;
     StateEpochId : ULINT;
     StateEpochFirstAbs : ULINT;
+    StateNextConditionCorrelationId : UDINT;
     StateDefinitionHash : OPENOT_HASH8;
     StatePrevDefinitionHash : OPENOT_HASH8;
     StatePublishedRecordCount : ULINT;
@@ -248,6 +294,7 @@ VAR
     AppendOk : BOOL;
     ResetOk : BOOL;
     ConditionEventTypeId : UDINT;
+    ConditionCorrelationId : UDINT;
 END_VAR
 
 IF NOT Initialized THEN
@@ -256,6 +303,7 @@ IF NOT Initialized THEN
     StateSystemSeq := ULINT#0;
     StateEpochId := ULINT#1;
     StateEpochFirstAbs := ULINT#0;
+    StateNextConditionCorrelationId := UDINT#1;
     StatePublishedRecordCount := ULINT#0;
     Initialized := TRUE;
 END_IF;
@@ -277,7 +325,7 @@ IF ResetScanRecords THEN
 END_IF;
 
 IF ExecuteEdge THEN
-    IF (NOT AccumulateScanRecords) AND (Op <> UINT#6) AND (Op <> UINT#7) AND (Op <> UINT#8) AND (Op <> UINT#9) THEN
+    IF (NOT AccumulateScanRecords) AND (Op <> UINT#6) AND (Op <> UINT#7) AND (Op <> UINT#8) AND (Op <> UINT#9) AND (Op <> UINT#10) AND (Op <> UINT#11) THEN
         ResetOk := OPENOT_ResetScanRecordList(
             ScanRecordOffsets := ScanRecordOffsets,
             ScanRecordLengths := ScanRecordLengths,
@@ -337,7 +385,7 @@ IF ExecuteEdge THEN
                         Sources[EntryIndex].NextSeq := ProducedCount + ULINT#1;
                         StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
                         IF EmissionCount < UINT#32 THEN
-                            Emissions[EmissionCount].EventTypeId := UDINT#16#80000108;
+                            Emissions[EmissionCount].EventTypeId := UDINT#16#0108;
                             Emissions[EmissionCount].RunId := StateRunId;
                             Emissions[EmissionCount].SourceId := SourceId;
                             Emissions[EmissionCount].Seq := ProducedCount;
@@ -403,7 +451,26 @@ IF ExecuteEdge THEN
                     RunId := StateRunId,
                     Seq := AssignedSeq,
                     SourceTime := EmitSourceTime,
-                    MessageTemplateId := MessageTemplateId);
+                    MessageTemplateId := MessageTemplateId,
+                    HasSeverity := MessageHasSeverity,
+                    Severity := MessageSeverity,
+                    ArgCount := MessageArgCount,
+                    Arg1TypeTag := MessageArg1TypeTag,
+                    Arg1PayloadLength := MessageArg1PayloadLength,
+                    Arg1Bits := MessageArg1Bits,
+                    Arg1String := MessageArg1String,
+                    Arg2TypeTag := MessageArg2TypeTag,
+                    Arg2PayloadLength := MessageArg2PayloadLength,
+                    Arg2Bits := MessageArg2Bits,
+                    Arg2String := MessageArg2String,
+                    Arg3TypeTag := MessageArg3TypeTag,
+                    Arg3PayloadLength := MessageArg3PayloadLength,
+                    Arg3Bits := MessageArg3Bits,
+                    Arg3String := MessageArg3String,
+                    Arg4TypeTag := MessageArg4TypeTag,
+                    Arg4PayloadLength := MessageArg4PayloadLength,
+                    Arg4Bits := MessageArg4Bits,
+                    Arg4String := MessageArg4String);
                 RingProducer(
                     Execute := TRUE,
                     Record := Encoder.Buffer,
@@ -520,7 +587,7 @@ IF ExecuteEdge THEN
                 END_IF;
             END_IF;
         END_IF;
-    ELSIF (Op = UINT#6) OR (Op = UINT#7) OR (Op = UINT#8) THEN
+    ELSIF (Op = UINT#6) OR (Op = UINT#7) OR (Op = UINT#8) OR (Op = UINT#10) OR (Op = UINT#11) THEN
         ActiveSourceId := SourceId;
         IF ActiveSourceId = UDINT#0 THEN
             ActiveSourceId := UDINT#1;
@@ -592,6 +659,68 @@ IF ExecuteEdge THEN
                     IntValueStates[StateIndex].Used := TRUE;
                     IntValueStates[StateIndex].ValueId := ValueId;
                     IntValueStates[StateIndex].HasLast := FALSE;
+                    ShouldEmit := TRUE;
+                ELSE
+                    Error := TRUE;
+                END_IF;
+            END_IF;
+        ELSIF Op = UINT#10 THEN
+            IF (ValueId = UDINT#0) OR ((ValuePayloadLength <> UINT#1) AND (ValuePayloadLength <> UINT#2) AND (ValuePayloadLength <> UINT#4) AND (ValuePayloadLength <> UINT#8)) THEN
+                Error := TRUE;
+            ELSE
+                FOR Index := UINT#0 TO UINT#15 DO
+                    IF BitsValueStates[Index].Used AND (BitsValueStates[Index].ValueId = ValueId) THEN
+                        IF NOT StateFound THEN
+                            StateIndex := Index;
+                            StateFound := TRUE;
+                        END_IF;
+                    ELSIF (NOT StateFound) AND (NOT BitsValueStates[Index].Used) AND (NOT StateFreeFound) THEN
+                        StateIndex := Index;
+                        StateFreeFound := TRUE;
+                    END_IF;
+                END_FOR;
+
+                IF StateFound THEN
+                    IF BitsValueStates[StateIndex].HasLast THEN
+                        ShouldEmit := ValueBits <> BitsValueStates[StateIndex].LastBits;
+                    ELSE
+                        ShouldEmit := TRUE;
+                    END_IF;
+                ELSIF StateFreeFound THEN
+                    BitsValueStates[StateIndex].Used := TRUE;
+                    BitsValueStates[StateIndex].ValueId := ValueId;
+                    BitsValueStates[StateIndex].HasLast := FALSE;
+                    ShouldEmit := TRUE;
+                ELSE
+                    Error := TRUE;
+                END_IF;
+            END_IF;
+        ELSIF Op = UINT#11 THEN
+            IF ValueId = UDINT#0 THEN
+                Error := TRUE;
+            ELSE
+                FOR Index := UINT#0 TO UINT#15 DO
+                    IF StringValueStates[Index].Used AND (StringValueStates[Index].ValueId = ValueId) THEN
+                        IF NOT StateFound THEN
+                            StateIndex := Index;
+                            StateFound := TRUE;
+                        END_IF;
+                    ELSIF (NOT StateFound) AND (NOT StringValueStates[Index].Used) AND (NOT StateFreeFound) THEN
+                        StateIndex := Index;
+                        StateFreeFound := TRUE;
+                    END_IF;
+                END_FOR;
+
+                IF StateFound THEN
+                    IF StringValueStates[StateIndex].HasLast THEN
+                        ShouldEmit := ValueString <> StringValueStates[StateIndex].LastValue;
+                    ELSE
+                        ShouldEmit := TRUE;
+                    END_IF;
+                ELSIF StateFreeFound THEN
+                    StringValueStates[StateIndex].Used := TRUE;
+                    StringValueStates[StateIndex].ValueId := ValueId;
+                    StringValueStates[StateIndex].HasLast := FALSE;
                     ShouldEmit := TRUE;
                 ELSE
                     Error := TRUE;
@@ -679,7 +808,7 @@ IF ExecuteEdge THEN
                         SourceTime := EmitSourceTime,
                         ValueId := ValueId,
                         NewValue := ValueReal,
-                        HasPrevious := RealValueStates[StateIndex].HasLast,
+                        HasPrevious := RealValueStates[StateIndex].HasLast AND (NOT SuppressPrevious),
                         PreviousValue := RealValueStates[StateIndex].LastValue,
                         HasQuality := HasQuality,
                         Quality := Quality);
@@ -711,7 +840,7 @@ IF ExecuteEdge THEN
                         SourceTime := EmitSourceTime,
                         ValueId := ValueId,
                         NewValue := ValueInt,
-                        HasPrevious := IntValueStates[StateIndex].HasLast,
+                        HasPrevious := IntValueStates[StateIndex].HasLast AND (NOT SuppressPrevious),
                         PreviousValue := IntValueStates[StateIndex].LastValue,
                         HasQuality := HasQuality,
                         Quality := Quality);
@@ -727,6 +856,72 @@ IF ExecuteEdge THEN
                         AppendOk := OPENOT_AppendScanRecord(
                             Record := ValueIntEncoder.Buffer,
                             Length := ValueIntEncoder.Length,
+                            ScanRecords := ScanRecords,
+                            ScanRecordOffsets := ScanRecordOffsets,
+                            ScanRecordLengths := ScanRecordLengths,
+                            ScanWritePos := ScanWritePos,
+                            ScanRecordCount := ScanRecordCount);
+                    ELSE
+                        AppendOk := FALSE;
+                    END_IF;
+                ELSIF Op = UINT#10 THEN
+                    ValueBitsEncoder(
+                        SourceId := ActiveSourceId,
+                        RunId := StateRunId,
+                        Seq := AssignedSeq,
+                        SourceTime := EmitSourceTime,
+                        ValueId := ValueId,
+                        TypeTag := ValueTypeTag,
+                        PayloadLength := ValuePayloadLength,
+                        NewBits := ValueBits,
+                        HasPrevious := BitsValueStates[StateIndex].HasLast AND (NOT SuppressPrevious),
+                        PreviousBits := BitsValueStates[StateIndex].LastBits,
+                        HasQuality := HasQuality,
+                        Quality := Quality);
+                    RingProducer(
+                        Execute := TRUE,
+                        Record := ValueBitsEncoder.Buffer,
+                        Length := ValueBitsEncoder.Length,
+                        RunId := StateRunId,
+                        SourceId := ActiveSourceId,
+                        Seq := AssignedSeq);
+
+                    IF RingProducer.Done AND (NOT RingProducer.Error) THEN
+                        AppendOk := OPENOT_AppendScanRecord(
+                            Record := ValueBitsEncoder.Buffer,
+                            Length := ValueBitsEncoder.Length,
+                            ScanRecords := ScanRecords,
+                            ScanRecordOffsets := ScanRecordOffsets,
+                            ScanRecordLengths := ScanRecordLengths,
+                            ScanWritePos := ScanWritePos,
+                            ScanRecordCount := ScanRecordCount);
+                    ELSE
+                        AppendOk := FALSE;
+                    END_IF;
+                ELSIF Op = UINT#11 THEN
+                    ValueStringEncoder(
+                        SourceId := ActiveSourceId,
+                        RunId := StateRunId,
+                        Seq := AssignedSeq,
+                        SourceTime := EmitSourceTime,
+                        ValueId := ValueId,
+                        NewValue := ValueString,
+                        HasPrevious := StringValueStates[StateIndex].HasLast AND (NOT SuppressPrevious),
+                        PreviousValue := StringValueStates[StateIndex].LastValue,
+                        HasQuality := HasQuality,
+                        Quality := Quality);
+                    RingProducer(
+                        Execute := TRUE,
+                        Record := ValueStringEncoder.Buffer,
+                        Length := ValueStringEncoder.Length,
+                        RunId := StateRunId,
+                        SourceId := ActiveSourceId,
+                        Seq := AssignedSeq);
+
+                    IF RingProducer.Done AND (NOT RingProducer.Error) THEN
+                        AppendOk := OPENOT_AppendScanRecord(
+                            Record := ValueStringEncoder.Buffer,
+                            Length := ValueStringEncoder.Length,
                             ScanRecords := ScanRecords,
                             ScanRecordOffsets := ScanRecordOffsets,
                             ScanRecordLengths := ScanRecordLengths,
@@ -788,6 +983,12 @@ IF ExecuteEdge THEN
                     ELSIF Op = UINT#7 THEN
                         IntValueStates[StateIndex].HasLast := TRUE;
                         IntValueStates[StateIndex].LastValue := ValueInt;
+                    ELSIF Op = UINT#10 THEN
+                        BitsValueStates[StateIndex].HasLast := TRUE;
+                        BitsValueStates[StateIndex].LastBits := ValueBits;
+                    ELSIF Op = UINT#11 THEN
+                        StringValueStates[StateIndex].HasLast := TRUE;
+                        StringValueStates[StateIndex].LastValue := ValueString;
                     ELSE
                         StateMachineStates[StateIndex].HasLast := TRUE;
                         StateMachineStates[StateIndex].LastState := NewState;
@@ -834,6 +1035,7 @@ IF ExecuteEdge THEN
                 ConditionStates[StateIndex].Used := TRUE;
                 ConditionStates[StateIndex].ConditionId := ConditionId;
                 ConditionStates[StateIndex].HasLast := FALSE;
+                ConditionStates[StateIndex].CorrelationId := UDINT#0;
                 ShouldEmit := ConditionActive;
             ELSE
                 Error := TRUE;
@@ -886,8 +1088,12 @@ IF ExecuteEdge THEN
                     StateSourceTime := StateSourceTime);
                 IF ConditionActive THEN
                     ConditionEventTypeId := UDINT#16#0200;
+                    ConditionCorrelationId := StateNextConditionCorrelationId;
+                    StateNextConditionCorrelationId := StateNextConditionCorrelationId + UDINT#1;
+                    ConditionStates[StateIndex].CorrelationId := ConditionCorrelationId;
                 ELSE
                     ConditionEventTypeId := UDINT#16#0201;
+                    ConditionCorrelationId := ConditionStates[StateIndex].CorrelationId;
                 END_IF;
 
                 ConditionEncoder(
@@ -898,7 +1104,11 @@ IF ExecuteEdge THEN
                     EventTypeId := ConditionEventTypeId,
                     ConditionId := ConditionId,
                     ConditionClass := ConditionClass,
-                    Severity := Severity);
+                    Severity := Severity,
+                    HasCorrelationId := ConditionCorrelationId <> UDINT#0,
+                    CorrelationId := ConditionCorrelationId,
+                    HasCauseOperand := HasCauseOperand,
+                    CauseOperand := CauseOperand);
                 RingProducer(
                     Execute := TRUE,
                     Record := ConditionEncoder.Buffer,
@@ -1033,7 +1243,7 @@ IF ExecuteEdge THEN
                             Sources[SelectedIndex].NextSeq := ProducedCount + ULINT#1;
                             StatePublishedRecordCount := StatePublishedRecordCount + ULINT#1;
                             IF EmissionCount < UINT#32 THEN
-                                Emissions[EmissionCount].EventTypeId := UDINT#16#80000108;
+                                Emissions[EmissionCount].EventTypeId := UDINT#16#0108;
                                 Emissions[EmissionCount].RunId := StateRunId;
                                 Emissions[EmissionCount].SourceId := Sources[SelectedIndex].SourceId;
                                 Emissions[EmissionCount].Seq := ProducedCount;

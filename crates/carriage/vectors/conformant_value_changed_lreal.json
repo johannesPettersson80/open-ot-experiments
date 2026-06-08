@@ -1,0 +1,28 @@
+{
+  "name": "conformant_value_changed_lreal",
+  "description": "definition-layer positive ValueChanged record carrying an LREAL newValue",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "conformant_value_changed_lreal.hex",
+  "byteCount": 64,
+  "headerLength": 40,
+  "totalRecordLength": 64,
+  "flags": "0x0008",
+  "crc32c": "0xEA01D4F8",
+  "detail": {
+    "eventName": "ValueChanged",
+    "schemaExpected": "accept",
+    "fields": {
+      "sourceTime": 1000000120,
+      "runId": 1,
+      "seq": 13,
+      "sourceId": 66,
+      "eventTypeId": "0x0002"
+    },
+    "slots": [
+      { "key": "0x000D", "type": "UDInt", "name": "valueId", "value": 2011 },
+      { "key": "0x0010", "type": "LReal", "name": "newValue", "value": 12.25 }
+    ]
+  }
+}

@@ -10,9 +10,10 @@ use std::collections::BTreeMap;
 
 use crate::control::ControlBlockSnapshot;
 use crate::registry::{
-    EVENT_DEFINITION_CHANGED, EVENT_LOGGER_STARTED, EVENT_LOGGER_STOPPED, EVENT_SOURCE_HIGH_WATER,
-    KEY_COLD_START, KEY_DEF_HASH_NEW, KEY_DEF_HASH_OLD, KEY_EPOCH_ID, KEY_SOURCE_HIGH_WATER,
-    SYSTEM_SOURCE_ID, TY_BOOL, TY_BYTES, TY_ULINT,
+    EVENT_DEFINITION_CHANGED, EVENT_LOGGER_STARTED, EVENT_LOGGER_STOPPED, EVENT_MESSAGE,
+    EVENT_SOURCE_HIGH_WATER, KEY_COLD_START, KEY_DEF_HASH_NEW, KEY_DEF_HASH_OLD, KEY_EPOCH_ID,
+    KEY_MESSAGE_TEMPLATE_ID, KEY_SOURCE_HIGH_WATER, SYSTEM_SOURCE_ID, TY_BOOL, TY_BYTES, TY_UDINT,
+    TY_ULINT,
 };
 use crate::ring::ReadRecord;
 use crate::ring::{DEFAULT_BUFFER_ID, RingBuffer};
@@ -104,7 +105,14 @@ impl EpochProducer {
             return Err(EpochError::EmissionDuringTransition);
         }
         let seq = self.next_source_seq(source_id);
-        let record = self.record(source_id, seq, event_type_id);
+        let mut record = self.record(source_id, seq, event_type_id);
+        if event_type_id == EVENT_MESSAGE {
+            record.slots.push(Slot::new(
+                KEY_MESSAGE_TEMPLATE_ID,
+                TY_UDINT,
+                0u32.to_le_bytes(),
+            ));
+        }
         self.ring.write_record(&record)?;
         Ok(())
     }

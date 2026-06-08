@@ -7,10 +7,10 @@ This repository is not a conformance test suite for a ratified standard. It is a
 | Area | Evidence |
 | --- | --- |
 | CRC | Known-answer CRC-32C and empty-input tests. |
-| Wire codec | Round trips, CRC rejection, length rejection, padding validation, and byte-exact StateTransition / RecordsDropped vectors. |
+| Wire codec | Round trips, CRC rejection, length rejection, padding validation, and byte-exact StateTransition / RecordsDropped / value / message / condition vectors. |
 | Registry | Event ids, value-key ids, TLV type tags, enum values, severity bands, and experiment delta ids. |
 | Definition hash | Typed definition model, duplicate-key rejection, no-float canonical form, exact canonical-byte fixtures, `contentHash=""` self-exclusion, SHA-256 lowercase hex, and 8-byte digest-order binding. |
-| Definition schema | Conformant positive vector validation, codec-vector schema-negative validation, fixed type per core key, occurrence, order, repeated-contiguous slots, vendor-extension trailing/ascending rules, scalar width/zero-length rules, and max record/slot constraints. |
+| Definition schema | Conformant positive vector validation across the implemented value/message/condition/lifecycle surface, codec-vector schema-negative validation, fixed type per core key, value-payload type checks against `values[].dataType`, occurrence, order, repeated-contiguous slots, vendor-extension trailing/ascending rules, scalar width/zero-length rules, and max record/slot constraints. |
 | Definition resolver | Current vs prior epoch hash selection, prior-definition staleness, drift placeholders, unknown-id placeholders, schema-placeholder preservation, typed field decoding, field names, source names, and enum labels. |
 | Document format | Exact JSON fixtures for resolved events, private extension fields, schema/drift/stale-prior/unknown-id placeholders, and authoritative/inferred loss ranges. |
 | Ring behavior | Keep-up reads, wrap markers, raw byte walking, lapped reconnects, and stale-cursor recovery. |
@@ -18,7 +18,7 @@ This repository is not a conformance test suite for a ratified standard. It is a
 | Epoch handling | Warm definition change keeps `RunId` stable and source `Seq` continuous; cold start increments `RunId` and resets source `Seq`. |
 | Concurrency | Real-thread stress plus loom runs for accepted-record safety and documented model-checker limits. |
 | Fault injection | Forced wrap boundary, reconnect after overwrite, torn record rejection, and clock rollback with sequence-preserved ordering. |
-| Typed event encoders | Byte-exact `ValueChanged` (REAL / DINT) and `StateTransition` vectors. |
+| Typed event encoders | Byte-exact `ValueChanged` vectors for the supported value matrix (`BOOL`, integer widths, `REAL`, `LREAL`, bounded `STRING`), `Message` with template/arg/severity, `StateTransition`, and active/cleared condition vectors. |
 | Cross-language conformance | ST-emitted record bytes equal the Rust reference vectors, byte for byte (per-record + the S4a multi-record ring composition). |
 | ST reference producer | IEC 61131-3 producer FB + encoder POUs run under the truST runtime (`TestHarness`); per-source seq, checkpoints, cold/warm transitions, and the `ScanRecords` burst. |
 | Attribute authoring | The reactor program (`{attribute 'oot'}` only) lowers to records and a generated definition file; the authoring POU passes. |

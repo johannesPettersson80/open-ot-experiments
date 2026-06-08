@@ -3,11 +3,11 @@ TYPE E_ReactorStep : (Idle := 0, Filling := 1, Mixing := 2, Draining := 3, Done 
 PROGRAM Main
 VAR
     StartCmd : BOOL := TRUE;
-    BatchStarted : BOOL {attribute 'oot' := 'message', 'template' := 'batch started'};
+    BatchStarted : BOOL {attribute 'oot' := 'message', 'template' := 'batch started count', 'severity' := '100', 'arg1' := 'BatchCount'};
     Step : E_ReactorStep {attribute 'oot' := 'state', 'category' := 'process'} := Idle;
     Level : REAL {attribute 'oot' := 'value', 'unit' := 'L', 'deadband' := '0.5'};
     BatchCount : DINT {attribute 'oot' := 'value'};
-    HighPhAlarm : BOOL {attribute 'oot' := 'alarm', 'class' := 'alarm', 'severity' := '900'};
+    HighPhAlarm : BOOL {attribute 'oot' := 'alarm', 'class' := 'alarm', 'severity' := '900', 'cause' := 'Level'};
 END_VAR
 
 CASE Step OF

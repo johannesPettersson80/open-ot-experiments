@@ -9,8 +9,8 @@ use crate::control::ControlBlockSnapshot;
 use crate::epoch::{EpochError, EpochProducer, EpochResolver};
 use crate::loss::LossEvent;
 use crate::registry::{
-    EVENT_DEFINITION_CHANGED, EVENT_LOGGER_STARTED, EVENT_MESSAGE, EVENT_SOURCE_HIGH_WATER,
-    SYSTEM_SOURCE_ID,
+    EVENT_DEFINITION_CHANGED, EVENT_LOGGER_STARTED, EVENT_LOGGER_STOPPED, EVENT_MESSAGE,
+    EVENT_SOURCE_HIGH_WATER, SYSTEM_SOURCE_ID,
 };
 use crate::ring::{DEFAULT_BUFFER_ID, ReadBatch, RingBuffer, RingError};
 
@@ -374,8 +374,8 @@ fn assert_rich_wrap_invariants(
     ensure(CaptureScenario::RichWrap, batch.lapped, "consumer must lap")?;
     let expected_survivors = [
         summary(
-            568,
-            648,
+            624,
+            704,
             1,
             SYSTEM_SOURCE_ID,
             1,
@@ -383,16 +383,16 @@ fn assert_rich_wrap_invariants(
             Some(1),
         ),
         summary(
-            648,
-            700,
+            704,
+            756,
             1,
             SYSTEM_SOURCE_ID,
             2,
             EVENT_LOGGER_STARTED,
             Some(2),
         ),
-        summary(700, 744, 1, 10, 5, EVENT_MESSAGE, Some(2)),
-        summary(768, 812, 1, 20, 4, EVENT_MESSAGE, Some(2)),
+        summary(768, 820, 1, 10, 5, EVENT_MESSAGE, Some(2)),
+        summary(820, 872, 1, 20, 4, EVENT_MESSAGE, Some(2)),
     ];
     ensure_eq(
         CaptureScenario::RichWrap,
@@ -450,10 +450,19 @@ fn assert_lifecycle_survival_invariants(
         "consumer must lap",
     )?;
     let expected_survivors = [
-        summary(88, 144, 1, 21, 1, EVENT_SOURCE_HIGH_WATER, Some(1)),
         summary(
-            144,
-            224,
+            52,
+            96,
+            1,
+            SYSTEM_SOURCE_ID,
+            0,
+            EVENT_LOGGER_STOPPED,
+            Some(1),
+        ),
+        summary(96, 152, 1, 21, 1, EVENT_SOURCE_HIGH_WATER, Some(1)),
+        summary(
+            152,
+            232,
             1,
             SYSTEM_SOURCE_ID,
             1,
@@ -508,13 +517,13 @@ fn assert_lifecycle_survival_invariants(
     ensure_eq_u64(
         CaptureScenario::LifecycleSurvival,
         consumer.delivered_in_run(1, SYSTEM_SOURCE_ID),
-        2,
+        3,
         "system delivered",
     )?;
     ensure_eq_u64(
         CaptureScenario::LifecycleSurvival,
         consumer.lost_in_run(1, SYSTEM_SOURCE_ID),
-        1,
+        0,
         "system lost",
     )?;
     Ok(())
@@ -590,8 +599,8 @@ mod tests {
     #[test]
     fn s4a_rich_wrap_reference_validates_itself() {
         let reference = reference_capture(CaptureScenario::RichWrap).unwrap();
-        assert_eq!(reference.control.head_abs, 812);
-        assert_eq!(reference.control.oldest_abs, 568);
+        assert_eq!(reference.control.head_abs, 872);
+        assert_eq!(reference.control.oldest_abs, 624);
         assert_eq!(reference.control.lost_count, 10);
 
         let validation = validate_capture(
@@ -600,7 +609,7 @@ mod tests {
             &reference.control,
         )
         .unwrap();
-        assert_eq!(validation.batch.next_abs, 812);
+        assert_eq!(validation.batch.next_abs, 872);
         assert_eq!(validation.survivors.len(), 4);
     }
 
@@ -608,8 +617,8 @@ mod tests {
     fn s4a_lifecycle_survival_reference_validates_itself() {
         let reference = reference_capture(CaptureScenario::LifecycleSurvival).unwrap();
         assert_eq!(reference.control.head_abs, 308);
-        assert_eq!(reference.control.oldest_abs, 88);
-        assert_eq!(reference.control.lost_count, 2);
+        assert_eq!(reference.control.oldest_abs, 52);
+        assert_eq!(reference.control.lost_count, 1);
 
         let validation = validate_capture(
             CaptureScenario::LifecycleSurvival,
@@ -618,7 +627,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(validation.batch.next_abs, 308);
-        assert_eq!(validation.survivors.len(), 3);
+        assert_eq!(validation.survivors.len(), 4);
     }
 
     #[test]

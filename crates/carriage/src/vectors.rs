@@ -13,13 +13,15 @@ use crate::consumer::RawByteConsumer;
 use crate::control::{CONTROL_BLOCK_LEN, ControlBlockSnapshot};
 use crate::loss::{EVENT_RECORDS_DROPPED, records_dropped_record};
 use crate::registry::{
-    EVENT_DEFINITION_CHANGED, EVENT_LOGGER_STARTED, EVENT_LOGGER_STOPPED, EVENT_MESSAGE,
-    EVENT_SOURCE_HIGH_WATER, EVENT_STATE_TRANSITION, EVENT_VALUE_CHANGED, KEY_ARG, KEY_CATEGORY,
-    KEY_COLD_START, KEY_DEF_HASH_NEW, KEY_DEF_HASH_OLD, KEY_DROPPED_COUNT, KEY_EPOCH_ID,
-    KEY_FIRST_LOST_SEQ, KEY_LAST_LOST_SEQ, KEY_MESSAGE_TEMPLATE_ID, KEY_NEW_STATE, KEY_NEW_VALUE,
-    KEY_PREVIOUS_STATE, KEY_PREVIOUS_VALUE, KEY_QUALITY, KEY_SEVERITY, KEY_SOURCE_HIGH_WATER,
-    KEY_STATE_MACHINE_ID, KEY_VALUE_ID, KEY_WINDOW_END, KEY_WINDOW_START, SYSTEM_SOURCE_ID,
-    TY_BOOL, TY_BYTES, TY_DATE_TIME, TY_DINT, TY_REAL, TY_STRING, TY_UDINT, TY_UINT, TY_ULINT,
+    EVENT_CONDITION_ACTIVE, EVENT_CONDITION_CLEARED, EVENT_DEFINITION_CHANGED,
+    EVENT_LOGGER_STARTED, EVENT_LOGGER_STOPPED, EVENT_MESSAGE, EVENT_SOURCE_HIGH_WATER,
+    EVENT_STATE_TRANSITION, EVENT_VALUE_CHANGED, KEY_ARG, KEY_CATEGORY, KEY_CAUSE_OPERAND,
+    KEY_COLD_START, KEY_CONDITION_CLASS, KEY_CONDITION_ID, KEY_CORRELATION_ID, KEY_DEF_HASH_NEW,
+    KEY_DEF_HASH_OLD, KEY_DROPPED_COUNT, KEY_EPOCH_ID, KEY_FIRST_LOST_SEQ, KEY_LAST_LOST_SEQ,
+    KEY_MESSAGE_TEMPLATE_ID, KEY_NEW_STATE, KEY_NEW_VALUE, KEY_PREVIOUS_STATE, KEY_PREVIOUS_VALUE,
+    KEY_QUALITY, KEY_SEVERITY, KEY_SOURCE_HIGH_WATER, KEY_STATE_MACHINE_ID, KEY_VALUE_ID,
+    KEY_WINDOW_END, KEY_WINDOW_START, SYSTEM_SOURCE_ID, TY_BOOL, TY_BYTES, TY_DATE_TIME, TY_DINT,
+    TY_INT, TY_LINT, TY_LREAL, TY_REAL, TY_SINT, TY_STRING, TY_UDINT, TY_UINT, TY_ULINT, TY_USINT,
 };
 use crate::ring::{LossRange, RingBuffer};
 use crate::wire::{FLAG_HAS_CRC, HEADER_LEN, Record, SYNC, Slot, WireError, decode};
@@ -155,6 +157,226 @@ pub fn generate_files() -> Vec<VectorFile> {
 
     push_record_vector(
         &mut files,
+        "conformant_value_changed_bool",
+        "definition-layer positive ValueChanged record carrying a BOOL newValue",
+        &conformant_value_changed_bool_record(),
+        r#"{
+  "eventName": "ValueChanged",
+  "schemaExpected": "accept",
+  "fields": {
+    "sourceTime": 1000000040,
+    "runId": 1,
+    "seq": 5,
+    "sourceId": 66,
+    "eventTypeId": "0x0002"
+  },
+  "slots": [
+    { "key": "0x000D", "type": "UDInt", "name": "valueId", "value": 2003 },
+    { "key": "0x0010", "type": "Bool", "name": "newValue", "value": true }
+  ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
+        "conformant_value_changed_sint",
+        "definition-layer positive ValueChanged record carrying an SINT newValue",
+        &conformant_value_changed_sint_record(),
+        r#"{
+  "eventName": "ValueChanged",
+  "schemaExpected": "accept",
+  "fields": {
+    "sourceTime": 1000000050,
+    "runId": 1,
+    "seq": 6,
+    "sourceId": 66,
+    "eventTypeId": "0x0002"
+  },
+  "slots": [
+    { "key": "0x000D", "type": "UDInt", "name": "valueId", "value": 2004 },
+    { "key": "0x0010", "type": "SInt", "name": "newValue", "value": -5 }
+  ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
+        "conformant_value_changed_usint",
+        "definition-layer positive ValueChanged record carrying a USINT newValue",
+        &conformant_value_changed_usint_record(),
+        r#"{
+  "eventName": "ValueChanged",
+  "schemaExpected": "accept",
+  "fields": {
+    "sourceTime": 1000000060,
+    "runId": 1,
+    "seq": 7,
+    "sourceId": 66,
+    "eventTypeId": "0x0002"
+  },
+  "slots": [
+    { "key": "0x000D", "type": "UDInt", "name": "valueId", "value": 2005 },
+    { "key": "0x0010", "type": "USInt", "name": "newValue", "value": 250 }
+  ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
+        "conformant_value_changed_int",
+        "definition-layer positive ValueChanged record carrying an INT newValue",
+        &conformant_value_changed_int_record(),
+        r#"{
+  "eventName": "ValueChanged",
+  "schemaExpected": "accept",
+  "fields": {
+    "sourceTime": 1000000070,
+    "runId": 1,
+    "seq": 8,
+    "sourceId": 66,
+    "eventTypeId": "0x0002"
+  },
+  "slots": [
+    { "key": "0x000D", "type": "UDInt", "name": "valueId", "value": 2006 },
+    { "key": "0x0010", "type": "Int", "name": "newValue", "value": -1234 }
+  ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
+        "conformant_value_changed_uint",
+        "definition-layer positive ValueChanged record carrying a UINT newValue",
+        &conformant_value_changed_uint_record(),
+        r#"{
+  "eventName": "ValueChanged",
+  "schemaExpected": "accept",
+  "fields": {
+    "sourceTime": 1000000080,
+    "runId": 1,
+    "seq": 9,
+    "sourceId": 66,
+    "eventTypeId": "0x0002"
+  },
+  "slots": [
+    { "key": "0x000D", "type": "UDInt", "name": "valueId", "value": 2007 },
+    { "key": "0x0010", "type": "UInt", "name": "newValue", "value": 1234 }
+  ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
+        "conformant_value_changed_udint",
+        "definition-layer positive ValueChanged record carrying a UDINT newValue",
+        &conformant_value_changed_udint_record(),
+        r#"{
+  "eventName": "ValueChanged",
+  "schemaExpected": "accept",
+  "fields": {
+    "sourceTime": 1000000090,
+    "runId": 1,
+    "seq": 10,
+    "sourceId": 66,
+    "eventTypeId": "0x0002"
+  },
+  "slots": [
+    { "key": "0x000D", "type": "UDInt", "name": "valueId", "value": 2008 },
+    { "key": "0x0010", "type": "UDInt", "name": "newValue", "value": 123456 }
+  ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
+        "conformant_value_changed_ulint",
+        "definition-layer positive ValueChanged record carrying a ULINT newValue",
+        &conformant_value_changed_ulint_record(),
+        r#"{
+  "eventName": "ValueChanged",
+  "schemaExpected": "accept",
+  "fields": {
+    "sourceTime": 1000000100,
+    "runId": 1,
+    "seq": 11,
+    "sourceId": 66,
+    "eventTypeId": "0x0002"
+  },
+  "slots": [
+    { "key": "0x000D", "type": "UDInt", "name": "valueId", "value": 2009 },
+    { "key": "0x0010", "type": "ULInt", "name": "newValue", "value": 1234567890123 }
+  ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
+        "conformant_value_changed_lint",
+        "definition-layer positive ValueChanged record carrying an LINT newValue",
+        &conformant_value_changed_lint_record(),
+        r#"{
+  "eventName": "ValueChanged",
+  "schemaExpected": "accept",
+  "fields": {
+    "sourceTime": 1000000110,
+    "runId": 1,
+    "seq": 12,
+    "sourceId": 66,
+    "eventTypeId": "0x0002"
+  },
+  "slots": [
+    { "key": "0x000D", "type": "UDInt", "name": "valueId", "value": 2010 },
+    { "key": "0x0010", "type": "LInt", "name": "newValue", "value": -1234567890123 }
+  ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
+        "conformant_value_changed_lreal",
+        "definition-layer positive ValueChanged record carrying an LREAL newValue",
+        &conformant_value_changed_lreal_record(),
+        r#"{
+  "eventName": "ValueChanged",
+  "schemaExpected": "accept",
+  "fields": {
+    "sourceTime": 1000000120,
+    "runId": 1,
+    "seq": 13,
+    "sourceId": 66,
+    "eventTypeId": "0x0002"
+  },
+  "slots": [
+    { "key": "0x000D", "type": "UDInt", "name": "valueId", "value": 2011 },
+    { "key": "0x0010", "type": "LReal", "name": "newValue", "value": 12.25 }
+  ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
+        "conformant_value_changed_string",
+        "definition-layer positive ValueChanged record carrying a STRING newValue",
+        &conformant_value_changed_string_record(),
+        r#"{
+  "eventName": "ValueChanged",
+  "schemaExpected": "accept",
+  "fields": {
+    "sourceTime": 1000000130,
+    "runId": 1,
+    "seq": 14,
+    "sourceId": 66,
+    "eventTypeId": "0x0002"
+  },
+  "slots": [
+    { "key": "0x000D", "type": "UDInt", "name": "valueId", "value": 2012 },
+    { "key": "0x0010", "type": "String", "name": "newValue", "value": "ready" }
+  ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
         "conformant_message",
         "definition-layer positive Message record",
         &conformant_message_record(),
@@ -172,6 +394,56 @@ pub fn generate_files() -> Vec<VectorFile> {
     { "key": "0x0014", "type": "UDInt", "name": "messageTemplateId", "value": 1001 },
     { "key": "0x0015", "type": "String", "name": "arg", "value": "phase ready" },
     { "key": "0x0008", "type": "UInt", "name": "severity", "value": 500 }
+  ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
+        "conformant_condition_active",
+        "definition-layer positive ConditionActive record carrying correlation and cause operand",
+        &conformant_condition_active_record(),
+        r#"{
+  "eventName": "ConditionActive",
+  "schemaExpected": "accept",
+  "fields": {
+    "sourceTime": 1000000140,
+    "runId": 1,
+    "seq": 15,
+    "sourceId": 66,
+    "eventTypeId": "0x0200"
+  },
+  "slots": [
+    { "key": "0x0005", "type": "UDInt", "name": "conditionId", "value": 9001 },
+    { "key": "0x0006", "type": "UInt", "name": "conditionClass", "value": 0 },
+    { "key": "0x0008", "type": "UInt", "name": "severity", "value": 900 },
+    { "key": "0x0007", "type": "UDInt", "name": "correlationId", "value": 77 },
+    { "key": "0x0009", "type": "UDInt", "name": "causeOperand", "value": 1 }
+  ]
+}"#,
+    );
+
+    push_record_vector(
+        &mut files,
+        "conformant_condition_cleared",
+        "definition-layer positive ConditionCleared record echoing correlation and cause operand",
+        &conformant_condition_cleared_record(),
+        r#"{
+  "eventName": "ConditionCleared",
+  "schemaExpected": "accept",
+  "fields": {
+    "sourceTime": 1000000150,
+    "runId": 1,
+    "seq": 16,
+    "sourceId": 66,
+    "eventTypeId": "0x0201"
+  },
+  "slots": [
+    { "key": "0x0005", "type": "UDInt", "name": "conditionId", "value": 9001 },
+    { "key": "0x0006", "type": "UInt", "name": "conditionClass", "value": 0 },
+    { "key": "0x0008", "type": "UInt", "name": "severity", "value": 900 },
+    { "key": "0x0007", "type": "UDInt", "name": "correlationId", "value": 77 },
+    { "key": "0x0009", "type": "UDInt", "name": "causeOperand", "value": 1 }
   ]
 }"#,
     );
@@ -214,7 +486,7 @@ pub fn generate_files() -> Vec<VectorFile> {
     "runId": 1,
     "seq": 5,
     "sourceId": 88,
-    "eventTypeId": "0x80000108"
+    "eventTypeId": "0x0108"
   },
   "slots": [
     { "key": "0x0038", "type": "ULInt", "name": "producedCount", "value": 5 }
@@ -256,7 +528,7 @@ pub fn generate_files() -> Vec<VectorFile> {
     "runId": 1,
     "seq": 5,
     "sourceId": 88,
-    "eventTypeId": "0x80000108"
+    "eventTypeId": "0x0108"
   },
   "slots": [
     { "key": "0x0038", "type": "ULInt", "name": "producedCount", "value": 5 }
@@ -826,6 +1098,116 @@ fn conformant_value_changed_dint_record() -> Record {
     record
 }
 
+fn conformant_value_changed_bool_record() -> Record {
+    let mut record = Record::new(1_000_000_040, 1, 5, 66, EVENT_VALUE_CHANGED);
+    record
+        .slots
+        .push(Slot::new(KEY_VALUE_ID, TY_UDINT, 2003u32.to_le_bytes()));
+    record.slots.push(Slot::new(KEY_NEW_VALUE, TY_BOOL, [1]));
+    record
+}
+
+fn conformant_value_changed_sint_record() -> Record {
+    let mut record = Record::new(1_000_000_050, 1, 6, 66, EVENT_VALUE_CHANGED);
+    record
+        .slots
+        .push(Slot::new(KEY_VALUE_ID, TY_UDINT, 2004u32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_NEW_VALUE, TY_SINT, (-5i8).to_le_bytes()));
+    record
+}
+
+fn conformant_value_changed_usint_record() -> Record {
+    let mut record = Record::new(1_000_000_060, 1, 7, 66, EVENT_VALUE_CHANGED);
+    record
+        .slots
+        .push(Slot::new(KEY_VALUE_ID, TY_UDINT, 2005u32.to_le_bytes()));
+    record.slots.push(Slot::new(KEY_NEW_VALUE, TY_USINT, [250]));
+    record
+}
+
+fn conformant_value_changed_int_record() -> Record {
+    let mut record = Record::new(1_000_000_070, 1, 8, 66, EVENT_VALUE_CHANGED);
+    record
+        .slots
+        .push(Slot::new(KEY_VALUE_ID, TY_UDINT, 2006u32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_NEW_VALUE, TY_INT, (-1234i16).to_le_bytes()));
+    record
+}
+
+fn conformant_value_changed_uint_record() -> Record {
+    let mut record = Record::new(1_000_000_080, 1, 9, 66, EVENT_VALUE_CHANGED);
+    record
+        .slots
+        .push(Slot::new(KEY_VALUE_ID, TY_UDINT, 2007u32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_NEW_VALUE, TY_UINT, 1234u16.to_le_bytes()));
+    record
+}
+
+fn conformant_value_changed_udint_record() -> Record {
+    let mut record = Record::new(1_000_000_090, 1, 10, 66, EVENT_VALUE_CHANGED);
+    record
+        .slots
+        .push(Slot::new(KEY_VALUE_ID, TY_UDINT, 2008u32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_NEW_VALUE, TY_UDINT, 123_456u32.to_le_bytes()));
+    record
+}
+
+fn conformant_value_changed_ulint_record() -> Record {
+    let mut record = Record::new(1_000_000_100, 1, 11, 66, EVENT_VALUE_CHANGED);
+    record
+        .slots
+        .push(Slot::new(KEY_VALUE_ID, TY_UDINT, 2009u32.to_le_bytes()));
+    record.slots.push(Slot::new(
+        KEY_NEW_VALUE,
+        TY_ULINT,
+        1_234_567_890_123u64.to_le_bytes(),
+    ));
+    record
+}
+
+fn conformant_value_changed_lint_record() -> Record {
+    let mut record = Record::new(1_000_000_110, 1, 12, 66, EVENT_VALUE_CHANGED);
+    record
+        .slots
+        .push(Slot::new(KEY_VALUE_ID, TY_UDINT, 2010u32.to_le_bytes()));
+    record.slots.push(Slot::new(
+        KEY_NEW_VALUE,
+        TY_LINT,
+        (-1_234_567_890_123i64).to_le_bytes(),
+    ));
+    record
+}
+
+fn conformant_value_changed_lreal_record() -> Record {
+    let mut record = Record::new(1_000_000_120, 1, 13, 66, EVENT_VALUE_CHANGED);
+    record
+        .slots
+        .push(Slot::new(KEY_VALUE_ID, TY_UDINT, 2011u32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_NEW_VALUE, TY_LREAL, 12.25f64.to_le_bytes()));
+    record
+}
+
+fn conformant_value_changed_string_record() -> Record {
+    let mut record = Record::new(1_000_000_130, 1, 14, 66, EVENT_VALUE_CHANGED);
+    record
+        .slots
+        .push(Slot::new(KEY_VALUE_ID, TY_UDINT, 2012u32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_NEW_VALUE, TY_STRING, b"ready"));
+    record
+}
+
 fn conformant_message_record() -> Record {
     let mut record = Record::new(1_000_000_010, 1, 2, 66, EVENT_MESSAGE);
     record.slots.push(Slot::new(
@@ -839,6 +1221,46 @@ fn conformant_message_record() -> Record {
     record
         .slots
         .push(Slot::new(KEY_SEVERITY, TY_UINT, 500u16.to_le_bytes()));
+    record
+}
+
+fn conformant_condition_active_record() -> Record {
+    let mut record = Record::new(1_000_000_140, 1, 15, 66, EVENT_CONDITION_ACTIVE);
+    record
+        .slots
+        .push(Slot::new(KEY_CONDITION_ID, TY_UDINT, 9001u32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_CONDITION_CLASS, TY_UINT, 0u16.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_SEVERITY, TY_UINT, 900u16.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_CORRELATION_ID, TY_UDINT, 77u32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_CAUSE_OPERAND, TY_UDINT, 1u32.to_le_bytes()));
+    record
+}
+
+fn conformant_condition_cleared_record() -> Record {
+    let mut record = Record::new(1_000_000_150, 1, 16, 66, EVENT_CONDITION_CLEARED);
+    record
+        .slots
+        .push(Slot::new(KEY_CONDITION_ID, TY_UDINT, 9001u32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_CONDITION_CLASS, TY_UINT, 0u16.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_SEVERITY, TY_UINT, 900u16.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_CORRELATION_ID, TY_UDINT, 77u32.to_le_bytes()));
+    record
+        .slots
+        .push(Slot::new(KEY_CAUSE_OPERAND, TY_UDINT, 1u32.to_le_bytes()));
     record
 }
 
@@ -966,7 +1388,19 @@ fn hex_path(stem: &'static str) -> &'static str {
         "conformant_state_transition" => "conformant_state_transition.hex",
         "conformant_value_changed_real" => "conformant_value_changed_real.hex",
         "conformant_value_changed_dint" => "conformant_value_changed_dint.hex",
+        "conformant_value_changed_bool" => "conformant_value_changed_bool.hex",
+        "conformant_value_changed_sint" => "conformant_value_changed_sint.hex",
+        "conformant_value_changed_usint" => "conformant_value_changed_usint.hex",
+        "conformant_value_changed_int" => "conformant_value_changed_int.hex",
+        "conformant_value_changed_uint" => "conformant_value_changed_uint.hex",
+        "conformant_value_changed_udint" => "conformant_value_changed_udint.hex",
+        "conformant_value_changed_ulint" => "conformant_value_changed_ulint.hex",
+        "conformant_value_changed_lint" => "conformant_value_changed_lint.hex",
+        "conformant_value_changed_lreal" => "conformant_value_changed_lreal.hex",
+        "conformant_value_changed_string" => "conformant_value_changed_string.hex",
         "conformant_message" => "conformant_message.hex",
+        "conformant_condition_active" => "conformant_condition_active.hex",
+        "conformant_condition_cleared" => "conformant_condition_cleared.hex",
         "conformant_records_dropped" => "conformant_records_dropped.hex",
         "conformant_source_high_water" => "conformant_source_high_water.hex",
         "records_dropped" => "records_dropped.hex",
@@ -986,7 +1420,19 @@ fn json_path(stem: &'static str) -> &'static str {
         "conformant_state_transition" => "conformant_state_transition.json",
         "conformant_value_changed_real" => "conformant_value_changed_real.json",
         "conformant_value_changed_dint" => "conformant_value_changed_dint.json",
+        "conformant_value_changed_bool" => "conformant_value_changed_bool.json",
+        "conformant_value_changed_sint" => "conformant_value_changed_sint.json",
+        "conformant_value_changed_usint" => "conformant_value_changed_usint.json",
+        "conformant_value_changed_int" => "conformant_value_changed_int.json",
+        "conformant_value_changed_uint" => "conformant_value_changed_uint.json",
+        "conformant_value_changed_udint" => "conformant_value_changed_udint.json",
+        "conformant_value_changed_ulint" => "conformant_value_changed_ulint.json",
+        "conformant_value_changed_lint" => "conformant_value_changed_lint.json",
+        "conformant_value_changed_lreal" => "conformant_value_changed_lreal.json",
+        "conformant_value_changed_string" => "conformant_value_changed_string.json",
         "conformant_message" => "conformant_message.json",
+        "conformant_condition_active" => "conformant_condition_active.json",
+        "conformant_condition_cleared" => "conformant_condition_cleared.json",
         "conformant_records_dropped" => "conformant_records_dropped.json",
         "conformant_source_high_water" => "conformant_source_high_water.json",
         "records_dropped" => "records_dropped.json",
@@ -1068,11 +1514,74 @@ mod tests {
             ],
         );
         assert_slots(
+            &conformant_value_changed_bool_record(),
+            &[(KEY_VALUE_ID, TY_UDINT, 4), (KEY_NEW_VALUE, TY_BOOL, 1)],
+        );
+        assert_slots(
+            &conformant_value_changed_sint_record(),
+            &[(KEY_VALUE_ID, TY_UDINT, 4), (KEY_NEW_VALUE, TY_SINT, 1)],
+        );
+        assert_slots(
+            &conformant_value_changed_usint_record(),
+            &[(KEY_VALUE_ID, TY_UDINT, 4), (KEY_NEW_VALUE, TY_USINT, 1)],
+        );
+        assert_slots(
+            &conformant_value_changed_int_record(),
+            &[(KEY_VALUE_ID, TY_UDINT, 4), (KEY_NEW_VALUE, TY_INT, 2)],
+        );
+        assert_slots(
+            &conformant_value_changed_uint_record(),
+            &[(KEY_VALUE_ID, TY_UDINT, 4), (KEY_NEW_VALUE, TY_UINT, 2)],
+        );
+        assert_slots(
+            &conformant_value_changed_udint_record(),
+            &[(KEY_VALUE_ID, TY_UDINT, 4), (KEY_NEW_VALUE, TY_UDINT, 4)],
+        );
+        assert_slots(
+            &conformant_value_changed_ulint_record(),
+            &[(KEY_VALUE_ID, TY_UDINT, 4), (KEY_NEW_VALUE, TY_ULINT, 8)],
+        );
+        assert_slots(
+            &conformant_value_changed_lint_record(),
+            &[(KEY_VALUE_ID, TY_UDINT, 4), (KEY_NEW_VALUE, TY_LINT, 8)],
+        );
+        assert_slots(
+            &conformant_value_changed_lreal_record(),
+            &[(KEY_VALUE_ID, TY_UDINT, 4), (KEY_NEW_VALUE, TY_LREAL, 8)],
+        );
+        assert_slots(
+            &conformant_value_changed_string_record(),
+            &[
+                (KEY_VALUE_ID, TY_UDINT, 4),
+                (KEY_NEW_VALUE, TY_STRING, "ready".len()),
+            ],
+        );
+        assert_slots(
             &conformant_message_record(),
             &[
                 (KEY_MESSAGE_TEMPLATE_ID, TY_UDINT, 4),
                 (KEY_ARG, TY_STRING, "phase ready".len()),
                 (KEY_SEVERITY, TY_UINT, 2),
+            ],
+        );
+        assert_slots(
+            &conformant_condition_active_record(),
+            &[
+                (KEY_CONDITION_ID, TY_UDINT, 4),
+                (KEY_CONDITION_CLASS, TY_UINT, 2),
+                (KEY_SEVERITY, TY_UINT, 2),
+                (KEY_CORRELATION_ID, TY_UDINT, 4),
+                (KEY_CAUSE_OPERAND, TY_UDINT, 4),
+            ],
+        );
+        assert_slots(
+            &conformant_condition_cleared_record(),
+            &[
+                (KEY_CONDITION_ID, TY_UDINT, 4),
+                (KEY_CONDITION_CLASS, TY_UINT, 2),
+                (KEY_SEVERITY, TY_UINT, 2),
+                (KEY_CORRELATION_ID, TY_UDINT, 4),
+                (KEY_CAUSE_OPERAND, TY_UDINT, 4),
             ],
         );
         assert_slots(

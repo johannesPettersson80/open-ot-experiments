@@ -1,0 +1,28 @@
+{
+  "name": "conformant_value_changed_lint",
+  "description": "definition-layer positive ValueChanged record carrying an LINT newValue",
+  "kind": "record",
+  "encoding": "wire-v2",
+  "expected": "accept",
+  "hexFile": "conformant_value_changed_lint.hex",
+  "byteCount": 64,
+  "headerLength": 40,
+  "totalRecordLength": 64,
+  "flags": "0x0008",
+  "crc32c": "0x814CB69D",
+  "detail": {
+    "eventName": "ValueChanged",
+    "schemaExpected": "accept",
+    "fields": {
+      "sourceTime": 1000000110,
+      "runId": 1,
+      "seq": 12,
+      "sourceId": 66,
+      "eventTypeId": "0x0002"
+    },
+    "slots": [
+      { "key": "0x000D", "type": "UDInt", "name": "valueId", "value": 2010 },
+      { "key": "0x0010", "type": "LInt", "name": "newValue", "value": -1234567890123 }
+    ]
+  }
+}

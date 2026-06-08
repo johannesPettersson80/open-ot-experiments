@@ -12,9 +12,9 @@ use crate::schema::{
 };
 use open_ot_carriage::control::ControlBlockSnapshot;
 use open_ot_carriage::registry::{
-    CATEGORY_VALUES, FieldKind, KEY_CATEGORY, KEY_CONDITION_ID, KEY_MESSAGE_TEMPLATE_ID,
-    KEY_NEW_STATE, KEY_NEW_VALUE, KEY_PREVIOUS_STATE, KEY_PREVIOUS_VALUE, KEY_STATE_MACHINE_ID,
-    KEY_VALUE_ID, SeverityBand, field_spec, severity_band, tlv_type_spec,
+    CATEGORY_VALUES, FieldKind, KEY_CATEGORY, KEY_CAUSE_OPERAND, KEY_CONDITION_ID,
+    KEY_MESSAGE_TEMPLATE_ID, KEY_NEW_STATE, KEY_NEW_VALUE, KEY_PREVIOUS_STATE, KEY_PREVIOUS_VALUE,
+    KEY_STATE_MACHINE_ID, KEY_VALUE_ID, SeverityBand, field_spec, severity_band, tlv_type_spec,
 };
 use open_ot_carriage::wire::{Record, Slot};
 use std::fmt;
@@ -431,6 +431,7 @@ fn resolve_slots(
         value = semantic_value(
             slot.key,
             value,
+            &context,
             definition,
             &mut name,
             &mut type_name,
@@ -554,6 +555,7 @@ impl FieldContext {
 fn semantic_value(
     key: u16,
     value: ResolvedValue,
+    context: &FieldContext,
     definition: &DefinitionFile,
     name: &mut String,
     type_name: &mut String,
@@ -594,6 +596,16 @@ fn semantic_value(
                 *name = "messageTemplate".to_string();
                 *type_name = "MessageTemplateRef".to_string();
                 return ResolvedValue::String(template_format);
+            }
+        }
+        KEY_CAUSE_OPERAND => {
+            if let Some(condition_id) = context.condition_id
+                && let Some(id) = value.as_u32()
+                && let Some(operand_name) = cause_operand_name(condition_id, id, definition)
+            {
+                *name = "causeOperand".to_string();
+                *type_name = "CauseOperandRef".to_string();
+                return ResolvedValue::String(operand_name);
             }
         }
         KEY_PREVIOUS_STATE | KEY_NEW_STATE => {
@@ -699,6 +711,21 @@ fn message_template_format(id: u32, definition: &DefinitionFile) -> Option<Strin
         .map(|template| template.format.clone())
 }
 
+fn cause_operand_name(
+    condition_id: u32,
+    operand_id: u32,
+    definition: &DefinitionFile,
+) -> Option<String> {
+    definition
+        .conditions
+        .iter()
+        .find(|condition| condition.condition_id == condition_id)?
+        .cause_operands
+        .iter()
+        .find(|operand| operand.operand_id == operand_id)
+        .map(|operand| operand.name.clone())
+}
+
 fn resolve_source(source_id: u32, definition: &DefinitionFile) -> Option<ResolvedSource> {
     definition
         .sources
@@ -795,12 +822,13 @@ fn read_u64(bytes: &[u8]) -> u64 {
 mod tests {
     use super::*;
     use crate::hash::compute_content_hash;
-    use crate::model::sample_definition;
+    use crate::model::{CauseOperandDefinition, ConditionDefinition, sample_definition};
     use open_ot_carriage::registry::{
-        KEY_ARG, KEY_CATEGORY, KEY_MESSAGE_TEMPLATE_ID, KEY_NEW_STATE, KEY_PREVIOUS_STATE,
-        KEY_STATE_MACHINE_ID, TY_STRING,
+        EVENT_CONDITION_ACTIVE, KEY_ARG, KEY_CATEGORY, KEY_CAUSE_OPERAND, KEY_CONDITION_CLASS,
+        KEY_CONDITION_ID, KEY_MESSAGE_TEMPLATE_ID, KEY_NEW_STATE, KEY_PREVIOUS_STATE, KEY_SEVERITY,
+        KEY_STATE_MACHINE_ID, TY_STRING, TY_UDINT, TY_UINT,
     };
-    use open_ot_carriage::wire::{Slot, decode};
+    use open_ot_carriage::wire::{Record, Slot, decode};
 
     #[test]
     fn prior_epoch_uses_prev_definition_hash_not_current_hash() {
@@ -882,19 +910,19 @@ mod tests {
         );
         assert_eq!(
             field(&record, KEY_PREVIOUS_STATE).value,
-            ResolvedValue::String("Previous".to_string())
+            ResolvedValue::String("Pausing".to_string())
         );
         assert_eq!(
             field(&record, KEY_PREVIOUS_STATE).enum_label.as_deref(),
-            Some("Previous")
+            Some("Pausing")
         );
         assert_eq!(
             field(&record, KEY_NEW_STATE).value,
-            ResolvedValue::String("Current".to_string())
+            ResolvedValue::String("Paused".to_string())
         );
         assert_eq!(
             field(&record, KEY_NEW_STATE).enum_label.as_deref(),
-            Some("Current")
+            Some("Paused")
         );
     }
 
@@ -921,6 +949,50 @@ mod tests {
         assert_eq!(
             field(&record, KEY_ARG).value,
             ResolvedValue::String("phase ready".to_string())
+        );
+    }
+
+    #[test]
+    fn condition_cause_operand_resolves_against_condition_definition() {
+        let mut definition = sample_definition();
+        definition.conditions.push(ConditionDefinition {
+            condition_id: 9001,
+            name: "HighLevel".to_string(),
+            condition_class: 0,
+            default_severity: 900,
+            cause_operands: vec![CauseOperandDefinition {
+                operand_id: 1,
+                name: "Level".to_string(),
+            }],
+        });
+        let hash = compute_content_hash(&definition).unwrap().carriage_hash;
+        let snapshot = snapshot(hash, [0; 8], 0);
+        let mut record = Record::new(1_000_000_000, 1, 0, 1, EVENT_CONDITION_ACTIVE);
+        record
+            .slots
+            .push(Slot::new(KEY_CONDITION_ID, TY_UDINT, 9001u32.to_le_bytes()));
+        record
+            .slots
+            .push(Slot::new(KEY_CONDITION_CLASS, TY_UINT, 0u16.to_le_bytes()));
+        record
+            .slots
+            .push(Slot::new(KEY_SEVERITY, TY_UINT, 900u16.to_le_bytes()));
+        record
+            .slots
+            .push(Slot::new(KEY_CAUSE_OPERAND, TY_UDINT, 1u32.to_le_bytes()));
+
+        let resolved = resolve_record(&record, 0, &snapshot, &DefinitionSet::current(&definition));
+
+        let Resolution::Resolved(record) = resolved else {
+            panic!("expected resolved condition");
+        };
+        assert_eq!(
+            field(&record, KEY_CAUSE_OPERAND).value,
+            ResolvedValue::String("Level".to_string())
+        );
+        assert_eq!(
+            field(&record, KEY_CAUSE_OPERAND).type_name,
+            "CauseOperandRef"
         );
     }
 

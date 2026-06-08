@@ -4,14 +4,7 @@
 //! [`sample_definition`] builds the positive spine that the hash, schema, and resolver tests
 //! resolve carriage vectors against.
 
-use open_ot_carriage::registry::{
-    EVENT_MESSAGE, EVENT_RECORDS_DROPPED, EVENT_SOURCE_HIGH_WATER, EVENT_STATE_TRANSITION,
-    EVENT_VALUE_CHANGED, KEY_ARG, KEY_CATEGORY, KEY_DROPPED_COUNT, KEY_FIRST_LOST_SEQ,
-    KEY_LAST_LOST_SEQ, KEY_MESSAGE_TEMPLATE_ID, KEY_NEW_STATE, KEY_NEW_VALUE, KEY_PREVIOUS_STATE,
-    KEY_PREVIOUS_VALUE, KEY_QUALITY, KEY_SEVERITY, KEY_SOURCE_HIGH_WATER, KEY_STATE_MACHINE_ID,
-    KEY_VALUE_ID, KEY_WINDOW_END, KEY_WINDOW_START, TY_DATE_TIME, TY_DINT, TY_REAL, TY_STRING,
-    TY_UDINT, TY_UINT, TY_ULINT,
-};
+use open_ot_carriage::registry::*;
 use serde::{Deserialize, Serialize};
 
 /// Hash-bound definition file.
@@ -44,6 +37,21 @@ pub struct DefinitionFile {
     /// Enumeration-set declarations.
     #[serde(default)]
     pub enum_sets: Vec<EnumSetDefinition>,
+    /// Recipe id to human meaning mappings.
+    #[serde(default)]
+    pub recipe_definitions: Vec<RecipeDefinition>,
+    /// Batch id to human meaning mappings.
+    #[serde(default)]
+    pub batch_definitions: Vec<BatchDefinition>,
+    /// Material id to human meaning mappings.
+    #[serde(default)]
+    pub material_definitions: Vec<MaterialDefinition>,
+    /// Operator id to human meaning mappings.
+    #[serde(default)]
+    pub operator_definitions: Vec<OperatorDefinition>,
+    /// Electronic-signature meaning mappings.
+    #[serde(default)]
+    pub e_signature_meanings: Vec<ESignatureMeaningDefinition>,
     /// Severity scale and band thresholds.
     pub severity_scale: SeverityScale,
 }
@@ -281,6 +289,65 @@ pub struct UnitDefinition {
     pub symbol: String,
 }
 
+/// Recipe declaration used by procedural events.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RecipeDefinition {
+    /// Recipe id referenced by records.
+    pub recipe_id: u32,
+    /// Human-facing recipe name.
+    pub name: String,
+    /// Optional recipe version label.
+    pub version: Option<String>,
+}
+
+/// Batch declaration used by procedural events.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct BatchDefinition {
+    /// Batch id referenced by records.
+    pub batch_id: u32,
+    /// Human-facing batch name.
+    pub name: String,
+    /// Optional recipe id this batch instantiates.
+    pub recipe: Option<u32>,
+}
+
+/// Material declaration used by material-addition events.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MaterialDefinition {
+    /// Material id referenced by records.
+    pub material_id: u32,
+    /// Human-facing material name.
+    pub name: String,
+    /// Optional unit id for material quantities.
+    pub unit: Option<u16>,
+}
+
+/// Operator declaration used by regulated/audit events.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OperatorDefinition {
+    /// Stable operator id or account name.
+    pub actor: String,
+    /// Human-facing display name.
+    pub name: String,
+    /// Role labels attached to the operator.
+    #[serde(default)]
+    pub roles: Vec<String>,
+}
+
+/// Electronic-signature meaning declaration.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ESignatureMeaningDefinition {
+    /// Signature-meaning enum value.
+    pub meaning: u16,
+    /// Human-facing meaning label.
+    pub label: String,
+}
+
 /// A named set of enumeration members.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -325,6 +392,221 @@ pub struct SeverityBandDefinition {
     pub max: u16,
 }
 
+/// Maximum record size supported by the IEC producer's staging buffer.
+pub const PRODUCER_MAX_RECORD_SIZE: u16 = 256;
+
+/// Canonical event-type schemas for the complete OpenOT reference vocabulary.
+pub fn canonical_event_types() -> Vec<EventTypeDefinition> {
+    EVENT_SPECS
+        .iter()
+        .map(|spec| canonical_event_type(spec.id).expect("registry event has canonical schema"))
+        .collect()
+}
+
+/// Canonical event-type schema for one event id.
+pub fn canonical_event_type(id: u32) -> Option<EventTypeDefinition> {
+    let slots = match id {
+        EVENT_STATE_TRANSITION => vec![
+            slot(KEY_STATE_MACHINE_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
+            slot(KEY_CATEGORY, TY_UINT, 1, MaxOccurs::Count(1), 2),
+            slot(KEY_PREVIOUS_STATE, TY_UINT, 1, MaxOccurs::Count(1), 3),
+            slot(KEY_NEW_STATE, TY_UINT, 1, MaxOccurs::Count(1), 4),
+        ],
+        EVENT_VALUE_CHANGED => vec![
+            slot(KEY_VALUE_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
+            value_slot(KEY_PREVIOUS_VALUE, 0, MaxOccurs::Count(1), 2),
+            value_slot(KEY_NEW_VALUE, 1, MaxOccurs::Count(1), 3),
+            slot(KEY_QUALITY, TY_UINT, 0, MaxOccurs::Count(1), 4),
+        ],
+        EVENT_MESSAGE => vec![
+            slot(KEY_MESSAGE_TEMPLATE_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
+            value_slot(KEY_ARG, 0, MaxOccurs::Unbounded("unbounded".to_string()), 2),
+            slot(KEY_SEVERITY, TY_UINT, 0, MaxOccurs::Count(1), 3),
+        ],
+        EVENT_HEARTBEAT => vec![
+            slot(KEY_INTERVAL_MS, TY_UDINT, 0, MaxOccurs::Count(1), 1),
+            slot(KEY_SEQ_BASE, TY_ULINT, 0, MaxOccurs::Count(1), 2),
+        ],
+        EVENT_LOGGER_STARTED => {
+            vec![slot(KEY_COLD_START, TY_BOOL, 1, MaxOccurs::Count(1), 1)]
+        }
+        EVENT_LOGGER_STOPPED | EVENT_BUFFER_CLEARED => Vec::new(),
+        EVENT_RECORDS_DROPPED => vec![
+            slot(KEY_DROPPED_COUNT, TY_UDINT, 1, MaxOccurs::Count(1), 1),
+            slot(KEY_FIRST_LOST_SEQ, TY_ULINT, 1, MaxOccurs::Count(1), 2),
+            slot(KEY_LAST_LOST_SEQ, TY_ULINT, 1, MaxOccurs::Count(1), 3),
+            slot(KEY_WINDOW_START, TY_DATE_TIME, 0, MaxOccurs::Count(1), 4),
+            slot(KEY_WINDOW_END, TY_DATE_TIME, 0, MaxOccurs::Count(1), 5),
+        ],
+        EVENT_SOURCE_REGISTERED => vec![
+            slot(
+                KEY_REGISTERED_SOURCE_ID,
+                TY_UDINT,
+                1,
+                MaxOccurs::Count(1),
+                1,
+            ),
+            slot(KEY_SOURCE_PATH, TY_STRING, 0, MaxOccurs::Count(1), 2),
+        ],
+        EVENT_DEFINITION_CHANGED => vec![
+            slot(KEY_DEF_HASH_OLD, TY_BYTES, 1, MaxOccurs::Count(1), 1),
+            slot(KEY_DEF_HASH_NEW, TY_BYTES, 1, MaxOccurs::Count(1), 2),
+            slot(KEY_EPOCH_ID, TY_ULINT, 1, MaxOccurs::Count(1), 3),
+        ],
+        EVENT_TIME_SYNC_CHANGED => vec![
+            slot(KEY_CLOCK_QUALITY, TY_UINT, 1, MaxOccurs::Count(1), 1),
+            slot(KEY_WINDOW_START, TY_DATE_TIME, 0, MaxOccurs::Count(1), 2),
+            slot(KEY_WINDOW_END, TY_DATE_TIME, 0, MaxOccurs::Count(1), 3),
+        ],
+        EVENT_SOURCE_HIGH_WATER => {
+            vec![slot(
+                KEY_SOURCE_HIGH_WATER,
+                TY_ULINT,
+                1,
+                MaxOccurs::Count(1),
+                1,
+            )]
+        }
+        EVENT_CONDITION_ACTIVE | EVENT_CONDITION_CLEARED => condition_slots(true),
+        EVENT_CONDITION_ACKNOWLEDGED | EVENT_CONDITION_CONFIRMED => vec![
+            slot(KEY_CONDITION_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
+            slot(KEY_CORRELATION_ID, TY_UDINT, 0, MaxOccurs::Count(1), 2),
+            slot(KEY_ACK_BY, TY_STRING, 0, MaxOccurs::Count(1), 3),
+            slot(KEY_REASON, TY_STRING, 0, MaxOccurs::Count(1), 4),
+        ],
+        EVENT_CONDITION_SHELVED | EVENT_CONDITION_UNSHELVED => vec![
+            slot(KEY_CONDITION_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
+            slot(KEY_CORRELATION_ID, TY_UDINT, 0, MaxOccurs::Count(1), 2),
+            slot(KEY_SHELVE_SECS, TY_UDINT, 0, MaxOccurs::Count(1), 3),
+            slot(KEY_REASON, TY_STRING, 0, MaxOccurs::Count(1), 4),
+        ],
+        EVENT_CONDITION_SUPPRESSED
+        | EVENT_CONDITION_UNSUPPRESSED
+        | EVENT_CONDITION_OUT_OF_SERVICE
+        | EVENT_CONDITION_IN_SERVICE
+        | EVENT_CONDITION_RESET => vec![
+            slot(KEY_CONDITION_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
+            slot(KEY_CORRELATION_ID, TY_UDINT, 0, MaxOccurs::Count(1), 2),
+            slot(KEY_REASON, TY_STRING, 0, MaxOccurs::Count(1), 3),
+        ],
+        EVENT_CONDITION_COMMENTED => vec![
+            slot(KEY_CONDITION_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
+            slot(KEY_CORRELATION_ID, TY_UDINT, 0, MaxOccurs::Count(1), 2),
+            slot(KEY_COMMENT, TY_STRING, 1, MaxOccurs::Count(1), 3),
+        ],
+        EVENT_CONDITION_PRIORITY_CHANGED => vec![
+            slot(KEY_CONDITION_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
+            slot(KEY_CORRELATION_ID, TY_UDINT, 0, MaxOccurs::Count(1), 2),
+            slot(KEY_PREVIOUS_PRIORITY, TY_UINT, 0, MaxOccurs::Count(1), 3),
+            slot(KEY_NEW_PRIORITY, TY_UINT, 1, MaxOccurs::Count(1), 4),
+        ],
+        EVENT_REFRESH_START | EVENT_REFRESH_END => vec![
+            slot(KEY_REFRESH_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
+            slot(KEY_GROUP_ID, TY_UDINT, 0, MaxOccurs::Count(1), 2),
+        ],
+        EVENT_RECIPE_LOADED | EVENT_RECIPE_APPROVED => vec![
+            slot(KEY_RECIPE_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
+            slot(KEY_RECIPE_VERSION, TY_STRING, 0, MaxOccurs::Count(1), 2),
+            slot(KEY_ACTOR, TY_STRING, 0, MaxOccurs::Count(1), 3),
+        ],
+        EVENT_BATCH_EVENT => vec![
+            slot(KEY_BATCH_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
+            slot(KEY_ACTION_ID, TY_UDINT, 0, MaxOccurs::Count(1), 2),
+            slot(KEY_REASON, TY_STRING, 0, MaxOccurs::Count(1), 3),
+        ],
+        EVENT_MATERIAL_ADDITION => vec![
+            slot(KEY_BATCH_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
+            slot(KEY_MATERIAL_ID, TY_UDINT, 1, MaxOccurs::Count(1), 2),
+            slot(KEY_QUANTITY, TY_LREAL, 1, MaxOccurs::Count(1), 3),
+            slot(KEY_UNIT, TY_UINT, 0, MaxOccurs::Count(1), 4),
+        ],
+        EVENT_OPERATOR_ACTION => vec![
+            slot(KEY_ACTION_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
+            slot(KEY_ACTOR, TY_STRING, 1, MaxOccurs::Count(1), 2),
+            slot(KEY_CONTEXT_REF, TY_UDINT, 0, MaxOccurs::Count(1), 3),
+            slot(KEY_WORKSTATION, TY_STRING, 0, MaxOccurs::Count(1), 4),
+        ],
+        EVENT_OPERATOR_LOGIN | EVENT_OPERATOR_LOGOUT => vec![
+            slot(KEY_ACTOR, TY_STRING, 1, MaxOccurs::Count(1), 1),
+            slot(KEY_WORKSTATION, TY_STRING, 0, MaxOccurs::Count(1), 2),
+        ],
+        EVENT_PARAMETER_CHANGE => vec![
+            slot(KEY_ACTOR, TY_STRING, 1, MaxOccurs::Count(1), 1),
+            slot(KEY_CONTEXT_REF, TY_UDINT, 0, MaxOccurs::Count(1), 2),
+            slot(KEY_VALUE_ID, TY_UDINT, 1, MaxOccurs::Count(1), 3),
+            value_slot(KEY_PREVIOUS_VALUE, 0, MaxOccurs::Count(1), 4),
+            value_slot(KEY_NEW_VALUE, 1, MaxOccurs::Count(1), 5),
+            slot(KEY_REASON, TY_STRING, 0, MaxOccurs::Count(1), 6),
+        ],
+        EVENT_ESIGNATURE => vec![
+            slot(KEY_ACTOR, TY_STRING, 1, MaxOccurs::Count(1), 1),
+            slot(KEY_SIGNATURE_MEANING, TY_UINT, 1, MaxOccurs::Count(1), 2),
+            slot(KEY_SIGNED_EVENT_SEQ, TY_ULINT, 1, MaxOccurs::Count(1), 3),
+            slot(KEY_EFFECTIVE_TIME, TY_DATE_TIME, 0, MaxOccurs::Count(1), 4),
+            slot(KEY_CORRECTION_OF, TY_ULINT, 0, MaxOccurs::Count(1), 5),
+            slot(KEY_WORKSTATION, TY_STRING, 0, MaxOccurs::Count(1), 6),
+        ],
+        EVENT_SECURITY_ACCESS_FAILURE => vec![
+            slot(KEY_ACTOR, TY_STRING, 0, MaxOccurs::Count(1), 1),
+            slot(KEY_AUTH_RESULT, TY_UINT, 1, MaxOccurs::Count(1), 2),
+            slot(KEY_WORKSTATION, TY_STRING, 0, MaxOccurs::Count(1), 3),
+            slot(KEY_REASON, TY_STRING, 0, MaxOccurs::Count(1), 4),
+        ],
+        EVENT_PROGRAM_DOWNLOAD => vec![
+            slot(KEY_PROGRAM_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
+            slot(KEY_ACTOR, TY_STRING, 0, MaxOccurs::Count(1), 2),
+            slot(KEY_DEF_HASH_NEW, TY_BYTES, 0, MaxOccurs::Count(1), 3),
+        ],
+        _ => return None,
+    };
+
+    let spec = event_spec(id)?;
+    Some(EventTypeDefinition {
+        id,
+        name: spec.name.to_string(),
+        profile: match spec.group {
+            EventGroup::Base => "Core".to_string(),
+            EventGroup::System
+            | EventGroup::Condition
+            | EventGroup::Procedural
+            | EventGroup::Regulated => "Full".to_string(),
+        },
+        slots,
+    })
+}
+
+fn condition_slots(include_class_and_severity: bool) -> Vec<SlotDefinition> {
+    let mut slots = vec![slot(KEY_CONDITION_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1)];
+    let mut order = 2;
+    if include_class_and_severity {
+        slots.push(slot(
+            KEY_CONDITION_CLASS,
+            TY_UINT,
+            1,
+            MaxOccurs::Count(1),
+            order,
+        ));
+        order += 1;
+        slots.push(slot(KEY_SEVERITY, TY_UINT, 1, MaxOccurs::Count(1), order));
+        order += 1;
+    }
+    slots.push(slot(
+        KEY_CORRELATION_ID,
+        TY_UDINT,
+        0,
+        MaxOccurs::Count(1),
+        order,
+    ));
+    slots.push(slot(
+        KEY_CAUSE_OPERAND,
+        TY_UDINT,
+        0,
+        MaxOccurs::Unbounded("unbounded".to_string()),
+        order + 1,
+    ));
+    slots
+}
+
 /// A small definition covering the positive record-vector spine.
 pub fn sample_definition() -> DefinitionFile {
     DefinitionFile {
@@ -338,71 +620,14 @@ pub fn sample_definition() -> DefinitionFile {
                 source_high_water: true,
             },
             constraints: DefinitionConstraints {
-                max_record_size: 512,
+                max_record_size: PRODUCER_MAX_RECORD_SIZE,
                 max_slots: 16,
                 overflow_policy: OverflowPolicy::OverwriteOldest,
             },
             epoch_strategy: EpochStrategy::Retain,
             content_hash: String::new(),
         },
-        event_types: vec![
-            EventTypeDefinition {
-                id: EVENT_STATE_TRANSITION,
-                name: "StateTransition".to_string(),
-                profile: "Core".to_string(),
-                slots: vec![
-                    slot(KEY_STATE_MACHINE_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
-                    slot(KEY_CATEGORY, TY_UINT, 1, MaxOccurs::Count(1), 2),
-                    slot(KEY_PREVIOUS_STATE, TY_UINT, 1, MaxOccurs::Count(1), 3),
-                    slot(KEY_NEW_STATE, TY_UINT, 1, MaxOccurs::Count(1), 4),
-                ],
-            },
-            EventTypeDefinition {
-                id: EVENT_VALUE_CHANGED,
-                name: "ValueChanged".to_string(),
-                profile: "Core".to_string(),
-                slots: vec![
-                    slot(KEY_VALUE_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
-                    value_slot(KEY_PREVIOUS_VALUE, 0, MaxOccurs::Count(1), 2),
-                    value_slot(KEY_NEW_VALUE, 1, MaxOccurs::Count(1), 3),
-                    slot(KEY_QUALITY, TY_UINT, 0, MaxOccurs::Count(1), 4),
-                ],
-            },
-            EventTypeDefinition {
-                id: EVENT_MESSAGE,
-                name: "Message".to_string(),
-                profile: "Core".to_string(),
-                slots: vec![
-                    slot(KEY_MESSAGE_TEMPLATE_ID, TY_UDINT, 1, MaxOccurs::Count(1), 1),
-                    value_slot(KEY_ARG, 0, MaxOccurs::Unbounded("unbounded".to_string()), 2),
-                    slot(KEY_SEVERITY, TY_UINT, 0, MaxOccurs::Count(1), 3),
-                ],
-            },
-            EventTypeDefinition {
-                id: EVENT_RECORDS_DROPPED,
-                name: "RecordsDropped".to_string(),
-                profile: "Full".to_string(),
-                slots: vec![
-                    slot(KEY_DROPPED_COUNT, TY_UDINT, 1, MaxOccurs::Count(1), 1),
-                    slot(KEY_FIRST_LOST_SEQ, TY_ULINT, 1, MaxOccurs::Count(1), 2),
-                    slot(KEY_LAST_LOST_SEQ, TY_ULINT, 1, MaxOccurs::Count(1), 3),
-                    slot(KEY_WINDOW_START, TY_DATE_TIME, 0, MaxOccurs::Count(1), 4),
-                    slot(KEY_WINDOW_END, TY_DATE_TIME, 0, MaxOccurs::Count(1), 5),
-                ],
-            },
-            EventTypeDefinition {
-                id: EVENT_SOURCE_HIGH_WATER,
-                name: "SourceHighWater".to_string(),
-                profile: "Full".to_string(),
-                slots: vec![slot(
-                    KEY_SOURCE_HIGH_WATER,
-                    TY_ULINT,
-                    1,
-                    MaxOccurs::Count(1),
-                    1,
-                )],
-            },
-        ],
+        event_types: canonical_event_types(),
         sources: vec![SourceDefinition {
             source_id: 66,
             name: "UnitA.Phase1".to_string(),
@@ -418,10 +643,19 @@ pub fn sample_definition() -> DefinitionFile {
             state_machine_id: 7,
             name: "CoreProcedure".to_string(),
             category: 2,
-            procedural_model: Some("CoreProcedure".to_string()),
+            procedural_model: Some("ISA-88".to_string()),
             enum_set: "CoreProcedureStates".to_string(),
         }],
-        conditions: Vec::new(),
+        conditions: vec![ConditionDefinition {
+            condition_id: 9001,
+            name: "HighPhAlarm".to_string(),
+            condition_class: 0,
+            default_severity: 900,
+            cause_operands: vec![CauseOperandDefinition {
+                operand_id: 1,
+                name: "Level".to_string(),
+            }],
+        }],
         message_templates: vec![MessageTemplateDefinition {
             message_template_id: 1001,
             name: "Status".to_string(),
@@ -450,6 +684,96 @@ pub fn sample_definition() -> DefinitionFile {
                 deadband: None,
                 sampling_policy: Some("on-change".to_string()),
             },
+            ValueDefinition {
+                value_id: 2003,
+                name: "Enabled".to_string(),
+                data_type: TY_BOOL,
+                semantic_role: 0,
+                unit: None,
+                deadband: None,
+                sampling_policy: Some("on-change".to_string()),
+            },
+            ValueDefinition {
+                value_id: 2004,
+                name: "SmallSigned".to_string(),
+                data_type: TY_SINT,
+                semantic_role: 0,
+                unit: None,
+                deadband: None,
+                sampling_policy: Some("on-change".to_string()),
+            },
+            ValueDefinition {
+                value_id: 2005,
+                name: "SmallUnsigned".to_string(),
+                data_type: TY_USINT,
+                semantic_role: 0,
+                unit: None,
+                deadband: None,
+                sampling_policy: Some("on-change".to_string()),
+            },
+            ValueDefinition {
+                value_id: 2006,
+                name: "SignedWord".to_string(),
+                data_type: TY_INT,
+                semantic_role: 0,
+                unit: None,
+                deadband: None,
+                sampling_policy: Some("on-change".to_string()),
+            },
+            ValueDefinition {
+                value_id: 2007,
+                name: "UnsignedWord".to_string(),
+                data_type: TY_UINT,
+                semantic_role: 0,
+                unit: None,
+                deadband: None,
+                sampling_policy: Some("on-change".to_string()),
+            },
+            ValueDefinition {
+                value_id: 2008,
+                name: "UnsignedDoubleWord".to_string(),
+                data_type: TY_UDINT,
+                semantic_role: 0,
+                unit: None,
+                deadband: None,
+                sampling_policy: Some("on-change".to_string()),
+            },
+            ValueDefinition {
+                value_id: 2009,
+                name: "UnsignedLong".to_string(),
+                data_type: TY_ULINT,
+                semantic_role: 0,
+                unit: None,
+                deadband: None,
+                sampling_policy: Some("on-change".to_string()),
+            },
+            ValueDefinition {
+                value_id: 2010,
+                name: "SignedLong".to_string(),
+                data_type: TY_LINT,
+                semantic_role: 0,
+                unit: None,
+                deadband: None,
+                sampling_policy: Some("on-change".to_string()),
+            },
+            ValueDefinition {
+                value_id: 2011,
+                name: "HighPrecision".to_string(),
+                data_type: TY_LREAL,
+                semantic_role: 0,
+                unit: None,
+                deadband: None,
+                sampling_policy: Some("on-change".to_string()),
+            },
+            ValueDefinition {
+                value_id: 2012,
+                name: "StatusText".to_string(),
+                data_type: TY_STRING,
+                semantic_role: 5,
+                unit: None,
+                deadband: None,
+                sampling_policy: Some("on-change".to_string()),
+            },
         ],
         units: Vec::new(),
         enum_sets: vec![EnumSetDefinition {
@@ -457,14 +781,25 @@ pub fn sample_definition() -> DefinitionFile {
             members: vec![
                 EnumMember {
                     value: 3,
-                    label: "Previous".to_string(),
+                    label: "Pausing".to_string(),
                 },
                 EnumMember {
                     value: 4,
-                    label: "Current".to_string(),
+                    label: "Paused".to_string(),
                 },
             ],
         }],
+        recipe_definitions: Vec::new(),
+        batch_definitions: Vec::new(),
+        material_definitions: Vec::new(),
+        operator_definitions: Vec::new(),
+        e_signature_meanings: SIGNATURE_MEANING_VALUES
+            .iter()
+            .map(|meaning| ESignatureMeaningDefinition {
+                meaning: meaning.value,
+                label: meaning.label.to_string(),
+            })
+            .collect(),
         severity_scale: SeverityScale {
             name: "baseline".to_string(),
             low: SeverityBandDefinition { min: 1, max: 332 },
@@ -527,19 +862,20 @@ mod tests {
             .map(|event| event.id)
             .collect::<Vec<_>>();
 
-        assert_eq!(
-            events,
-            vec![
-                EVENT_STATE_TRANSITION,
-                EVENT_VALUE_CHANGED,
-                EVENT_MESSAGE,
-                EVENT_RECORDS_DROPPED,
-                EVENT_SOURCE_HIGH_WATER,
-            ]
-        );
+        assert_eq!(events.len(), EVENT_SPECS.len());
+        assert!(events.contains(&EVENT_STATE_TRANSITION));
+        assert!(events.contains(&EVENT_VALUE_CHANGED));
+        assert!(events.contains(&EVENT_MESSAGE));
+        assert!(events.contains(&EVENT_RECORDS_DROPPED));
+        assert!(events.contains(&EVENT_SOURCE_HIGH_WATER));
         assert_eq!(definition.event_types[0].slots[0].key, KEY_STATE_MACHINE_ID);
         assert_eq!(definition.event_types[0].slots[0].tlv_type, Some(TY_UDINT));
         assert!(definition.event_types[1].slots[2].value_payload);
+        assert_eq!(
+            definition.header.constraints.max_record_size,
+            PRODUCER_MAX_RECORD_SIZE
+        );
+        assert!(!definition.e_signature_meanings.is_empty());
     }
 
     #[test]
