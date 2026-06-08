@@ -166,6 +166,19 @@ native-backend rewrite before the reference is useful. *Out of scope for this re
 arbitrary declaration forms, FB-local/global authoring expansion, and a backend-native emitter. Those
 can replace the instrumentation later only if they preserve byte-exact records and definition hashes.
 
+### D18 — Multi-PROGRAM routing uses per-program producers serialized by the runtime
+For multiple attributed `PROGRAM` blocks, truST keeps one hidden `OPENOT_Producer`
+per `PROGRAM`; omitted `sourceid` values are assigned deterministically per program
+(`1`, `2`, ...), and explicit cross-program `sourceid` collisions are compile-time
+errors. The runtime accepts a stable `producer_instances = [...]` list and drains those
+producer FBs sequentially into one shared-memory writer/ring each scan. *Why:* this
+preserves the proven per-program lowering and keeps the carriage's single-writer
+contract at the ring boundary. *Rejected:* a global hidden producer instance shared
+across programs (larger lowering rewrite for no carriage-contract gain) and multiple
+concurrent shared-memory writers (violates D5's single-writer publish contract). *Scope:*
+this closes multi-`PROGRAM` routing; `FUNCTION_BLOCK` authoring remains out of scope
+until a separate source-ownership model is specified.
+
 ---
 
 ## Open items / known divergences

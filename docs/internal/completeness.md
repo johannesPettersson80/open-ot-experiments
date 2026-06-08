@@ -95,7 +95,7 @@ assigned-final ids, pending ballot confirmation," not "deferred."
 | # | Item | Now | Complete | Gate |
 |---|---|---|---|---|
 | S1 | Source naming | Source definitions are derived from source-file stem + `PROGRAM` name (for example `Reactor.Main`, path `["Reactor", "Main"]`, hierarchy `["file", "program"]`) instead of `source1`. | Optional plant/equipment binding (`Reactor/R201`, ISA-95 levels) if the WG wants more than compiler-derived identity. | partially implemented; equipment binding deferred |
-| S2 | Multi-source / multi-FB | The carriage and ST producer have per-source sequence/high-water machinery, and the producer can register up to 16 source ids. The truST authoring example/runtime gate still exercises one generated producer instance. | Many OpenOT producer FB instances into one shared ring with correct per-source seq/high-water at scale. | `engineering` |
+| S2 | Multi-source / multi-PROGRAM | The carriage has a synthetic multi-source conformance test; truST now assigns distinct default source ids per attributed `PROGRAM`, rejects cross-program `sourceid` collisions, and drains a configured `producer_instances = [...]` list sequentially into one shared ring with per-source seq/high-water checks. `FUNCTION_BLOCK` authoring remains outside the current reference scope. | Optional future `FUNCTION_BLOCK` authoring/routing model if the WG wants FB-local logging as a first-class source boundary. | implemented for multi-PROGRAM |
 
 ## 7. ID stability & def-file hashing
 

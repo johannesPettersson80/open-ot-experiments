@@ -269,19 +269,17 @@ a definition change (§9.3), **not** program-authored — left to the runtime, n
 
 ---
 
-## 5. Multi-FB (S2) — still an integration decision
+## 5. Multi-PROGRAM (S2) — routed through one runtime writer
 
-The carriage is single-writer by construction, but the current truST authoring path still hardcodes a
-single hidden producer instance (`GENERATED_PRODUCER_NAME`). S2 is therefore not closed by vocabulary
-work alone. The safe options to decide before coding are:
+The carriage is single-writer by construction. The implemented truST routing keeps
+one generated `OPENOT_Producer` per attributed `PROGRAM` and lets the runtime drain
+the configured `producer_instances = [...]` list sequentially into one shared-memory
+ring each scan. Omitted `sourceid` values are assigned deterministically per
+`PROGRAM`; explicit collisions between distinct `PROGRAM` sources are rejected.
 
-- one hidden `OPENOT_Producer` + one shared-memory buffer/BCB per writer scope, with the consumer
-  merging by `(source, seq)` across buffers; or
-- one explicit fan-in owner that serializes records from many generated producers into one buffer.
-
-The first option is cleaner for the single-writer carriage contract, but it changes runtime
-configuration/discovery more than today's one-buffer capstone. Keep this as a separate `truST`
-integration slice with a clear source-ownership and buffer-routing decision.
+This closes S2 for multi-`PROGRAM` authoring without changing byte geometry or the
+single-writer ring contract. `FUNCTION_BLOCK` authoring remains a separate future
+source-ownership decision.
 
 ---
 

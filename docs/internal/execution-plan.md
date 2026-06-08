@@ -3,7 +3,7 @@
 > **Rev 7 status note (2026-06-07):** this plan is partially executed in the current WIP. The live
 > backlog/status source is [`completeness.md`](completeness.md) §13 plus the open rows in §§1–11.
 > Remaining implementation work is V3 sampling/deadband, A2 full condition lifecycle, E1/E2
-> batch/recipe/operator/regulated authoring, S2 real multi-FB integration, K2 ARM weak-memory evidence,
+> batch/recipe/operator/regulated authoring, S2 real multi-PROGRAM integration, K2 ARM weak-memory evidence,
 > and K3 standalone model-conformance fixtures.
 >
 > **Rev 6** — five Codex passes, converged. Rev 6 (residue): removed the last self-contradicting tag
@@ -173,7 +173,7 @@ wire/authoring slices still need to populate and exercise them.
 | P4-a | [LOCKSTEP] | **Landed in current WIP.** truST emits canonical unit ids from `UNIT_SPECS`, rejects unknown symbols, and enforces category/model semantic checks. |
 | P4-b | **[LOCKSTEP]** | **Landed in current WIP for the source metadata floor.** The generated source name/path/hierarchy derive from file stem + `PROGRAM` name (`Reactor.Main`, `["Reactor","Main"]`, `["file","program"]`). ISA-95 plant/equipment binding remains a future extension. |
 | P4-c1 | [ref] | **S2 synthetic multi-source carriage** — a `conformance`-crate test: many sources into one ring, per-source seq/high-water correct. |
-| P4-c2 | [LOCKSTEP] | **S2 truST multi-FB integration** — many ST FBs into one shared ring (today the authoring path creates **one** hidden producer instance, `openot_authoring.rs:676-680`); prove the real multi-FB path. |
+| P4-c2 | [LOCKSTEP] | **Implemented: S2 truST multi-PROGRAM integration** — multiple generated per-`PROGRAM` producer instances are drained by the runtime into one shared ring; `FUNCTION_BLOCK` authoring remains a future source-ownership decision. |
 | P4-d | [ref] | **K3 model-conformance vectors** — a definition whose enum violates its model → placeholder (depends on P0-e). |
 
 ### Phase 5 — Time & proof (size S–M)
@@ -230,8 +230,8 @@ wire/authoring slices still need to populate and exercise them.
    tweak; interacts with the SourceTime/scan cadence.
 9. **P2-e lifecycle semantics** — ack/shelve/suppress are commands/state, not BOOL edges; the authoring
    model (how a program expresses them) is the hard part, not the encoders.
-10. **P4-c2 multi-FB** — proving many ST FBs into one ring needs the authoring path to instantiate >1
-    producer (today a single hidden instance, `openot_authoring.rs:676-680`).
+10. **P4-c2 multi-PROGRAM** — implemented with per-`PROGRAM` producers drained by the runtime into
+    one shared writer/ring. `FUNCTION_BLOCK` authoring remains deliberately separate.
 11. **Future variable-length payloads** — message args and STRING values are now bounded by the current
     authoring/producer policy (`arg1`…`arg4`, `STRING[96]`). Any new variable-length event family must
     stay under the 256-byte producer cap instead of relying on an unbounded schema maximum.
@@ -260,7 +260,7 @@ wire/authoring slices still need to populate and exercise them.
 |---|---|---|---|---|
 | V1 value types | P1-design, P1-a/b/c, P1-v | | C3 category/model checks | P4-a |
 | V2 previousValue/quality | P1-d-1, P1-d-2 | | S1 source hierarchy | P4-b |
-| V3 deadband/sampling | P1-e-0, P1-e | | S2 multi-source/FB | P4-c1, P4-c2 |
+| V3 deadband/sampling | P1-e-0, P1-e | | S2 multi-source/program | P4-c1, P4-c2 |
 | M1 message args | P2-a | | I-D1 id stability | P0-d |
 | M2 message severity | P2-b (category deferred) | | T1 wall-clock builtin | P5-a |
 | A1 correlation id | P2-c | | L1 lowering mechanism | P5-d |

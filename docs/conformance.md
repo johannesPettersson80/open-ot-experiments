@@ -22,7 +22,7 @@ This repository is not a conformance test suite for a ratified standard. It is a
 | Cross-language conformance | ST-emitted record bytes equal the Rust reference vectors, byte for byte (per-record + the S4a multi-record ring composition). |
 | ST reference producer | IEC 61131-3 producer FB + encoder POUs run under the truST runtime (`TestHarness`); per-source seq, checkpoints, cold/warm transitions, and the `ScanRecords` burst. |
 | Attribute authoring | The reactor program (`{attribute 'oot'}` only) lowers to records and a generated definition file; the authoring POU passes. |
-| Live truST integration | truST executes the ST producer → shared-memory ring → concurrent Rust consumer: data records, the transition burst, multi-record fail-closed, and the typed authoring-showcase render. Green on ARM and x86. |
+| Live truST integration | truST executes the ST producer → shared-memory ring → concurrent Rust consumer: data records, the transition burst, multi-record fail-closed, multi-PROGRAM producer draining, and the typed authoring-showcase render. Green on ARM and x86. |
 | Live concurrency capstone | truST producer → mmap → concurrent consumer on ARM: **fenced** = full reconciliation + `rejected=0` + stale oracle silent; **unfenced** = documented non-reproduction (the weak-memory hole is not reliably forced; correctness rests on the fences, per `spec-feedback.md`). |
 | Fixtures | Generated `.hex` and `.json` vectors under `crates/carriage/vectors/`, checked by the test suite. The `conformant_*` record vectors are the positive definition-layer spine; codec-only vectors marked `schemaExpected: reject` are reserved as schema-violation negatives. |
 
@@ -48,7 +48,7 @@ Fixture bytes are generated from `crates/carriage/src/vectors.rs`. The checked-i
 
 The implementation validates ring-buffer carriage behavior, the definition-file canonical hash preimage, definition schema validation, record resolution, the proposed document-format mapping, the IEC 61131-3 ST reference producer (byte-exact vs the Rust reference), and the **live truST path** — attribute-driven authoring → producer → shared-memory ring → concurrent consumer, proven on ARM. These run from the sibling truST repo as **separate** targets:
 
-- **Live integration / ST-FB authoring path** — `cargo test -p trust-runtime --test openot_telemetry` (heartbeats, real ST-producer records, the transition burst, the typed authoring-showcase render).
+- **Live integration / ST-FB authoring path** — `cargo test -p trust-runtime --test openot_telemetry` (heartbeats, real ST-producer records, the transition burst, multi-PROGRAM producer draining, the typed authoring-showcase render).
 - **Fenced ARM capstone** — `cargo test -p trust-runtime --test openot_capstone` (`openot_capstone_fenced_cross_process`: cross-process producer → mmap → concurrent consumer, full reconciliation).
 - **Unfenced contrast** — a diagnostic, `#[ignore]`-gated experiment: `OPENOT_CAPSTONE_RUN_UNFENCED=1 cargo test -p trust-runtime --test openot_capstone openot_capstone_unfenced_contrast -- --ignored`. On the Cortex-A76 it is a documented non-reproduction (see the matrix row above).
 
