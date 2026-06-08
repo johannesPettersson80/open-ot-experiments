@@ -137,7 +137,7 @@ is reconciled until the WG accepts it.
 |---|---|---|---|---|
 | K1 | Vector breadth | Byte-exact vectors cover the current implemented record surface: the full V1 value matrix, `Message` template/arg/severity, `ConditionActive`/`ConditionCleared` correlation and cause operand, lifecycle/high-water, records-dropped, epoch, capture, and schema-negative cases. | Add vectors as the remaining A2/E1/E2/V3 families land; keep epoch/burst/loss negatives aligned. | implemented for current surface; future event families pending |
 | K2 | Unfenced weak-memory hole | Documented **non-reproduction** on ARM (the hole isn't reliably forced; correctness rests on the fences). | **Either** a litmus that reliably exposes the unfenced bug **or** — if no available platform reproduces it — a strengthened negative-proof harness (N-iteration stress + the loom/fence-hook proof) documented as the closure. Forcing the bug may be infeasible on the available ARM, so this can land as *strengthened evidence*, not necessarily a positive repro. | `engineering` (P5-b) |
-| K3 | Model-conformance vectors | Definition validation and truST diagnostics reject procedural model/state mismatches; `schema.rs` has a negative validator test. No standalone checked fixture/vector exists yet. | A checked model-conformance fixture that asserts C1 at the fixture layer. | `engineering` |
+| K3 | Model-conformance fixtures | Definition validation, truST diagnostics, and committed positive/negative definition fixtures reject procedural model/state mismatches at the fixture layer. | Closed for the current model-conformance contract; keep the fixture paired with any future procedural-model schema changes. | implemented |
 
 ## 12. Transport & productization (out of current scope)
 

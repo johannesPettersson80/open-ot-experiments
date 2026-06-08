@@ -1,0 +1,75 @@
+{
+  "header": {
+    "wireVersion": 2,
+    "semanticVersion": "1.0.0",
+    "profiles": [
+      "Core"
+    ],
+    "conformanceLevel": "Producer-Core",
+    "caps": {
+      "crc": true,
+      "sourceHighWater": true
+    },
+    "constraints": {
+      "maxRecordSize": 256,
+      "maxSlots": 16,
+      "overflowPolicy": "overwrite-oldest"
+    },
+    "epochStrategy": "retain",
+    "contentHash": ""
+  },
+  "eventTypes": [],
+  "sources": [],
+  "stateMachines": [
+    {
+      "stateMachineId": 7,
+      "name": "InvalidProcedure",
+      "category": 2,
+      "proceduralModel": "ISA-88",
+      "enumSet": "InvalidProcedureStates"
+    }
+  ],
+  "conditions": [],
+  "messageTemplates": [],
+  "values": [],
+  "units": [],
+  "enumSets": [
+    {
+      "name": "InvalidProcedureStates",
+      "members": [
+        {
+          "value": 0,
+          "label": "Idle"
+        },
+        {
+          "value": 1,
+          "label": "Filling"
+        },
+        {
+          "value": 2,
+          "label": "Complete"
+        }
+      ]
+    }
+  ],
+  "recipeDefinitions": [],
+  "batchDefinitions": [],
+  "materialDefinitions": [],
+  "operatorDefinitions": [],
+  "eSignatureMeanings": [],
+  "severityScale": {
+    "name": "baseline",
+    "low": {
+      "min": 1,
+      "max": 332
+    },
+    "medium": {
+      "min": 333,
+      "max": 666
+    },
+    "high": {
+      "min": 667,
+      "max": 1000
+    }
+  }
+}

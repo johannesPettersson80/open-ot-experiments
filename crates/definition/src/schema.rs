@@ -684,145 +684,153 @@ mod tests {
         KEY_STATE_MACHINE_ID, TY_DINT, TY_REAL, TY_STRING, TY_UDINT, TY_UINT,
     };
     use open_ot_carriage::wire::{Record, Slot, decode};
+    use std::collections::BTreeSet;
+    use std::fs;
+    use std::path::PathBuf;
+
+    const CONFORMANT_VECTOR_STEMS: &[&str] = &[
+        "conformant_state_transition",
+        "conformant_value_changed_real",
+        "conformant_value_changed_dint",
+        "conformant_value_changed_bool",
+        "conformant_value_changed_sint",
+        "conformant_value_changed_usint",
+        "conformant_value_changed_int",
+        "conformant_value_changed_uint",
+        "conformant_value_changed_udint",
+        "conformant_value_changed_ulint",
+        "conformant_value_changed_lint",
+        "conformant_value_changed_lreal",
+        "conformant_value_changed_string",
+        "conformant_message",
+        "conformant_condition_active",
+        "conformant_condition_cleared",
+        "conformant_condition_acknowledged",
+        "conformant_condition_confirmed",
+        "conformant_condition_shelved",
+        "conformant_condition_unshelved",
+        "conformant_condition_suppressed",
+        "conformant_condition_unsuppressed",
+        "conformant_condition_out_of_service",
+        "conformant_condition_in_service",
+        "conformant_condition_reset",
+        "conformant_condition_commented",
+        "conformant_condition_priority_changed",
+        "conformant_recipe_loaded",
+        "conformant_recipe_approved",
+        "conformant_batch_event",
+        "conformant_material_addition",
+        "conformant_operator_action",
+        "conformant_operator_login",
+        "conformant_operator_logout",
+        "conformant_security_access_failure",
+        "conformant_parameter_change_real",
+        "conformant_parameter_change_dint",
+        "conformant_parameter_change_bool",
+        "conformant_parameter_change_string",
+        "conformant_e_signature",
+        "conformant_records_dropped",
+        "conformant_source_high_water",
+    ];
 
     #[test]
     fn conformant_record_vectors_validate_against_sample_definition() {
-        for bytes in [
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_state_transition.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_value_changed_real.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_value_changed_dint.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_value_changed_bool.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_value_changed_sint.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_value_changed_usint.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_value_changed_int.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_value_changed_uint.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_value_changed_udint.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_value_changed_ulint.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_value_changed_lint.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_value_changed_lreal.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_value_changed_string.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_message.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_condition_active.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_condition_cleared.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_condition_acknowledged.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_condition_confirmed.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_condition_shelved.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_condition_unshelved.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_condition_suppressed.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_condition_unsuppressed.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_condition_out_of_service.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_condition_in_service.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_condition_reset.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_condition_commented.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_condition_priority_changed.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_recipe_loaded.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_recipe_approved.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_batch_event.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_material_addition.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_operator_action.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_operator_login.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_operator_logout.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_security_access_failure.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_parameter_change_real.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_parameter_change_dint.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_parameter_change_bool.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_parameter_change_string.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_e_signature.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_records_dropped.hex"
-            )),
-            hex_bytes(include_str!(
-                "../../carriage/vectors/conformant_source_high_water.hex"
-            )),
-        ] {
+        for stem in CONFORMANT_VECTOR_STEMS {
+            let bytes = read_vector_hex(stem);
             let decoded = decode(&bytes).unwrap();
             assert_eq!(
                 validate_record(&decoded.record, decoded.consumed, &sample_definition()),
                 SchemaValidation::Valid {
                     extension_keys: Vec::new()
-                }
+                },
+                "{stem} should validate against the sample definition"
             );
         }
+    }
+
+    #[test]
+    fn conformant_vector_allowlist_has_hex_json_and_schema_coverage() {
+        let expected = CONFORMANT_VECTOR_STEMS
+            .iter()
+            .copied()
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            expected.len(),
+            CONFORMANT_VECTOR_STEMS.len(),
+            "conformant vector allowlist has duplicate stems"
+        );
+
+        let dir = vector_dir();
+        let mut actual_hex = BTreeSet::new();
+        let mut actual_json = BTreeSet::new();
+        for entry in fs::read_dir(&dir).expect("read vector directory") {
+            let path = entry.expect("vector directory entry").path();
+            let Some(stem) = path.file_stem().and_then(|stem| stem.to_str()) else {
+                continue;
+            };
+            if !stem.starts_with("conformant_") {
+                continue;
+            }
+            match path.extension().and_then(|extension| extension.to_str()) {
+                Some("hex") => {
+                    actual_hex.insert(stem.to_string());
+                }
+                Some("json") => {
+                    actual_json.insert(stem.to_string());
+                }
+                _ => {}
+            }
+        }
+
+        let expected_owned = expected
+            .iter()
+            .map(|stem| (*stem).to_string())
+            .collect::<BTreeSet<_>>();
+        assert_eq!(actual_hex, expected_owned, "conformant .hex coverage drift");
+        assert_eq!(
+            actual_json, expected_owned,
+            "conformant .json coverage drift"
+        );
+
+        for stem in expected {
+            let bytes = read_vector_hex(stem);
+            let decoded = decode(&bytes).unwrap();
+            assert_eq!(
+                validate_record(&decoded.record, decoded.consumed, &sample_definition()),
+                SchemaValidation::Valid {
+                    extension_keys: Vec::new()
+                },
+                "{stem} should have schema coverage"
+            );
+        }
+    }
+
+    #[test]
+    fn procedural_model_fixture_accepts_canonical_states() {
+        let definition: DefinitionFile = serde_json::from_str(include_str!(
+            "../fixtures/procedural_model_states_accepts.json"
+        ))
+        .expect("positive procedural-model fixture parses");
+
+        assert_eq!(validate_definition(&definition), Ok(()));
+    }
+
+    #[test]
+    fn procedural_model_fixture_rejects_noncanonical_state() {
+        let definition: DefinitionFile = serde_json::from_str(include_str!(
+            "../fixtures/procedural_model_states_rejects.json"
+        ))
+        .expect("negative procedural-model fixture parses");
+
+        assert_eq!(
+            validate_definition(&definition),
+            Err(DefinitionSchemaViolation::ProceduralStateMismatch {
+                state_machine_id: 7,
+                model: "ISA-88".to_string(),
+                value: 1,
+                label: "Filling".to_string(),
+            })
+        );
     }
 
     #[test]
@@ -1123,6 +1131,17 @@ mod tests {
             "../../carriage/vectors/conformant_value_changed_real.hex"
         ));
         decode(&bytes).unwrap().record
+    }
+
+    fn read_vector_hex(stem: &str) -> Vec<u8> {
+        let path = vector_dir().join(format!("{stem}.hex"));
+        let input = fs::read_to_string(&path)
+            .unwrap_or_else(|err| panic!("read vector {}: {err}", path.display()));
+        hex_bytes(&input)
+    }
+
+    fn vector_dir() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../carriage/vectors")
     }
 
     fn hex_bytes(input: &str) -> Vec<u8> {
