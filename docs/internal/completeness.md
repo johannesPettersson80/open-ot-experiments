@@ -53,7 +53,7 @@ assigned-final ids, pending ballot confirmation," not "deferred."
 |---|---|---|---|---|
 | V1 | Value types | Byte-exact ST encoders and truST lowering cover `BOOL`, signed/unsigned integer widths, `REAL`, `LREAL`, and bounded `STRING`; consumer/schema validation accepts the datum's TLV type for value-bearing slots. | Keep coverage aligned with any future WG-added value encodings. | implemented against assigned-final TLV set |
 | V2 | `previousValue` / `quality` | `quality`, `semanticRole`, and `previous` are author-controlled. `previous := 'false'` suppresses previous-value emission; quality emits the `quality` slot. | Keep the keys aligned with any future WG vocabulary changes. | implemented against assigned-final keys |
-| V3 | Deadband / sampling | Deadband honored for `REAL` only, strict `>` comparator; every other supported value type is on-change. Generated definitions can describe the current `on-change` / deadband floor, but not periodic or hysteresis behavior. | Integer/scaled deadband, declared sampling policies (periodic, on-change, deadband/hysteresis) per type. | `truST` |
+| V3 | Deadband / sampling | `REAL` deadband, explicit `sampling := 'periodic'` with `interval`, and `sampling := 'hysteresis'` with `deadband` are implemented. Other supported value types remain on-change. Generated definitions encode the policy in `values[].samplingPolicy` (`on-change`, `deadband`, `periodic:<ms>`, `hysteresis`). | Integer/scaled deadband and non-REAL hysteresis if the WG requires those policies beyond `REAL`. | implemented for current `REAL` policies |
 
 > P0-0 resolved the record-size floor: generated definitions declare
 > `maxRecordSize = 256`, matching the IEC producer's staging buffer. Bounded
@@ -71,15 +71,15 @@ assigned-final ids, pending ballot confirmation," not "deferred."
 | # | Item | Now | Complete | Gate |
 |---|---|---|---|---|
 | A1 | Correlation id | `ConditionActive`/`ConditionCleared` carry a `correlationId` minted on the rising edge and echoed on clear. | Keep correlation semantics through future lifecycle records. | implemented |
-| A2 | Full ISA-18.2 lifecycle | Active / Cleared only. | Acknowledge, shelve, suppress, out-of-service, latch/return-to-normal — as attributes + records. | `WG` (vocabulary) |
+| A2 | Full ISA-18.2 lifecycle | Active / Cleared plus the authored lifecycle commands through `priority-changed` are implemented. Activation-scoped commands fail closed without a live correlation id; condition-scoped commands emit without one. | Keep lifecycle event names and scope aligned with any WG ballot changes. | implemented against assigned-final ids, pending ballot confirmation |
 | A3 | Cause operands | One named `cause` operand is registered in `conditions[].causeOperands[]` and emitted as a `causeOperand` slot. Full expression capture is deferred. | Multi-operand/expression capture if required by the WG. | partially implemented; expression capture deferred |
 
 ## 4. Event vocabulary
 
 | # | Item | Now | Complete | Gate |
 |---|---|---|---|---|
-| E1 | Batch / recipe events | Not exposed. | Batch start/end, phase, recipe-step events as attributes. | `WG` |
-| E2 | Operator / regulated events | Not exposed. | Operator action, e-signature / 21 CFR Part 11 audit-trail events. | `WG` |
+| E1 | Batch / recipe events | `batch`, `recipe-loaded`, `recipe-approved`, and `material-addition` attributes emit the §7.4 records. Recipe/batch/material definition tables remain empty; bound ids render numerically. | Named recipe/batch/material definition entries if the WG wants the authoring layer to own those catalogs. | implemented for current §7.4 authoring surface |
+| E2 | Operator / regulated events | `operator-action`, `operator-login`, `operator-logout`, `security-failure`, `e-signature`, and audited values (`ParameterChange`) are exposed as attributes/facets. `ProgramDownload` remains runtime-authored, not program-authored. | Keep enum catalogs and e-signature linkage semantics aligned with WG feedback. | implemented for current §7.5 authoring surface |
 | E3 | Vocabulary ids | `registry.rs` carries the assigned OpenOT reference catalog for base, system, condition lifecycle, procedural/batch, regulated/operator, and core key ranges; code treats these ids as final inside this workbench. | WG ballot confirmation or renumbering feedback. | implemented against assigned-final ids, pending ballot confirmation |
 
 ## 5. Model & semantic conformance
@@ -135,7 +135,7 @@ is reconciled until the WG accepts it.
 
 | # | Item | Now | Complete | Gate |
 |---|---|---|---|---|
-| K1 | Vector breadth | Byte-exact vectors cover the current implemented record surface: the full V1 value matrix, `Message` template/arg/severity, `ConditionActive`/`ConditionCleared` correlation and cause operand, lifecycle/high-water, records-dropped, epoch, capture, and schema-negative cases. | Add vectors as the remaining A2/E1/E2/V3 families land; keep epoch/burst/loss negatives aligned. | implemented for current surface; future event families pending |
+| K1 | Vector breadth | Byte-exact vectors cover the implemented record surface: the full V1 value matrix, `Message` template/arg/severity, condition active/cleared plus lifecycle, batch/recipe, operator/regulated, e-signature, high-water, records-dropped, epoch, capture, and schema-negative cases. | Keep vectors paired with any future WG renumbering or optional-field authoring expansion. | implemented for current surface |
 | K2 | Unfenced weak-memory hole | The unfenced live-harness diagnostic now supports N-iteration stress (`run --mode litmus --unfenced --iterations N`) and reports aggregate stale/rejected evidence or a bounded **non-reproduction, not proof of safety**. | Closed by the strengthened negative-proof branch: fenced loom/fence-hook tests remain the load-bearing proof, and the repeated unfenced harness documents the available-hardware boundary without claiming a guaranteed positive. | implemented |
 | K3 | Model-conformance fixtures | Definition validation, truST diagnostics, and committed positive/negative definition fixtures reject procedural model/state mismatches at the fixture layer. | Closed for the current model-conformance contract; keep the fixture paired with any future procedural-model schema changes. | implemented |
 

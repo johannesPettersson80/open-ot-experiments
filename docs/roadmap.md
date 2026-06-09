@@ -15,7 +15,8 @@ implementation follows from what these experiments establish.
 | Concurrency A/B harness | `live-harness` | Implemented (ARM litmus) |
 | IEC 61131-3 ST reference producer (encoders, producer FB) | `st/iec61131` | Implemented; byte-exact cross-language conformant |
 | **Live truST integration** (ST → shm → concurrent Rust consumer) | truST runtime | Implemented; ARM capstone (fenced green; unfenced non-repro documented) |
-| **Attribute-driven authoring** (`value`/`state`/`alarm`/`message` → records + generated def file) | truST runtime | Implemented — see `examples/reactor` |
+| **Attribute-driven authoring** (base, lifecycle, batch/recipe, operator/regulated, e-signature, audited values → records + generated def file) | truST runtime | Implemented — see `examples/reactor` and `examples/multi-program` |
+| **Multi-PROGRAM source routing** (distinct generated producers drained into one ring) | truST runtime | Implemented for `PROGRAM` blocks; FB-local authoring remains out of scope |
 
 The earlier roadmap listed authoring and controller-language work as "planned / not started" —
 **both are now built and running live.**
@@ -27,8 +28,8 @@ Engineering follow-ups (none blocking the capstone), roughly in priority order:
 1. **Reconcile impl ↔ proposal divergences** — BCB 88 vs 80, the record-header layout, and the
    overwrite check (absolute-offset impl vs seq-space proposal). The impl is the ARM-validated one,
    so the intent is to update the proposal to match it.
-2. **Remaining event vocabulary** — batch/recipe, operator/regulated, and the full condition
-   lifecycle (ack / shelve / suppress) as attributes.
+2. **Optional authoring expansion** — `FUNCTION_BLOCK`-local OpenOT authoring and richer
+   plant/equipment source ownership if the WG wants those as first-class source boundaries.
 3. **Upstream the proposal + reference** — the WG repo's `spec/core.md`, `definition-file.md`, and
    `doc-format.md` are still empty; land the proposal and point at this reference implementation.
 

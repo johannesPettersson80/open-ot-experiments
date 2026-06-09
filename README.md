@@ -20,7 +20,7 @@ inside the truST runtime.
 | Conformance helpers — reconciliation + pluggable stale oracle | [`conformance`](crates/conformance) | Implemented |
 | Concurrency A/B harness — fenced/unfenced, ARM litmus | [`live-harness`](crates/live-harness) | Implemented |
 | IEC 61131-3 ST reference producer — encoders, producer FB, vectors | [`st/iec61131`](st/iec61131) | Implemented, cross-language conformant |
-| Engineer-facing authoring — `{attribute 'oot'}` → records + def file | truST runtime (sibling repo) | Implemented — see [`examples/reactor`](examples/reactor) |
+| Engineer-facing authoring — `{attribute 'oot'}` → records + def file | truST runtime (sibling repo) | Implemented — see [`examples/reactor`](examples/reactor) and [`examples/multi-program`](examples/multi-program) |
 | Canonical registry — event / key / enum / type ids | `carriage::registry` | Provisional tables |
 
 ## What this proves
@@ -28,8 +28,9 @@ inside the truST runtime.
 - **You log by tagging variables, not by writing log calls.** A control program annotates a
   variable — `{attribute 'oot' := 'value', 'unit' := 'L', 'deadband' := '0.5'} Level : REAL;` —
   and the compiler emits id-only OpenOT records plus the hash-bound definition file. The engineer
-  never writes an id. See [`examples/reactor/`](examples/reactor) (`Reactor.st` → `batch-log.json`)
-  and [`docs/authoring-attributes.md`](docs/authoring-attributes.md).
+  never writes an id. See [`examples/reactor/`](examples/reactor) (`Reactor.st` → `batch-log.json`),
+  [`examples/multi-program/`](examples/multi-program), and
+  [`docs/authoring-attributes.md`](docs/authoring-attributes.md).
 - **The whole path runs live.** truST executes the ST program → records into a shared-memory ring
   → a concurrent Rust consumer reads them back on ARM, with provable loss accounting (the capstone).
 - **Completeness needs three signals, not one.** A per-source `Seq` only reveals loss once a
@@ -51,6 +52,7 @@ crates/conformance/   reconciliation + pluggable stale oracle (shared by the har
 crates/live-harness/  fenced/unfenced concurrency A/B (ARM litmus)
 st/iec61131/          vendor-neutral ST reference: encoders, producer FB, conformance tests
 examples/reactor/     attribute-driven logging showcase: Reactor.st + its generated log + def file
+examples/multi-program/ multi-PROGRAM authoring showcase: two generated sources into one ring
 docs/                 contracts, architecture, decisions, conformance, design notes
 ```
 
@@ -61,6 +63,7 @@ docs/                 contracts, architecture, decisions, conformance, design no
 - [`docs/decisions.md`](docs/decisions.md) — why the system is built this way.
 - [`docs/carriage-contract.md`](docs/carriage-contract.md) — the byte-level wire contract.
 - [`examples/reactor/`](examples/reactor) — a worked program and the log it produces.
+- [`examples/multi-program/`](examples/multi-program) — two attributed `PROGRAM` blocks routed to one ring.
 
 ## Quick Start
 

@@ -7,6 +7,7 @@ transport sit around them.
 
 ```
  ENGINEER WRITES                            examples/reactor/Reactor.st
+                                            examples/multi-program/MultiProgram.st
    Level : REAL {attribute 'oot' := 'value', 'unit' := 'L', 'deadband' := '0.5'};
    ...normal control logic; no log calls...
         │
@@ -42,8 +43,10 @@ transport sit around them.
 ## The four stages
 
 **1 — Authoring (truST).** The engineer annotates a variable's *meaning* with
-`{attribute 'oot' := 'value' | 'state' | 'alarm' | 'message', …}` and writes ordinary control
-logic. No log calls, no ids. The truST compiler reads the attributes. → [`authoring-attributes.md`](authoring-attributes.md),
+`{attribute 'oot' := …}` and writes ordinary control logic. The supported
+vocabulary includes values, states, alarms, messages, condition lifecycle,
+batch/recipe events, operator/regulated events, e-signatures, and audited values.
+No log calls, no ids. The truST compiler reads the attributes. → [`authoring-attributes.md`](authoring-attributes.md),
 decisions [D10](decisions.md).
 
 **2 — Carriage (the wire).** The compiler lowers each tagged change to the proven ST producer,
@@ -71,7 +74,13 @@ the open reconciliation items.
 
 ## Try it
 
-`examples/reactor/` is the worked example: [`Reactor.st`](../examples/reactor/Reactor.st) (attributes only) →
-`batch-log.txt` / `batch-log.json` (the produced log) + `openot-definition.json` (the generated
-id→meaning file). The Rust carriage walk-through (`cargo run -p open-ot-carriage --example
+`examples/reactor/` is the single-program worked example: [`Reactor.st`](../examples/reactor/Reactor.st)
+(attributes only) → `batch-log.txt` / `batch-log.json` (the produced log) +
+`openot-definition.json` (the generated id→meaning file).
+
+`examples/multi-program/` shows the multi-source path: two attributed `PROGRAM`
+blocks, two generated `OotProducer` instances, one shared-memory ring drained by
+the runtime through `producer_instances = [...]`.
+
+The Rust carriage walk-through (`cargo run -p open-ot-carriage --example
 end_to_end`) shows produce → overflow → read back → reconcile without the truST runtime.

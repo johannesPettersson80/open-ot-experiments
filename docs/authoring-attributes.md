@@ -456,6 +456,13 @@ Numeric ids are **auto-assigned by declaration order**. The counter increments b
 assignment, so the **first** generated id is `value` 2001, `state` 7001, `alarm` 9001,
 `message` 10001.
 
+When one source file contains multiple attributed `PROGRAM` blocks, omitted
+`sourceid` values are assigned deterministically per program in declaration
+order (`1`, `2`, ...). The generated producers are drained by the truST runtime
+with `producer_instances = ["First.OotProducer", "Second.OotProducer"]`.
+Explicit cross-program `sourceid` collisions are compile errors. See
+[`examples/multi-program/`](../examples/multi-program/) for the source shape.
+
 `condition` lifecycle command variables do not get their own ids. They inherit
 the parent alarm's `conditionId` and `sourceId`; id/source pinning keys are compile
 errors on `oot := 'condition'`.
@@ -511,3 +518,5 @@ batch states. That's how `ValueChanged valueId=2001 new=15.25` becomes
 - [`carriage-contract.md`](carriage-contract.md) — the wire format these lower to.
 - `examples/reactor/openot-definition.json` — a generated definition file.
 - `examples/reactor/Reactor.st` — a worked program using the base authoring kinds.
+- `examples/multi-program/MultiProgram.st` — multiple attributed `PROGRAM`
+  blocks routed into one shared ring.

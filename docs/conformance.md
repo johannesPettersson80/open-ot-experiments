@@ -10,11 +10,13 @@ This repository is not a conformance test suite for a ratified standard. It is a
 | Wire codec | Round trips, CRC rejection, length rejection, padding validation, and byte-exact StateTransition / RecordsDropped / value / message / condition vectors. |
 | Registry | Event ids, value-key ids, TLV type tags, enum values, severity bands, and experiment delta ids. |
 | Definition hash | Typed definition model, duplicate-key rejection, no-float canonical form, exact canonical-byte fixtures, `contentHash=""` self-exclusion, SHA-256 lowercase hex, and 8-byte digest-order binding. |
-| Definition schema | Conformant positive vector validation across the implemented value/message/condition/lifecycle surface, codec-vector schema-negative validation, fixed type per core key, value-payload type checks against `values[].dataType`, occurrence, order, repeated-contiguous slots, vendor-extension trailing/ascending rules, scalar width/zero-length rules, and max record/slot constraints. |
+| Definition schema | Conformant positive vector validation across the implemented value/message/condition/lifecycle/batch/recipe/operator/regulated surface, codec-vector schema-negative validation, fixed type per core key, value-payload type checks against `values[].dataType`, occurrence, order, repeated-contiguous slots, vendor-extension trailing/ascending rules, scalar width/zero-length rules, and max record/slot constraints. |
+| Model conformance fixtures | Committed positive and negative procedural-model definition fixtures prove canonical model states accept and noncanonical states reject with `ProceduralStateMismatch`. |
 | Definition resolver | Current vs prior epoch hash selection, prior-definition staleness, drift placeholders, unknown-id placeholders, schema-placeholder preservation, typed field decoding, field names, source names, and enum labels. |
 | Document format | Exact JSON fixtures for resolved events, private extension fields, schema/drift/stale-prior/unknown-id placeholders, and authoritative/inferred loss ranges. |
 | Ring behavior | Keep-up reads, wrap markers, raw byte walking, lapped reconnects, and stale-cursor recovery. |
 | Loss accounting | Per-source sequence gaps, producer-authoritative RecordsDropped events, overlap union, and inline silent-source high-water accounting. |
+| Multi-source carriage conformance | `open-ot-conformance` exercises one shared concurrent store/ring with a single writer interleaving many sources, checking steady-state per-source seq, lapped loss accounting, stale/order oracle silence, and source-high-water reconciliation for a silent tail. |
 | Epoch handling | Warm definition change keeps `RunId` stable and source `Seq` continuous; cold start increments `RunId` and resets source `Seq`. |
 | Concurrency | Real-thread stress plus loom runs for accepted-record safety and documented model-checker limits. |
 | Fault injection | Forced wrap boundary, reconnect after overwrite, torn record rejection, and clock rollback with sequence-preserved ordering. |
@@ -33,6 +35,11 @@ cargo test
 ```
 
 ```sh
+cargo test -p open-ot-definition
+cargo test -p open-ot-conformance
+```
+
+```sh
 RUSTFLAGS="--cfg loom" cargo test --release
 ```
 
@@ -46,7 +53,7 @@ Fixture bytes are generated from `crates/carriage/src/vectors.rs`. The checked-i
 
 ## Limits Of The Evidence
 
-The implementation validates ring-buffer carriage behavior, the definition-file canonical hash preimage, definition schema validation, record resolution, the proposed document-format mapping, the IEC 61131-3 ST reference producer (byte-exact vs the Rust reference), and the **live truST path** — attribute-driven authoring → producer → shared-memory ring → concurrent consumer, proven on ARM. These run from the sibling truST repo as **separate** targets:
+The implementation validates ring-buffer carriage behavior, multi-source reconciliation, the definition-file canonical hash preimage, definition schema/model validation, record resolution, the proposed document-format mapping, the IEC 61131-3 ST reference producer (byte-exact vs the Rust reference), and the **live truST path** — attribute-driven authoring → producer → shared-memory ring → concurrent consumer, proven on ARM. These run from the sibling truST repo as **separate** targets:
 
 - **Live integration / ST-FB authoring path** — `cargo test -p trust-runtime --test openot_telemetry` (heartbeats, real ST-producer records, the transition burst, multi-PROGRAM producer draining, the typed authoring-showcase render).
 - **Fenced ARM capstone** — `cargo test -p trust-runtime --test openot_capstone` (`openot_capstone_fenced_cross_process`: cross-process producer → mmap → concurrent consumer, full reconciliation).
