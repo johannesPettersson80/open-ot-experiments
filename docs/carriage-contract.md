@@ -86,10 +86,15 @@ The consumer reads a coherent snapshot:
 
 1. Read `SeqLock`; retry if it is odd.
 2. Read fields at offsets 24..87.
-3. Re-read `SeqLock`; retry if it changed.
+3. Execute an Acquire fence, then re-read `SeqLock`; retry if it changed. The fence keeps the field reads before
+   the second `SeqLock` read: an Acquire read orders only what follows it, so without the fence a weakly ordered
+   processor can complete a field read after it and pass a torn snapshot as coherent.
 4. If the saved cursor is below `OldestAbs`, lap to `OldestAbs` and account loss.
 5. Walk raw bytes until `HeadAbs`, following wrap markers and `TotalRecordLength`.
 6. For each candidate record, read bytes, execute an Acquire fence, read a fresh `OldestAbs`, reject if `OldestAbs > record_abs`, then decode and verify CRC.
+   Header bytes that do not read as a record (a wrong sync, an impossible length, a wrap marker at the ring's start)
+   take the same fence and re-check before they count as malformed: a producer lap may have clobbered them after the
+   snapshot, and that is an overwrite, not a record the consumer rejects.
 
 The raw byte walk is the same parse/wrap/overwrite logic used by the ring implementation. The control block changes where `HeadAbs` and `OldestAbs` come from; it does not create a second parser.
 
