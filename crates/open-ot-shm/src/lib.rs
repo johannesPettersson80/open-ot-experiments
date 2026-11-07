@@ -327,7 +327,13 @@ impl ConcurrentStore for SharedConcurrentStore {
             }
 
             let bytes = self.read_control_image(first);
-            let second = self.atomic_u32(OFF_SEQ_LOCK).load(Ordering::Acquire);
+            // The image's loads are relaxed, and an acquire load orders only what follows it, so
+            // without this fence a weakly ordered processor may complete them after the second
+            // sequence load and pass a torn image as coherent. With the writer's release fence
+            // after it makes the sequence odd, a field read from a later update makes the second
+            // load see that update's sequence, and the snapshot is retried.
+            fence(Ordering::Acquire);
+            let second = self.atomic_u32(OFF_SEQ_LOCK).load(Ordering::Relaxed);
             match ControlBlockSnapshot::decode_with_locks(&bytes, first, second) {
                 Ok(snapshot) => return Ok(snapshot),
                 Err(error @ ControlBlockError::Updating { .. })

@@ -251,14 +251,22 @@ fn read_raw_from_store<S: ConcurrentStore>(
         let first = store.load_byte_relaxed(phys);
         if first == 0 {
             if phys == 0 {
-                return Err(RingError::UnexpectedWrapMarker { abs });
+                return Err(header_fault(
+                    store,
+                    abs,
+                    RingError::UnexpectedWrapMarker { abs },
+                ));
             }
             abs += (store.capacity() - phys) as u64;
             continue;
         }
 
         if phys + HEADER_LEN > store.capacity() {
-            return Err(RingError::RecordCrossesBoundary { abs });
+            return Err(header_fault(
+                store,
+                abs,
+                RingError::RecordCrossesBoundary { abs },
+            ));
         }
         let sync = [
             store.load_byte_relaxed(phys),
@@ -267,7 +275,7 @@ fn read_raw_from_store<S: ConcurrentStore>(
             store.load_byte_relaxed(phys + 3),
         ];
         if sync != SYNC {
-            return Err(WireError::WrongSync.into());
+            return Err(header_fault(store, abs, WireError::WrongSync.into()));
         }
 
         let total_len = u16::from_le_bytes([
@@ -275,14 +283,18 @@ fn read_raw_from_store<S: ConcurrentStore>(
             store.load_byte_relaxed(phys + 5),
         ]) as usize;
         if total_len < HEADER_LEN {
-            return Err(WireError::InvalidLength {
+            let fault = WireError::InvalidLength {
                 total_len,
                 available: store.capacity() - phys,
-            }
-            .into());
+            };
+            return Err(header_fault(store, abs, fault.into()));
         }
         if phys + total_len > store.capacity() {
-            return Err(RingError::RecordCrossesBoundary { abs });
+            return Err(header_fault(
+                store,
+                abs,
+                RingError::RecordCrossesBoundary { abs },
+            ));
         }
 
         let mut bytes = Vec::with_capacity(total_len);
@@ -325,6 +337,23 @@ fn read_raw_from_store<S: ConcurrentStore>(
         next_abs: head_abs,
         lapped,
     })
+}
+
+/// The error for bytes at `abs` that do not read as a record header. They may be bytes the producer
+/// clobbered after the snapshot while lapping the consumer, so the reader re-checks `OldestAbs` first,
+/// as it does after a record's body: the acquire fence pairs with the producer's release fence before
+/// it clobbers reclaimed bytes, so a header read from clobbered bytes always finds `OldestAbs` past
+/// `abs`, and is an overwrite that the consumer recovers from by lapping, never a malformed record.
+fn header_fault<S: ConcurrentStore>(store: &S, abs: u64, fault: RingError) -> RingError {
+    store.acquire_before_recheck();
+    match store.read_oldest_after_record() {
+        Ok(oldest_abs) if oldest_abs > abs => RingError::OverwrittenMidRead {
+            read_abs: abs,
+            oldest_abs,
+        },
+        Ok(_) => fault,
+        Err(error) => RingError::ControlBlock(error),
+    }
 }
 
 /// Single writer for a concurrent store: evicts (with a release fence) before clobber,
@@ -821,6 +850,54 @@ mod tests {
         assert_eq!(store.post_record_oldest_reads(), 1);
     }
 
+    /// The producer laps the consumer between its control snapshot and its read of a record header, so
+    /// the bytes it reads at its cursor are no longer a record start: a newer record's middle (wrong
+    /// sync), a length that is not one, a length past the end, or a zero at the ring's start. The reader
+    /// must find the lap in its overwrite recheck and recover as from any overwrite, since a fenced ring
+    /// never hands the consumer a record it rejects. Catches a reader that refused such a header before
+    /// its recheck: the consumer counted the lapped record as rejected by wire validation, or failed;
+    /// and one that re-read OldestAbs without the acquire fence, which on a weakly ordered processor
+    /// may still show the old value.
+    #[test]
+    fn a_header_clobbered_by_a_lap_is_an_overwrite_not_a_rejected_record() {
+        let mut too_short = [0x5A; 64];
+        too_short[..4].copy_from_slice(&SYNC);
+        too_short[4..6].copy_from_slice(&1u16.to_le_bytes());
+        let mut past_the_end = [0x5A; 64];
+        past_the_end[..4].copy_from_slice(&SYNC);
+        past_the_end[4..6].copy_from_slice(&65u16.to_le_bytes());
+        let mut zero_at_start = [0x5A; 64];
+        zero_at_start[0] = 0;
+        for (case, clobbered) in [
+            ("wrong sync", [0x5A; 64]),
+            ("length shorter than a header", too_short),
+            ("length past the ring's end", past_the_end),
+            ("zero at the ring's start", zero_at_start),
+        ] {
+            let store = LappedHeaderStore::new(&clobbered, 32);
+            let mut consumer = ConcurrentRawConsumer::with_store(store.clone());
+
+            let batch = consumer
+                .poll()
+                .unwrap_or_else(|error| panic!("{case}: a lap is recovered, not {error:?}"));
+
+            assert!(batch.records.is_empty(), "{case}");
+            assert!(batch.lapped, "{case}");
+            assert_eq!(
+                consumer.cursor_abs(),
+                32,
+                "{case}: the cursor laps to OldestAbs"
+            );
+            assert_eq!(consumer.overwritten_retries(), 1, "{case}");
+            assert_eq!(consumer.rejected_records(), 0, "{case}");
+            assert_eq!(
+                store.fenced_rechecks(),
+                1,
+                "{case}: OldestAbs is read after the acquire fence"
+            );
+        }
+    }
+
     fn assert_rejects_without_mutation(
         bytes: &[u8],
         capacity: usize,
@@ -1048,6 +1125,92 @@ mod tests {
             self.post_record_oldest_reads
                 .fetch_add(1, Ordering::Release);
             Ok(self.post_record_oldest)
+        }
+    }
+
+    /// A store whose producer lapped the consumer after its control snapshot: the snapshot still retains
+    /// `0..head` from OldestAbs 0, but the bytes are `clobbered` and OldestAbs is now `oldest_after_lap`.
+    #[derive(Debug, Clone)]
+    struct LappedHeaderStore {
+        bytes: Arc<Vec<StdAtomicU8>>,
+        oldest_after_lap: u64,
+        fenced_rechecks: Arc<StdAtomicU64>,
+    }
+
+    impl LappedHeaderStore {
+        fn new(clobbered: &[u8], oldest_after_lap: u64) -> Self {
+            Self {
+                bytes: Arc::new(
+                    clobbered
+                        .iter()
+                        .map(|byte| StdAtomicU8::new(*byte))
+                        .collect(),
+                ),
+                oldest_after_lap,
+                fenced_rechecks: Arc::new(StdAtomicU64::new(0)),
+            }
+        }
+
+        fn fenced_rechecks(&self) -> u64 {
+            self.fenced_rechecks.load(Ordering::Acquire)
+        }
+    }
+
+    impl ConcurrentStore for LappedHeaderStore {
+        fn capacity(&self) -> usize {
+            self.bytes.len()
+        }
+
+        fn load_byte_relaxed(&self, phys: usize) -> u8 {
+            self.bytes[phys].load(Ordering::Relaxed)
+        }
+
+        fn store_byte_relaxed(&self, phys: usize, value: u8) {
+            self.bytes[phys].store(value, Ordering::Relaxed);
+        }
+
+        fn load_head_acquire(&self) -> u64 {
+            self.bytes.len() as u64
+        }
+
+        fn store_head_release(&self, _value: u64) {}
+
+        fn load_oldest_acquire(&self) -> u64 {
+            self.oldest_after_lap
+        }
+
+        fn load_oldest_relaxed(&self) -> u64 {
+            self.oldest_after_lap
+        }
+
+        fn store_oldest_relaxed(&self, _value: u64) {}
+
+        fn fetch_add_lost_release(&self, _value: u64) {}
+
+        fn load_lost_acquire(&self) -> u64 {
+            0
+        }
+
+        fn read_control_snapshot(&self) -> Result<ControlBlockSnapshot, ControlBlockError> {
+            Ok(ControlBlockSnapshot {
+                version: 2,
+                caps: 0,
+                buffer_id: DEFAULT_BUFFER_ID,
+                buffer_bytes: u32::try_from(self.bytes.len()).unwrap(),
+                head_abs: self.bytes.len() as u64,
+                oldest_abs: 0,
+                lost_count: 0,
+                run_id: 0,
+                epoch_id: 0,
+                epoch_first_abs: 0,
+                definition_hash: [0; 8],
+                prev_definition_hash: [0; 8],
+            })
+        }
+
+        fn acquire_before_recheck(&self) {
+            fence(Ordering::Acquire);
+            self.fenced_rechecks.fetch_add(1, Ordering::Release);
         }
     }
 
